@@ -18,7 +18,21 @@ export default function SignIn() {
                  R u OK today?
                 </h1>
         <div className="flex items-center gap-6">
+          <Image
+            src="/smile.png"
+            alt="Smile Logo"
+            width={95}
+            height={95}
+          />
 
+          <div className="w-px h-20 bg-slate-300 dark:bg-slate-600"></div>
+
+          <Image
+            src="/sad.png"
+            alt="Sad Logo"
+            width={90}
+            height={90}
+          />
           
          
           <Image
