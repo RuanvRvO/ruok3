@@ -55,7 +55,21 @@ export default function SignIn() {
           formData.set("flow", flow);
           void signIn("password", formData)
             .catch((error) => {
-              setError(error.message);
+              // Extract the actual error from Convex's error wrapper
+              const errorMessage = error.message;
+
+              // Check for specific authentication errors and show user-friendly messages
+              if (errorMessage.includes("InvalidSecret") || errorMessage.includes("Invalid credentials")) {
+                setError("Incorrect email or password");
+              } else if (errorMessage.includes("InvalidAccountId")) {
+                setError("Account not found");
+              } else if (errorMessage.includes("TooManyFailedAttempts")) {
+                setError("Too many failed attempts. Please try again later");
+              } else {
+                // For any other errors, show a generic message
+                setError("An error occurred. Please try again");
+              }
+
               setLoading(false);
             })
             .then(() => {
