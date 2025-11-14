@@ -28,13 +28,7 @@ export default async function ServerPage() {
             height={48}
             className="dark:hidden"
           />
-          <Image
-            src="/nextjs-icon-dark-background.svg"
-            alt="Next.js Logo"
-            width={48}
-            height={48}
-            className="hidden dark:block"
-          />
+
         </div>
         <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-200">
           Convex + Next.js

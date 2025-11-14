@@ -7,6 +7,18 @@ import { authTables } from "@convex-dev/auth/server";
 // The schema provides more precise TypeScript types.
 export default defineSchema({
   ...authTables,
+  // Extend the users table to include custom profile fields
+  users: defineTable({
+    name: v.optional(v.string()),
+    surname: v.optional(v.string()),
+    organisation: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    image: v.optional(v.string()),
+    isAnonymous: v.optional(v.boolean()),
+  }),
   numbers: defineTable({
     value: v.number(),
   }),

@@ -15,14 +15,14 @@ export default function SignIn() {
     <div className="flex flex-col gap-8 w-full max-w-lg mx-auto h-screen justify-center items-center px-4">
       <div className="text-center flex flex-col items-center gap-4">
                 <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">
-                 R u OK today?
+                 R u OK Website
                 </h1>
         <div className="flex items-center gap-6">
           <Image
             src="/smile.png"
             alt="Smile Logo"
-            width={95}
-            height={95}
+            width={150}
+            height={150}
           />
 
           <div className="w-px h-20 bg-slate-300 dark:bg-slate-600"></div>
@@ -57,6 +57,18 @@ export default function SignIn() {
           setLoading(true);
           setError(null);
           const formData = new FormData(e.target as HTMLFormElement);
+
+          // Check if passwords match during sign up
+          if (flow === "signUp") {
+            const password = formData.get("password") as string;
+            const confirmPassword = formData.get("confirmPassword") as string;
+            if (password !== confirmPassword) {
+              setError("Passwords do not match");
+              setLoading(false);
+              return;
+            }
+          }
+
           formData.set("flow", flow);
           void signIn("password", formData)
             .catch((error) => {
@@ -82,6 +94,33 @@ export default function SignIn() {
             });
         }}
       >
+        {flow === "signUp" && (
+          <input
+            className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
+            type="text"
+            name="name"
+            placeholder="Name"
+            required
+          />
+        )}
+        {flow === "signUp" && (
+          <input
+            className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
+            type="text"
+            name="surname"
+            placeholder="Surname"
+            required
+          />
+        )}
+        {flow === "signUp" && (
+          <input
+            className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
+            type="text"
+            name="organisation"
+            placeholder="Organisation"
+            required
+          />
+        )}
         <input
           className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
           type="email"
@@ -98,6 +137,15 @@ export default function SignIn() {
             minLength={8}
             required
           />
+          {flow === "signUp" && (
+            <input
+              className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
+              type="password"
+              name="confirmPassword"
+              placeholder="Confirm Password"
+              required
+            />
+          )}
           {flow === "signUp" && (
             <p className="text-xs text-slate-500 dark:text-slate-400 px-1">
               Password must be at least 8 characters

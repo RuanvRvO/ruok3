@@ -25,7 +25,7 @@ export const listNumbers = query({
     const userId = await getAuthUserId(ctx);
     const user = userId === null ? null : await ctx.db.get(userId);
     return {
-      viewer: user?.email ?? null,
+      viewer: user?.name ?? user?.email ?? null,
       numbers: numbers.reverse().map((number) => number.value),
     };
   },
