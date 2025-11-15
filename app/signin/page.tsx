@@ -180,6 +180,12 @@ export default function SignIn() {
           </div>
         )}
       </form>
+      <button
+        onClick={() => router.push("/")}
+        className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-sm transition-colors underline underline-offset-2"
+      >
+        ← Back to Homepage
+      </button>
     </div>
   );
 }
