@@ -40,4 +40,16 @@ export default defineSchema({
     .index("by_group", ["groupId"])
     .index("by_employee", ["employeeId"])
     .index("by_group_and_employee", ["groupId", "employeeId"]),
+  moodCheckins: defineTable({
+    employeeId: v.id("employees"),
+    organisation: v.string(),
+    mood: v.union(v.literal("green"), v.literal("amber"), v.literal("red")),
+    note: v.optional(v.string()),
+    timestamp: v.number(),
+    date: v.string(), // YYYY-MM-DD format for easy querying
+  })
+    .index("by_employee", ["employeeId"])
+    .index("by_organisation", ["organisation"])
+    .index("by_date", ["date"])
+    .index("by_organisation_and_date", ["organisation", "date"]),
 });

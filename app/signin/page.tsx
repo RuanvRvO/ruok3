@@ -5,7 +5,7 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -163,7 +163,7 @@ export default function SignIn() {
           type="submit"
           disabled={loading}
         >
-          {loading ? "Loading..." : flow === "signIn" ? "Sign in" : "Sign up"}
+          {loading ? "Loading..." : flow === "signIn" ? "Sign in" : "Create Organisation"}
         </button>
         <div className="flex flex-row gap-2 text-sm justify-center">
           <span className="text-slate-600 dark:text-slate-400">

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalQuery } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 // Query to get all employees for the manager's organization
@@ -93,5 +93,13 @@ export const remove = mutation({
 
     // Now delete the employee
     await ctx.db.delete(args.employeeId);
+  },
+});
+
+// Internal query to get all employees (for sending emails)
+export const listAll = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("employees").collect();
   },
 });

@@ -1,17 +1,20 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import Link from "next/link";
 
 export default function ViewOrganizationPage() {
-  const { viewer, numbers } =
+  const { viewer } =
     useQuery(api.myFunctions.listNumbers, {
       count: 10,
     }) ?? {};
-  const addNumber = useMutation(api.myFunctions.addNumber);
 
-  if (viewer === undefined || numbers === undefined) {
+  const trends = useQuery(api.moodCheckins.getTrends, { days: 7 });
+  const todayCheckins = useQuery(api.moodCheckins.getTodayCheckins);
+
+  const isLoading = trends === undefined || todayCheckins === undefined;
+
+  if (viewer === undefined || isLoading) {
     return (
       <div className="mx-auto">
         <div className="flex items-center gap-2">
@@ -30,138 +33,206 @@ export default function ViewOrganizationPage() {
     );
   }
 
+  // Get today's stats
+  const today = trends[trends.length - 1];
+
   return (
-    <div className="flex flex-col gap-4 max-w-lg mx-auto">
+    <div className="flex flex-col gap-6 max-w-4xl mx-auto">
       <div>
-        <h2 className="font-bold text-xl text-slate-800 dark:text-slate-200">
+        <h2 className="font-bold text-2xl text-slate-800 dark:text-slate-200">
           Welcome {viewer ?? "Anonymous"}!
         </h2>
         <p className="text-slate-600 dark:text-slate-400 mt-2">
-          Here is your organization's dashboard.
+          Here is your organization's wellbeing dashboard.
         </p>
+      </div>
+
+      {/* Today's Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-xl p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-green-700 dark:text-green-300">
+                Feeling Great
+              </p>
+              <p className="text-3xl font-bold text-green-900 dark:text-green-100 mt-2">
+                {today?.green || 0}
+              </p>
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                {today?.greenPercent || 0}% of team
+              </p>
+            </div>
+            <div className="text-4xl">😊</div>
+          </div>
+        </div>
+
+        <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-xl p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                Feeling Okay
+              </p>
+              <p className="text-3xl font-bold text-amber-900 dark:text-amber-100 mt-2">
+                {today?.amber || 0}
+              </p>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                {today?.amberPercent || 0}% of team
+              </p>
+            </div>
+            <div className="text-4xl">😐</div>
+          </div>
+        </div>
+
+        <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-xl p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-red-700 dark:text-red-300">
+                Need Support
+              </p>
+              <p className="text-3xl font-bold text-red-900 dark:text-red-100 mt-2">
+                {today?.red || 0}
+              </p>
+              <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                {today?.redPercent || 0}% of team
+              </p>
+            </div>
+            <div className="text-4xl">😔</div>
+          </div>
+        </div>
       </div>
 
       <div className="h-px bg-slate-200 dark:bg-slate-700"></div>
 
+      {/* 7-Day Trend */}
       <div className="flex flex-col gap-4">
         <h2 className="font-semibold text-xl text-slate-800 dark:text-slate-200">
-          Overall Feel
+          7-Day Mood Trend
         </h2>
         <p className="text-slate-600 dark:text-slate-400 text-sm">
-          This graph tracks the overall feel of your organization over time.
+          Track your organization's wellbeing over the past week.
         </p>
-        <button
-          className="bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 text-white text-sm font-medium px-6 py-3 rounded-lg cursor-pointer transition-all duration-200 shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
-          onClick={() => {
-            void addNumber({ value: Math.floor(Math.random() * 10) });
-          }}
-        >
-          + Generate random number
-        </button>
-        <div className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl p-4 shadow-sm">
-          <p className="font-semibold text-slate-800 dark:text-slate-200 mb-2">
-            Newest Numbers
-          </p>
-          <p className="text-slate-700 dark:text-slate-300 font-mono text-lg">
-            {numbers?.length === 0
-              ? "Click the button to generate a number!"
-              : (numbers?.join(", ") ?? "...")}
-          </p>
+
+        {/* Simple Bar Chart */}
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
+          <div className="space-y-4">
+            {trends.map((day, index) => (
+              <div key={index} className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-slate-700 dark:text-slate-300">
+                    {new Date(day.date).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
+                  <span className="text-slate-500 dark:text-slate-400">
+                    {day.total} responses
+                  </span>
+                </div>
+                {day.total > 0 ? (
+                  <div className="flex h-8 rounded-lg overflow-hidden">
+                    {day.green > 0 && (
+                      <div
+                        className="bg-green-500 flex items-center justify-center text-white text-xs font-semibold"
+                        style={{ width: `${day.greenPercent}%` }}
+                        title={`${day.green} green (${day.greenPercent}%)`}
+                      >
+                        {day.greenPercent > 15 && `${day.green}`}
+                      </div>
+                    )}
+                    {day.amber > 0 && (
+                      <div
+                        className="bg-amber-500 flex items-center justify-center text-white text-xs font-semibold"
+                        style={{ width: `${day.amberPercent}%` }}
+                        title={`${day.amber} amber (${day.amberPercent}%)`}
+                      >
+                        {day.amberPercent > 15 && `${day.amber}`}
+                      </div>
+                    )}
+                    {day.red > 0 && (
+                      <div
+                        className="bg-red-500 flex items-center justify-center text-white text-xs font-semibold"
+                        style={{ width: `${day.redPercent}%` }}
+                        title={`${day.red} red (${day.redPercent}%)`}
+                      >
+                        {day.redPercent > 15 && `${day.red}`}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="h-8 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center justify-center">
+                    <span className="text-xs text-slate-400">No responses</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Legend */}
+          <div className="flex gap-4 mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-green-500 rounded"></div>
+              <span className="text-xs text-slate-600 dark:text-slate-400">
+                Feeling Great
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-amber-500 rounded"></div>
+              <span className="text-xs text-slate-600 dark:text-slate-400">
+                Feeling Okay
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-red-500 rounded"></div>
+              <span className="text-xs text-slate-600 dark:text-slate-400">
+                Need Support
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="h-px bg-slate-200 dark:bg-slate-700"></div>
 
+      {/* Today's Check-ins */}
       <div className="flex flex-col gap-4">
         <h2 className="font-semibold text-xl text-slate-800 dark:text-slate-200">
-          Making changes
+          Today's Check-ins
         </h2>
-        <p className="text-slate-600 dark:text-slate-400 text-sm">
-          Edit{" "}
-          <code className="text-sm font-semibold font-mono bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2 py-1 rounded-md border border-slate-300 dark:border-slate-600">
-            convex/myFunctions.ts
-          </code>{" "}
-          to change the backend.
-        </p>
-        <p className="text-slate-600 dark:text-slate-400 text-sm">
-          Edit{" "}
-          <code className="text-sm font-semibold font-mono bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2 py-1 rounded-md border border-slate-300 dark:border-slate-600">
-            app/manager/view/page.tsx
-          </code>{" "}
-          to change this page.
-        </p>
-        <p className="text-slate-600 dark:text-slate-400 text-sm">
-          See the{" "}
-          <Link
-            href="/server"
-            className="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 font-medium underline decoration-2 underline-offset-2 transition-colors"
-          >
-            /server route
-          </Link>{" "}
-          for an example of loading data in a server component
-        </p>
-      </div>
-
-      <div className="h-px bg-slate-200 dark:bg-slate-700"></div>
-
-      <div className="flex flex-col gap-4">
-        <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">
-          Useful resources
-        </h2>
-        <div className="flex gap-4">
-          <div className="flex flex-col gap-4 w-1/2">
-            <ResourceCard
-              title="Convex docs"
-              description="Read comprehensive documentation for all Convex features."
-              href="https://docs.convex.dev/home"
-            />
-            <ResourceCard
-              title="Stack articles"
-              description="Learn about best practices, use cases, and more from a growing
-            collection of articles, videos, and walkthroughs."
-              href="https://stack.convex.dev"
-            />
+        {todayCheckins.length === 0 ? (
+          <p className="text-slate-500 dark:text-slate-400 text-center py-8">
+            No check-ins yet today.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {todayCheckins.map((checkin: any) => (
+              <div
+                key={checkin._id}
+                className={`p-4 rounded-lg border ${
+                  checkin.mood === "green"
+                    ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
+                    : checkin.mood === "amber"
+                    ? "bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800"
+                    : "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-slate-800 dark:text-slate-200">
+                    {checkin.employeeName}
+                  </span>
+                  <span className="text-2xl">
+                    {checkin.mood === "green" ? "😊" : checkin.mood === "amber" ? "😐" : "😔"}
+                  </span>
+                </div>
+                {checkin.note && (
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
+                    "{checkin.note}"
+                  </p>
+                )}
+              </div>
+            ))}
           </div>
-          <div className="flex flex-col gap-4 w-1/2">
-            <ResourceCard
-              title="Templates"
-              description="Browse our collection of templates to get started quickly."
-              href="https://www.convex.dev/templates"
-            />
-            <ResourceCard
-              title="Discord"
-              description="Join our developer community to ask questions, trade tips & tricks,
-            and show off your projects."
-              href="https://www.convex.dev/community"
-            />
-          </div>
-        </div>
+        )}
       </div>
     </div>
-  );
-}
-
-function ResourceCard({
-  title,
-  description,
-  href,
-}: {
-  title: string;
-  description: string;
-  href: string;
-}) {
-  return (
-    <a
-      href={href}
-      className="flex flex-col gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 p-5 rounded-xl h-36 overflow-auto border border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-[1.02] group cursor-pointer"
-      target="_blank"
-    >
-      <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-slate-100 transition-colors">
-        {title} →
-      </h3>
-      <p className="text-xs text-slate-600 dark:text-slate-400">
-        {description}
-      </p>
-    </a>
   );
 }
