@@ -58,7 +58,7 @@ export default function LandingPage() {
               Sign In
             </Button>
             <Button
-              onClick={() => router.push("/signin")}
+              onClick={() => router.push("/signin?flow=signup")}
               variant="default"
             >
               Get Started
@@ -87,24 +87,6 @@ export default function LandingPage() {
           A simple daily check-in system that helps organizations monitor and
           support their team's mental health and wellbeing.
         </p>
-        <div className="flex gap-4 justify-center">
-          <Button
-            size="lg"
-            onClick={() => router.push("/signin")}
-            variant="default"
-            className="text-lg px-8"
-          >
-            Start Free Trial
-          </Button>
-          <Button
-            size="lg"
-            onClick={() => router.push("/signin")}
-            variant="outline"
-            className="text-lg px-8"
-          >
-            Sign In
-          </Button>
-        </div>
       </section>
 
       {/* How It Works */}
@@ -226,28 +208,10 @@ export default function LandingPage() {
           <h2 className="text-4xl font-bold text-white mb-6">
             Ready to support your team's wellbeing?
           </h2>
-          <p className="text-xl text-blue-100 mb-8">
+          <p className="text-xl text-blue-100">
             Join organizations that prioritize mental health and create a culture
             of care.
           </p>
-          <div className="flex gap-4 justify-center">
-            <Button
-              size="lg"
-              onClick={() => router.push("/signin")}
-              variant="outline"
-              className="bg-white text-blue-600 hover:bg-blue-50 text-lg px-8 border-white"
-            >
-              Get Started Free
-            </Button>
-            <Button
-              size="lg"
-              onClick={() => router.push("/signin")}
-              variant="secondary"
-              className="text-lg px-8"
-            >
-              Sign In
-            </Button>
-          </div>
         </div>
       </section>
 
