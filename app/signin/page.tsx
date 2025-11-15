@@ -4,6 +4,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function SignIn() {
   const { signIn } = useAuthActions();
@@ -180,12 +181,12 @@ export default function SignIn() {
           </div>
         )}
       </form>
-      <button
-        onClick={() => router.push("/")}
+      <Link
+        href="/"
         className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-sm transition-colors underline underline-offset-2"
       >
         ← Back to Homepage
-      </button>
+      </Link>
     </div>
   );
 }

@@ -6,12 +6,51 @@ import Link from "next/link";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 //UI Components
 import { Button } from "@/components/ui/button";
 
 export default function ManagerPage() {
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  const router = useRouter();
   const [activeView, setActiveView] = useState<"view1" | "view2">("view1");
+
+  // Redirect to sign in if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push("/signin");
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-8 w-full h-screen justify-center items-center px-4">
+        <div className="flex items-center gap-6">
+          <Image src="/smile.png" alt="Smile Logo" width={90} height={90} />
+          <div className="w-px h-20 bg-slate-300 dark:bg-slate-600"></div>
+          <Image src="/sad.png" alt="Sad Logo" width={90} height={90} />
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
+          <div
+            className="w-2 h-2 bg-slate-500 rounded-full animate-bounce"
+            style={{ animationDelay: "0.1s" }}
+          ></div>
+          <div
+            className="w-2 h-2 bg-slate-600 rounded-full animate-bounce"
+            style={{ animationDelay: "0.2s" }}
+          ></div>
+          <p className="ml-2 text-slate-600 dark:text-slate-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render the page if not authenticated
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <>

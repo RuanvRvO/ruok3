@@ -2,7 +2,7 @@
 
 import { useConvexAuth } from "convex/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -11,8 +11,12 @@ export default function LandingPage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
 
-  // Allow users to view the landing page regardless of auth status
-  // They can navigate to /manager or /signin via buttons
+  // Redirect authenticated users to manager
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.push("/manager");
+    }
+  }, [isAuthenticated, isLoading, router]);
 
   if (isLoading) {
     return (
@@ -50,23 +54,15 @@ export default function LandingPage() {
             </h1>
           </div>
           <div className="flex gap-3">
-            {isAuthenticated ? (
-              <Button onClick={() => router.push("/manager")} variant="default">
-                Go to Dashboard
-              </Button>
-            ) : (
-              <>
-                <Button onClick={() => router.push("/signin")} variant="outline">
-                  Sign In
-                </Button>
-                <Button
-                  onClick={() => router.push("/signin")}
-                  variant="default"
-                >
-                  Get Started
-                </Button>
-              </>
-            )}
+            <Button onClick={() => router.push("/signin")} variant="outline">
+              Sign In
+            </Button>
+            <Button
+              onClick={() => router.push("/signin")}
+              variant="default"
+            >
+              Get Started
+            </Button>
           </div>
         </div>
       </header>
