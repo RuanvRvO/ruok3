@@ -1,4 +1,5 @@
-//add function for other managers to view organization details without edit rights (sign in as manager but read-only)
+//add function for other managers to view organization details without edit rights (sign in as manager but read-only) and maybe other super users also
+//have 1 butt
 
 "use client";
 

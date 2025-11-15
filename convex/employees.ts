@@ -81,6 +81,17 @@ export const remove = mutation({
       throw new Error("Not authorized to remove this employee");
     }
 
+    // Remove employee from all groups first
+    const groupMemberships = await ctx.db
+      .query("groupMembers")
+      .withIndex("by_employee", (q) => q.eq("employeeId", args.employeeId))
+      .collect();
+
+    for (const membership of groupMemberships) {
+      await ctx.db.delete(membership._id);
+    }
+
+    // Now delete the employee
     await ctx.db.delete(args.employeeId);
   },
 });

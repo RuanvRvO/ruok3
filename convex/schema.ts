@@ -28,4 +28,16 @@ export default defineSchema({
     organisation: v.string(),
     createdAt: v.number(),
   }).index("by_organisation", ["organisation"]),
+  groups: defineTable({
+    name: v.string(),
+    organisation: v.string(),
+    createdAt: v.number(),
+  }).index("by_organisation", ["organisation"]),
+  groupMembers: defineTable({
+    groupId: v.id("groups"),
+    employeeId: v.id("employees"),
+  })
+    .index("by_group", ["groupId"])
+    .index("by_employee", ["employeeId"])
+    .index("by_group_and_employee", ["groupId", "employeeId"]),
 });
