@@ -22,4 +22,10 @@ export default defineSchema({
   numbers: defineTable({
     value: v.number(),
   }),
+  employees: defineTable({
+    firstName: v.string(),
+    email: v.string(),
+    organisation: v.string(),
+    createdAt: v.number(),
+  }).index("by_organisation", ["organisation"]),
 });

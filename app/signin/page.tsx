@@ -1,3 +1,5 @@
+//add function for other managers to view organization details without edit rights (sign in as manager but read-only)
+
 "use client";
 
 import { useAuthActions } from "@convex-dev/auth/react";
