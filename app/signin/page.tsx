@@ -21,8 +21,8 @@ export default function SignIn() {
           <Image
             src="/smile.png"
             alt="Smile Logo"
-            width={150}
-            height={150}
+            width={95}
+            height={95}
           />
 
           <div className="w-px h-20 bg-slate-300 dark:bg-slate-600"></div>
@@ -90,7 +90,7 @@ export default function SignIn() {
               setLoading(false);
             })
             .then(() => {
-              router.push("/");
+              router.push("/manager");
             });
         }}
       >
