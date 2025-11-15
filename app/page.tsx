@@ -11,10 +11,10 @@ export default function LandingPage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
 
-  // Redirect authenticated users to manager
+  // Redirect authenticated users to manager view page
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.push("/manager");
+      router.push("/manager/view");
     }
   }, [isAuthenticated, isLoading, router]);
 
@@ -75,7 +75,6 @@ export default function LandingPage() {
             alt="Smile"
             width={120}
             height={120}
-            className="animate-pulse"
           />
           <div className="w-px bg-slate-300 dark:bg-slate-600"></div>
           <Image src="/sad.png" alt="Concerned" width={120} height={120} />

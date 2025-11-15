@@ -93,7 +93,7 @@ export default function SignIn() {
               setLoading(false);
             })
             .then(() => {
-              router.push("/manager");
+              router.push("/manager/view");
             });
         }}
       >
