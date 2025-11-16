@@ -314,7 +314,8 @@ export default function ViewOrganizationPage() {
 function MoodGraph({ trends, totalPeople, isMonthly = false }: { trends: any[]; totalPeople: number; isMonthly?: boolean }) {
   // Y-axis should go up to total number of people
   const maxY = totalPeople || 1; // Avoid division by zero
-  const yAxisSteps = 5;
+  // Adjust y-axis steps based on group size to prevent duplicate labels
+  const yAxisSteps = Math.min(maxY, 5);
   const stepValue = maxY / yAxisSteps;
 
   // Calculate dynamic graph width based on number of bars (40px per bar)
@@ -332,7 +333,7 @@ function MoodGraph({ trends, totalPeople, isMonthly = false }: { trends: any[]; 
             const value = maxY - (i * stepValue);
             return (
               <div key={i} className="text-right">
-                {Number.isInteger(value) ? value : value.toFixed(1)}
+                {Math.round(value)}
               </div>
             );
           })}
