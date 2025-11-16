@@ -13,13 +13,30 @@ export default function ViewOrganizationPage() {
 
   const [timeRange, setTimeRange] = useState<"1day" | "3days" | "1week" | "1month" | "overall">("1week");
 
+  const employees = useQuery(api.employees.list);
+
   // Calculate days based on time range
-  const days = timeRange === "1day" ? 1 : timeRange === "3days" ? 3 : timeRange === "1week" ? 7 : timeRange === "1month" ? 30 : 365;
+  // For "overall", calculate days since organization creation
+  let days: number;
+  if (timeRange === "overall") {
+    // Find the earliest employee creation date as proxy for org creation
+    const earliestEmployee = employees?.reduce((earliest, emp) =>
+      !earliest || emp.createdAt < earliest.createdAt ? emp : earliest
+    , employees[0]);
+
+    if (earliestEmployee) {
+      const daysSinceCreation = Math.ceil((Date.now() - earliestEmployee.createdAt) / (1000 * 60 * 60 * 24));
+      days = daysSinceCreation;
+    } else {
+      days = 365; // fallback
+    }
+  } else {
+    days = timeRange === "1day" ? 1 : timeRange === "3days" ? 3 : timeRange === "1week" ? 7 : 30;
+  }
 
   const trends = useQuery(api.moodCheckins.getTrends, { days });
   const todayCheckins = useQuery(api.moodCheckins.getTodayCheckins);
   const groups = useQuery(api.groups.list);
-  const employees = useQuery(api.employees.list);
 
   const isLoading = trends === undefined || todayCheckins === undefined || groups === undefined || employees === undefined;
 
