@@ -45,6 +45,7 @@ export default defineSchema({
     organisation: v.string(),
     mood: v.union(v.literal("green"), v.literal("amber"), v.literal("red")),
     note: v.optional(v.string()),
+    isAnonymous: v.optional(v.boolean()),
     timestamp: v.number(),
     date: v.string(), // YYYY-MM-DD format for easy querying
   })

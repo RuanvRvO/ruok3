@@ -9,6 +9,7 @@ export const record = mutation({
     employeeId: v.id("employees"),
     mood: v.union(v.literal("green"), v.literal("amber"), v.literal("red")),
     note: v.optional(v.string()),
+    isAnonymous: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const employee = await ctx.db.get(args.employeeId);
@@ -33,6 +34,7 @@ export const record = mutation({
       await ctx.db.patch(existingCheckin._id, {
         mood: args.mood,
         note: args.note,
+        isAnonymous: args.isAnonymous,
         timestamp: Date.now(),
       });
       return existingCheckin._id;
@@ -43,6 +45,7 @@ export const record = mutation({
         organisation: employee.organisation,
         mood: args.mood,
         note: args.note,
+        isAnonymous: args.isAnonymous,
         timestamp: Date.now(),
         date: today,
       });

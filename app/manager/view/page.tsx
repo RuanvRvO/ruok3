@@ -217,7 +217,7 @@ export default function ViewOrganizationPage() {
               >
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-slate-800 dark:text-slate-200">
-                    {checkin.employeeName}
+                    {checkin.isAnonymous ? "Anonymous" : checkin.employeeName}
                   </span>
                   <span className="text-2xl">
                     {checkin.mood === "green" ? "😊" : checkin.mood === "amber" ? "😐" : "😔"}
@@ -226,6 +226,11 @@ export default function ViewOrganizationPage() {
                 {checkin.note && (
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
                     "{checkin.note}"
+                  </p>
+                )}
+                {checkin.isAnonymous && (
+                  <p className="text-xs text-slate-500 dark:text-slate-500 mt-2 italic">
+                    Anonymous response
                   </p>
                 )}
               </div>
