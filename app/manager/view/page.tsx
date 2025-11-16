@@ -40,10 +40,12 @@ export default function ViewOrganizationPage() {
 
   const isLoading = trends === undefined || todayCheckins === undefined || groups === undefined || employees === undefined;
 
-  // Sort check-ins by most recent first
+  // Sort check-ins by most recent first and filter only those with notes
   const sortedCheckins = useMemo(() => {
     if (!todayCheckins) return [];
-    return [...todayCheckins].sort((a, b) => b.timestamp - a.timestamp);
+    return [...todayCheckins]
+      .filter((checkin) => checkin.note && checkin.note.trim().length > 0)
+      .sort((a, b) => b.timestamp - a.timestamp);
   }, [todayCheckins]);
 
   // Aggregate into monthly averages when viewing "overall"
