@@ -119,59 +119,51 @@ export default function EditOrganizationPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 max-w-3xl mx-auto">
+    <div className="flex flex-col gap-6 max-w-7xl mx-auto">
       <div>
         <h2 className="font-bold text-2xl text-slate-800 dark:text-slate-200">
-          Manage Employees - {viewer ?? "Anonymous"}
+          Organization Management - {viewer ?? "Anonymous"}
         </h2>
         <p className="text-slate-600 dark:text-slate-400 mt-2">
-          Add or remove employees from your organization.
+          Manage your organization's employees, groups, and settings.
         </p>
       </div>
 
+      {/* Three Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* LEFT COLUMN - Employee Management */}
+        <div className="flex flex-col gap-6">
+          <div className="text-center pb-2 border-b-2 border-slate-200 dark:border-slate-700">
+            <h3 className="font-bold text-xl text-slate-800 dark:text-slate-200">
+              Manage Employees
+            </h3>
+          </div>
       {/* Add Employee Form */}
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 shadow-sm">
         <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200 mb-4">
           Add New Employee
         </h3>
-        <form onSubmit={handleAddEmployee} className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <label
-                htmlFor="firstName"
-                className="text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                First Name
-              </label>
-              <Input
-                id="firstName"
-                type="text"
-                placeholder="John"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label
-                htmlFor="email"
-                className="text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                Email
-              </label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="john@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-          </div>
+        <form onSubmit={handleAddEmployee} className="flex flex-col gap-3">
+          <Input
+            id="firstName"
+            type="text"
+            placeholder="First Name"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            required
+          />
+          <Input
+            id="email"
+            type="email"
+            placeholder="Email Address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
           <Button
             type="submit"
-            className="w-full md:w-auto"
+            className="w-full"
             disabled={isSubmitting}
           >
             {isSubmitting ? "Adding..." : "Add Employee"}
@@ -231,22 +223,31 @@ export default function EditOrganizationPage() {
           </div>
         )}
       </div>
+        </div>
+        {/* END LEFT COLUMN */}
 
+        {/* MIDDLE COLUMN - Groups Management */}
+        <div className="flex flex-col gap-6">
+          <div className="text-center pb-2 border-b-2 border-slate-200 dark:border-slate-700">
+            <h3 className="font-bold text-xl text-slate-800 dark:text-slate-200">
+              Manage Groups
+            </h3>
+          </div>
       {/* Groups Management */}
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 shadow-sm">
         <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200 mb-4">
           Add New Group
         </h3>
-        <form onSubmit={handleAddGroup} className="flex gap-4">
+        <form onSubmit={handleAddGroup} className="flex flex-col gap-3">
           <Input
             type="text"
             placeholder="Group Name"
             value={groupName}
             onChange={(e) => setGroupName(e.target.value)}
             required
-            className="flex-1"
           />
-          <Button type="submit" disabled={isAddingGroup}>
+          <div className="h-9"></div>
+          <Button type="submit" disabled={isAddingGroup} className="w-full">
             {isAddingGroup ? "Adding..." : "Add Group"}
           </Button>
         </form>
@@ -291,6 +292,61 @@ export default function EditOrganizationPage() {
           </div>
         )}
       </div>
+        </div>
+        {/* END MIDDLE COLUMN */}
+
+        {/* RIGHT COLUMN - Features Coming Soon */}
+        <div className="flex flex-col gap-6">
+          <div className="text-center pb-2 border-b-2 border-slate-200 dark:border-slate-700">
+            <h3 className="font-bold text-xl text-slate-800 dark:text-slate-200">
+              Features Coming Soon
+            </h3>
+          </div>
+
+          <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-8">
+            <div className="flex flex-col gap-4">
+              <div className="bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-4">
+                <h4 className="font-semibold text-slate-800 dark:text-slate-200 mb-2 flex items-center gap-2">
+                  <span className="text-2xl">👥</span>
+                  Super Users
+                </h4>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Assign elevated permissions to specific users within your organization.
+                </p>
+              </div>
+
+              <div className="bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-4">
+                <h4 className="font-semibold text-slate-800 dark:text-slate-200 mb-2 flex items-center gap-2">
+                  <span className="text-2xl">👁️</span>
+                  View-Only Managers
+                </h4>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Grant read-only access to managers who need to view but not edit data.
+                </p>
+              </div>
+
+              <div className="bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-4">
+                <h4 className="font-semibold text-slate-800 dark:text-slate-200 mb-2 flex items-center gap-2">
+                  <span className="text-2xl">🏢</span>
+                  Multiple Organizations
+                </h4>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Manage multiple organizations from a single account with easy switching.
+                </p>
+              </div>
+
+              <div className="mt-4 text-center">
+                <p className="text-xs text-slate-500 dark:text-slate-400 italic">
+                  These features are in development and will be available soon!
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* END RIGHT COLUMN */}
+
+      </div>
+      {/* END THREE COLUMN LAYOUT */}
     </div>
   );
 }
@@ -406,10 +462,9 @@ function GroupCard({
             </div>
           ) : (
             <Button
-              variant="outline"
               size="sm"
               onClick={() => setShowAddMember(true)}
-              className="w-full"
+              className="w-full bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 text-white"
             >
               + Add Member
             </Button>
