@@ -223,8 +223,15 @@ export const sendDailyEmails = internalAction({
     let sentCount = 0;
     let errorCount = 0;
 
+    // Helper function to delay execution (respect rate limits)
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
     for (const employee of employees) {
       try {
+        // Rate limit: 2 emails per second = 500ms delay between emails
+        if (sentCount > 0) {
+          await delay(500);
+        }
         // Generate unique response URLs for each mood option
         const baseUrl = process.env.SITE_URL || "http://localhost:3000";
 
@@ -243,9 +250,8 @@ export const sendDailyEmails = internalAction({
 <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
   <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="background-color: white; border-radius: 12px; padding: 40px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-      <h1 style="color: #1e293b; margin: 0 0 16px 0; font-size: 28px;">R u OK today?</h1>
+      <h1 style="color: #1e293b; margin: 0 0 16px 0; font-size: 28px;">R u OK today, ${employee.firstName}?</h1>
       <p style="color: #64748b; font-size: 16px; line-height: 1.6; margin: 0 0 32px 0;">
-        Hi ${employee.firstName},<br><br>
         <strong>${employee.organisation}</strong> wants to check in with you.<br>
         How are you feeling today? Let us know by clicking one of the buttons below:
       </p>
