@@ -164,12 +164,12 @@ export const sendDailyEmails = internalAction({
 
     for (const employee of employees) {
       try {
-        // Generate unique response tokens for each mood option
-        const baseUrl = process.env.NEXT_PUBLIC_CONVEX_URL?.replace("/api", "") || process.env.CONVEX_SITE_URL;
+        // Generate unique response URLs for each mood option
+        const baseUrl = process.env.SITE_URL || "http://localhost:3000";
 
-        const greenUrl = `${baseUrl}/api/mood-response?employeeId=${employee._id}&mood=green`;
-        const amberUrl = `${baseUrl}/api/mood-response?employeeId=${employee._id}&mood=amber`;
-        const redUrl = `${baseUrl}/api/mood-response?employeeId=${employee._id}&mood=red`;
+        const greenUrl = `${baseUrl}/mood-response?employeeId=${employee._id}&mood=green`;
+        const amberUrl = `${baseUrl}/mood-response?employeeId=${employee._id}&mood=amber`;
+        const redUrl = `${baseUrl}/mood-response?employeeId=${employee._id}&mood=red`;
 
         const emailHtml = `
 <!DOCTYPE html>
@@ -185,6 +185,7 @@ export const sendDailyEmails = internalAction({
       <h1 style="color: #1e293b; margin: 0 0 16px 0; font-size: 28px;">R u OK today?</h1>
       <p style="color: #64748b; font-size: 16px; line-height: 1.6; margin: 0 0 32px 0;">
         Hi ${employee.firstName},<br><br>
+        <strong>${employee.organisation}</strong> wants to check in with you.<br>
         How are you feeling today? Let us know by clicking one of the buttons below:
       </p>
 
@@ -220,7 +221,7 @@ export const sendDailyEmails = internalAction({
           body: JSON.stringify({
             from: "R u OK <onboarding@resend.dev>", // Change this to your verified domain
             to: employee.email,
-            subject: "Daily Check-In: How are you feeling today?",
+            subject: `${employee.organisation} - Daily Check-In: How are you feeling today?`,
             html: emailHtml,
           }),
         });
