@@ -23,6 +23,12 @@ export default function ViewOrganizationPage() {
 
   const isLoading = trends === undefined || todayCheckins === undefined || groups === undefined || employees === undefined;
 
+  // Sort check-ins by most recent first
+  const sortedCheckins = useMemo(() => {
+    if (!todayCheckins) return [];
+    return [...todayCheckins].sort((a, b) => b.timestamp - a.timestamp);
+  }, [todayCheckins]);
+
   // Aggregate into monthly averages when viewing "overall"
   const displayTrends = useMemo(() => {
     if (!trends || timeRange !== "overall") return trends;
@@ -99,138 +105,187 @@ export default function ViewOrganizationPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 max-w-6xl mx-auto">
-      <div>
-        <h2 className="font-bold text-2xl text-slate-800 dark:text-slate-200">
+    <div className="flex flex-col gap-10 px-8 py-8 mx-auto w-full max-w-[80%]">
+      <div className="text-center">
+        <h1 className="font-bold text-3xl text-slate-900 dark:text-slate-100 mb-3">
           Welcome {viewer ?? "Anonymous"}!
-        </h2>
-        <p className="text-slate-600 dark:text-slate-400 mt-2">
+        </h1>
+        <p className="text-slate-600 dark:text-slate-400 text-lg">
           Here is your organization's wellbeing dashboard.
         </p>
       </div>
 
-      {/* Time Range Toggle */}
-      <div className="flex gap-2 flex-wrap">
-        <button
-          onClick={() => setTimeRange("1day")}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            timeRange === "1day"
-              ? "bg-slate-700 text-white dark:bg-slate-600"
-              : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-          }`}
-        >
-          1 Day
-        </button>
-        <button
-          onClick={() => setTimeRange("3days")}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            timeRange === "3days"
-              ? "bg-slate-700 text-white dark:bg-slate-600"
-              : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-          }`}
-        >
-          3 Days
-        </button>
-        <button
-          onClick={() => setTimeRange("1week")}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            timeRange === "1week"
-              ? "bg-slate-700 text-white dark:bg-slate-600"
-              : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-          }`}
-        >
-          1 Week
-        </button>
-        <button
-          onClick={() => setTimeRange("1month")}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            timeRange === "1month"
-              ? "bg-slate-700 text-white dark:bg-slate-600"
-              : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-          }`}
-        >
-          1 Month
-        </button>
-        <button
-          onClick={() => setTimeRange("overall")}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            timeRange === "overall"
-              ? "bg-slate-700 text-white dark:bg-slate-600"
-              : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-          }`}
-        >
-          Overall
-        </button>
-      </div>
-
-      {/* Overall Organization Mood Graph */}
-      <div className="flex flex-col gap-4">
-        <h2 className="font-semibold text-xl text-slate-800 dark:text-slate-200">
-          Overall Organization Mood {timeRange === "overall" && "(Monthly Average)"}
-        </h2>
-        <MoodGraph trends={displayTrends} totalPeople={employees.length} isMonthly={timeRange === "overall"} />
-      </div>
-
-      <div className="h-px bg-slate-200 dark:bg-slate-700"></div>
-
-      {/* Group-Specific Mood Graphs */}
-      {groups.length > 0 && (
-        <div className="flex flex-col gap-6">
-          <h2 className="font-semibold text-xl text-slate-800 dark:text-slate-200">
-            Mood by Group {timeRange === "overall" && "(Monthly Average)"}
-          </h2>
-          {groups.map((group) => (
-            <GroupMoodGraph key={group._id} groupId={group._id} groupName={group.name} days={days} timeRange={timeRange} />
-          ))}
-        </div>
-      )}
-
-      <div className="h-px bg-slate-200 dark:bg-slate-700"></div>
-
-      {/* Last 24 Hours Check-ins */}
-      <div className="flex flex-col gap-4">
-        <h2 className="font-semibold text-xl text-slate-800 dark:text-slate-200">
-          Recent Check-ins (Last 24 Hours)
-        </h2>
-        {todayCheckins.length === 0 ? (
-          <p className="text-slate-500 dark:text-slate-400 text-center py-8">
-            No check-ins in the last 24 hours.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {todayCheckins.map((checkin: any) => (
-              <div
-                key={checkin._id}
-                className={`p-4 rounded-lg border ${
-                  checkin.mood === "green"
-                    ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
-                    : checkin.mood === "amber"
-                    ? "bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800"
-                    : "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-slate-800 dark:text-slate-200">
-                    {checkin.isAnonymous ? "Anonymous" : checkin.employeeName}
-                  </span>
-                  <span className="text-2xl">
-                    {checkin.mood === "green" ? "😊" : checkin.mood === "amber" ? "😐" : "😔"}
-                  </span>
-                </div>
-                {checkin.note && (
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
-                    "{checkin.note}"
-                  </p>
-                )}
-                {checkin.isAnonymous && (
-                  <p className="text-xs text-slate-500 dark:text-slate-500 mt-2 italic">
-                    Anonymous response
-                  </p>
-                )}
-              </div>
-            ))}
+      {/* Color Key Legend */}
+      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+        <div className="flex gap-6 flex-wrap justify-center items-center">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-green-500 rounded"></div>
+            <span className="text-sm text-slate-600 dark:text-slate-400">
+              Feeling Great
+            </span>
           </div>
-        )}
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-amber-500 rounded"></div>
+            <span className="text-sm text-slate-600 dark:text-slate-400">
+              Feeling Okay
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-red-500 rounded"></div>
+            <span className="text-sm text-slate-600 dark:text-slate-400">
+              Need Support
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-slate-300 dark:bg-slate-600 rounded"></div>
+            <span className="text-sm text-slate-600 dark:text-slate-400">
+              No Response
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Two Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-32">
+        {/* LEFT COLUMN - Graphs (3/4 width) */}
+        <div className="lg:col-span-3 flex flex-col gap-8">
+          {/* Time Range Toggle */}
+          <div className="flex flex-col gap-3">
+            <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200">
+              Time Range Filter
+            </h3>
+            <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => setTimeRange("1day")}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                timeRange === "1day"
+                  ? "bg-slate-700 text-white dark:bg-slate-600"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+              }`}
+            >
+              1 Day
+            </button>
+            <button
+              onClick={() => setTimeRange("3days")}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                timeRange === "3days"
+                  ? "bg-slate-700 text-white dark:bg-slate-600"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+              }`}
+            >
+              3 Days
+            </button>
+            <button
+              onClick={() => setTimeRange("1week")}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                timeRange === "1week"
+                  ? "bg-slate-700 text-white dark:bg-slate-600"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+              }`}
+            >
+              1 Week
+            </button>
+            <button
+              onClick={() => setTimeRange("1month")}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                timeRange === "1month"
+                  ? "bg-slate-700 text-white dark:bg-slate-600"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+              }`}
+            >
+              1 Month
+            </button>
+            <button
+              onClick={() => setTimeRange("overall")}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                timeRange === "overall"
+                  ? "bg-slate-700 text-white dark:bg-slate-600"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+              }`}
+            >
+              Overall
+            </button>
+            </div>
+          </div>
+
+          {/* Overall Organization Mood Graph */}
+          <div className="flex flex-col gap-6">
+            <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 text-center border-b-2 border-slate-300 dark:border-slate-600 pb-3">
+              Organization Mood {timeRange === "overall" && "(Monthly Average)"}
+            </h2>
+            <MoodGraph trends={displayTrends} totalPeople={employees.length} isMonthly={timeRange === "overall"} />
+          </div>
+
+          <div className="h-px bg-slate-200 dark:bg-slate-700 my-4"></div>
+
+          {/* Group-Specific Mood Graphs */}
+          {groups.length > 0 && (
+            <div className="flex flex-col gap-8">
+              <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 text-center border-b-2 border-slate-300 dark:border-slate-600 pb-3">
+                Mood by Group {timeRange === "overall" && "(Monthly Average)"}
+              </h2>
+              {groups.map((group) => (
+                <GroupMoodGraph key={group._id} groupId={group._id} groupName={group.name} days={days} timeRange={timeRange} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT COLUMN - Recent Comments (1/3 width) */}
+        <div className="flex flex-col gap-6">
+          {/* Spacer to align with Overall Organization Mood heading */}
+          <div className="h-[88px]"></div>
+
+          <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 border-b-2 border-slate-300 dark:border-slate-600 pb-3">
+            Recent Check-ins
+          </h2>
+          <p className="text-sm text-slate-600 dark:text-slate-400 -mt-3">
+            Last 24 hours
+          </p>
+          <div className="flex flex-col gap-4 max-h-[800px] overflow-y-auto pr-2">
+            {sortedCheckins.length === 0 ? (
+              <p className="text-slate-500 dark:text-slate-400 text-center py-8">
+                No check-ins in the last 24 hours.
+              </p>
+            ) : (
+              sortedCheckins.map((checkin: any) => (
+                <div
+                  key={checkin._id}
+                  className={`p-4 rounded-lg border ${
+                    checkin.mood === "green"
+                      ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
+                      : checkin.mood === "amber"
+                      ? "bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800"
+                      : "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-slate-800 dark:text-slate-200 text-sm">
+                      {checkin.isAnonymous ? "Anonymous" : checkin.employeeName}
+                    </span>
+                    <span className="text-xl">
+                      {checkin.mood === "green" ? "😊" : checkin.mood === "amber" ? "😐" : "😔"}
+                    </span>
+                  </div>
+                  {checkin.note && (
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
+                      "{checkin.note}"
+                    </p>
+                  )}
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                    {new Date(checkin.timestamp).toLocaleString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                    {checkin.isAnonymous && " • Anonymous"}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -243,10 +298,15 @@ function MoodGraph({ trends, totalPeople, isMonthly = false }: { trends: any[]; 
   const yAxisSteps = 5;
   const stepValue = maxY / yAxisSteps;
 
+  // Calculate dynamic graph width based on number of bars (40px per bar)
+  const graphWidth = trends.length * 40;
+  // Total container width = y-axis labels (64px) + graph width + padding (48px)
+  const containerWidth = graphWidth + 112;
+
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 mx-auto" style={{ width: `${containerWidth}px` }}>
       {/* Graph Container */}
-      <div className="relative h-80 flex">
+      <div className="relative h-80 flex justify-center">
         {/* Y-axis labels */}
         <div className="flex flex-col justify-between pr-4 text-xs text-slate-600 dark:text-slate-400 w-12">
           {Array.from({ length: yAxisSteps + 1 }).map((_, i) => {
@@ -260,7 +320,7 @@ function MoodGraph({ trends, totalPeople, isMonthly = false }: { trends: any[]; 
         </div>
 
         {/* Graph area */}
-        <div className="flex-1 relative border-l-2 border-b-2 border-slate-300 dark:border-slate-600">
+        <div className="relative border-l-2 border-b-2 border-slate-300 dark:border-slate-600" style={{ width: `${graphWidth}px` }}>
           {/* Horizontal grid lines */}
           <div className="absolute inset-0">
             {Array.from({ length: yAxisSteps }).map((_, i) => (
@@ -284,7 +344,7 @@ function MoodGraph({ trends, totalPeople, isMonthly = false }: { trends: any[]; 
               return (
                 <div
                   key={index}
-                  className={`flex-1 flex flex-col items-center justify-end group relative h-full ${index === 0 ? 'pr-0.5' : index === trends.length - 1 ? 'pl-0.5' : 'px-0.5'}`}
+                  className={`w-10 flex flex-col items-center justify-end group relative h-full ${index === 0 ? 'pr-0.5' : index === trends.length - 1 ? 'pl-0.5' : 'px-0.5'}`}
                 >
                   {/* Tooltip on hover */}
                   <div className="absolute bottom-full mb-2 hidden group-hover:block bg-slate-900 dark:bg-slate-700 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
@@ -352,9 +412,9 @@ function MoodGraph({ trends, totalPeople, isMonthly = false }: { trends: any[]; 
       </div>
 
       {/* X-axis labels */}
-      <div className="flex mt-2">
+      <div className="flex mt-2 justify-center">
         <div className="w-12 pr-4"></div>
-        <div className="flex-1 flex border-l-2 border-transparent">
+        <div className="flex border-l-2 border-transparent" style={{ width: `${graphWidth}px` }}>
           {trends.map((day, index) => {
             // For monthly view, show all labels; for daily, show selectively
             const showLabel = isMonthly ? true :
@@ -366,7 +426,7 @@ function MoodGraph({ trends, totalPeople, isMonthly = false }: { trends: any[]; 
             return (
               <div
                 key={index}
-                className="flex-1 text-center text-xs text-slate-600 dark:text-slate-400 px-1"
+                className="w-10 text-center text-xs text-slate-600 dark:text-slate-400 px-1"
               >
                 {showLabel && new Date(day.date).toLocaleDateString("en-US", isMonthly ? {
                   month: "short",
@@ -378,34 +438,6 @@ function MoodGraph({ trends, totalPeople, isMonthly = false }: { trends: any[]; 
               </div>
             );
           })}
-        </div>
-      </div>
-
-      {/* Legend */}
-      <div className="flex gap-4 mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 flex-wrap">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-green-500 rounded"></div>
-          <span className="text-xs text-slate-600 dark:text-slate-400">
-            Feeling Great
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-amber-500 rounded"></div>
-          <span className="text-xs text-slate-600 dark:text-slate-400">
-            Feeling Okay
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-red-500 rounded"></div>
-          <span className="text-xs text-slate-600 dark:text-slate-400">
-            Need Support
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-slate-300 dark:bg-slate-600 rounded"></div>
-          <span className="text-xs text-slate-600 dark:text-slate-400">
-            No Response
-          </span>
         </div>
       </div>
     </div>
@@ -475,16 +507,16 @@ function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"
 
   if (trends === undefined || members === undefined) {
     return (
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
-        <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200 mb-4">{groupName}</h3>
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 mx-auto" style={{ maxWidth: "fit-content" }}>
+        <h3 className="font-bold text-xl text-slate-900 dark:text-slate-100 mb-6 text-center border-b border-slate-200 dark:border-slate-600 pb-3">{groupName}</h3>
         <p className="text-sm text-slate-500 dark:text-slate-400">Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
-      <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200 mb-4">{groupName}</h3>
+    <div className="mx-auto" style={{ width: "fit-content" }}>
+      <h3 className="font-bold text-xl text-slate-900 dark:text-slate-100 mb-6 text-center">{groupName}</h3>
       <MoodGraph trends={displayTrends} totalPeople={members.length} isMonthly={timeRange === "overall"} />
     </div>
   );
