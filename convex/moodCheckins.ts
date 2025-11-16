@@ -3,6 +3,70 @@ import { mutation, query, internalAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
+// Query to check if employee has already submitted today
+export const hasSubmittedToday = query({
+  args: {
+    employeeId: v.id("employees"),
+  },
+  handler: async (ctx, args) => {
+    const employee = await ctx.db.get(args.employeeId);
+    if (!employee) {
+      return false;
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+
+    const existingCheckin = await ctx.db
+      .query("moodCheckins")
+      .withIndex("by_organisation_and_date", (q) =>
+        q.eq("organisation", employee.organisation).eq("date", today)
+      )
+      .filter((q) => q.eq(q.field("employeeId"), args.employeeId))
+      .first();
+
+    return existingCheckin !== null;
+  },
+});
+
+// Mutation to update an existing check-in with additional details
+export const updateDetails = mutation({
+  args: {
+    employeeId: v.id("employees"),
+    note: v.optional(v.string()),
+    isAnonymous: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const employee = await ctx.db.get(args.employeeId);
+    if (!employee) {
+      throw new Error("Employee not found");
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+
+    // Find today's check-in
+    const existingCheckin = await ctx.db
+      .query("moodCheckins")
+      .withIndex("by_organisation_and_date", (q) =>
+        q.eq("organisation", employee.organisation).eq("date", today)
+      )
+      .filter((q) => q.eq(q.field("employeeId"), args.employeeId))
+      .first();
+
+    if (!existingCheckin) {
+      throw new Error("No check-in found for today");
+    }
+
+    // Update with additional details
+    await ctx.db.patch(existingCheckin._id, {
+      note: args.note,
+      isAnonymous: args.isAnonymous,
+      timestamp: Date.now(),
+    });
+
+    return existingCheckin._id;
+  },
+});
+
 // Mutation to record a mood check-in
 export const record = mutation({
   args: {
@@ -30,27 +94,21 @@ export const record = mutation({
       .first();
 
     if (existingCheckin) {
-      // Update existing check-in
-      await ctx.db.patch(existingCheckin._id, {
-        mood: args.mood,
-        note: args.note,
-        isAnonymous: args.isAnonymous,
-        timestamp: Date.now(),
-      });
-      return existingCheckin._id;
-    } else {
-      // Create new check-in
-      const checkinId = await ctx.db.insert("moodCheckins", {
-        employeeId: args.employeeId,
-        organisation: employee.organisation,
-        mood: args.mood,
-        note: args.note,
-        isAnonymous: args.isAnonymous,
-        timestamp: Date.now(),
-        date: today,
-      });
-      return checkinId;
+      // Prevent multiple submissions per day
+      throw new Error("ALREADY_SUBMITTED_TODAY");
     }
+
+    // Create new check-in
+    const checkinId = await ctx.db.insert("moodCheckins", {
+      employeeId: args.employeeId,
+      organisation: employee.organisation,
+      mood: args.mood,
+      note: args.note,
+      isAnonymous: args.isAnonymous,
+      timestamp: Date.now(),
+      date: today,
+    });
+    return checkinId;
   },
 });
 

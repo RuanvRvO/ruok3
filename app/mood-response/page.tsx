@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,13 @@ export default function MoodResponsePage() {
   const [autoSaved, setAutoSaved] = useState(false);
 
   const recordMood = useMutation(api.moodCheckins.record);
+  const updateDetails = useMutation(api.moodCheckins.updateDetails);
+  const hasSubmittedToday = useQuery(
+    api.moodCheckins.hasSubmittedToday,
+    employeeId ? { employeeId: employeeId as any } : "skip"
+  );
 
-  // Auto-save mood immediately when page loads
+  // Check if already submitted and auto-save mood
   useEffect(() => {
     const saveMood = async () => {
       if (!employeeId || !mood || !["green", "amber", "red"].includes(mood)) {
@@ -29,37 +34,49 @@ export default function MoodResponsePage() {
 
       if (autoSaved) return; // Prevent duplicate saves
 
+      // Wait for hasSubmittedToday query to load
+      if (hasSubmittedToday === undefined) return;
+
+      // Check if already submitted today
+      if (hasSubmittedToday) {
+        setError("ALREADY_SUBMITTED");
+        return;
+      }
+
       try {
         await recordMood({
           employeeId: employeeId as any,
           mood: mood,
         });
         setAutoSaved(true);
-      } catch (err) {
-        setError("Failed to save your response. Please try again.");
+      } catch (err: any) {
+        if (err?.message?.includes("ALREADY_SUBMITTED_TODAY")) {
+          setError("ALREADY_SUBMITTED");
+        } else {
+          setError("Failed to save your response. Please try again.");
+        }
         console.error(err);
       }
     };
 
     saveMood();
-  }, [employeeId, mood, recordMood, autoSaved]);
+  }, [employeeId, mood, recordMood, autoSaved, hasSubmittedToday]);
 
   const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!employeeId || !mood) return;
+    if (!employeeId) return;
 
     setIsSubmitting(true);
     try {
-      await recordMood({
+      await updateDetails({
         employeeId: employeeId as any,
-        mood: mood,
         note: note.trim() || undefined,
         isAnonymous: isAnonymous,
       });
       // Close the tab after successful submission
       window.close();
-    } catch (err) {
-      setError("Failed to submit your note. Please try again.");
+    } catch (err: any) {
+      setError("Failed to submit your details. Please try again.");
       console.error(err);
       setIsSubmitting(false);
     }
@@ -89,6 +106,23 @@ export default function MoodResponsePage() {
     if (mood === "red") return "I need support";
     return "";
   };
+
+  if (error === "ALREADY_SUBMITTED") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl p-12 max-w-md text-center shadow-2xl">
+          <div className="text-6xl mb-6">📝</div>
+          <h1 className="text-3xl font-bold text-slate-800 mb-4">Already Submitted</h1>
+          <p className="text-lg text-slate-600 mb-6">
+            You have already submitted your response for today. Only 1 response per day is recorded.
+          </p>
+          <p className="text-sm text-slate-500">
+            Thank you for checking in with us!
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
