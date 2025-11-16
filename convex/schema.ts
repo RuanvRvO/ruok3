@@ -7,7 +7,7 @@ import { authTables } from "@convex-dev/auth/server";
 // The schema provides more precise TypeScript types.
 export default defineSchema({
   ...authTables,
-  // Extend the users table to include custom profile fields
+  // Extend users table with custom fields (Convex Auth will merge this)
   users: defineTable({
     name: v.optional(v.string()),
     surname: v.optional(v.string()),

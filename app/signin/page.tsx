@@ -58,7 +58,7 @@ export default function SignIn() {
       </div>
       <form
         className="flex flex-col gap-4 w-full bg-slate-100 dark:bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-300 dark:border-slate-600"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
           setLoading(true);
           setError(null);
@@ -70,6 +70,31 @@ export default function SignIn() {
             const confirmPassword = formData.get("confirmPassword") as string;
             if (password !== confirmPassword) {
               setError("Passwords do not match");
+              setLoading(false);
+              return;
+            }
+
+            // IMPORTANT: Check if email already exists before allowing signup
+            const email = formData.get("email") as string;
+            try {
+              const response = await fetch("/api/check-email", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email }),
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                if (data.exists) {
+                  setError("This email is already registered. Please sign in instead.");
+                  setLoading(false);
+                  return;
+                }
+              }
+            } catch (err) {
+              console.error("Email check error:", err);
+              // Don't fail silently - block signup if we can't verify
+              setError("Unable to verify email. Please try again.");
               setLoading(false);
               return;
             }
@@ -88,6 +113,8 @@ export default function SignIn() {
                 setError("Account not found");
               } else if (errorMessage.includes("TooManyFailedAttempts")) {
                 setError("Too many failed attempts. Please try again later");
+              } else if (errorMessage.includes("Account with this email already exists") || errorMessage.includes("already exists")) {
+                setError("An account with this email already exists. Please sign in instead or use the organization manager to add more organizations.");
               } else {
                 // For any other errors, show a generic message
                 setError("An error occurred. Please try again");

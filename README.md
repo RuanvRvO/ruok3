@@ -16,3 +16,5 @@ After the initial setup (<2 minutes) you'll have a working full-stack app using:
 -Add managers to login as organisation owner
 -Review http being used and not https? 
 -Add when mood is selected, the page you get taken to stores answer and person who answered - also then gives optional page to give detailed feelings with unanymous toggle
+-each manager should be able to add more organisations to manage from the edit page
+-add email authentication when user creates orginasation
