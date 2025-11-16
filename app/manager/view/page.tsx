@@ -2,6 +2,8 @@
 
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { useState, useMemo } from "react";
+import { Id } from "../../../convex/_generated/dataModel";
 
 export default function ViewOrganizationPage() {
   const { viewer } =
@@ -9,10 +11,73 @@ export default function ViewOrganizationPage() {
       count: 10,
     }) ?? {};
 
-  const trends = useQuery(api.moodCheckins.getTrends, { days: 7 });
-  const todayCheckins = useQuery(api.moodCheckins.getTodayCheckins);
+  const [timeRange, setTimeRange] = useState<"1day" | "3days" | "1week" | "1month" | "overall">("1week");
 
-  const isLoading = trends === undefined || todayCheckins === undefined;
+  // Calculate days based on time range
+  const days = timeRange === "1day" ? 1 : timeRange === "3days" ? 3 : timeRange === "1week" ? 7 : timeRange === "1month" ? 30 : 365;
+
+  const trends = useQuery(api.moodCheckins.getTrends, { days });
+  const todayCheckins = useQuery(api.moodCheckins.getTodayCheckins);
+  const groups = useQuery(api.groups.list);
+  const employees = useQuery(api.employees.list);
+
+  const isLoading = trends === undefined || todayCheckins === undefined || groups === undefined || employees === undefined;
+
+  // Aggregate into monthly averages when viewing "overall"
+  const displayTrends = useMemo(() => {
+    if (!trends || timeRange !== "overall") return trends;
+
+    const monthMap = new Map<string, { green: number[], amber: number[], red: number[], totalDays: number, date: string }>();
+
+    // Include ALL days from the trends data
+    trends.forEach(day => {
+      const date = new Date(day.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+      if (!monthMap.has(monthKey)) {
+        monthMap.set(monthKey, {
+          green: [],
+          amber: [],
+          red: [],
+          totalDays: 0,
+          date: monthKey + '-01'
+        });
+      }
+
+      const month = monthMap.get(monthKey)!;
+      month.green.push(day.green);
+      month.amber.push(day.amber);
+      month.red.push(day.red);
+      month.totalDays++;
+    });
+
+    // Calculate averages and convert to array
+    return Array.from(monthMap.values())
+      .map(month => {
+        // Sum all values and divide by total days in the month (keep as decimal, don't round yet)
+        const totalGreen = month.green.reduce((a, b) => a + b, 0);
+        const totalAmber = month.amber.reduce((a, b) => a + b, 0);
+        const totalRed = month.red.reduce((a, b) => a + b, 0);
+
+        const green = totalGreen / month.totalDays;
+        const amber = totalAmber / month.totalDays;
+        const red = totalRed / month.totalDays;
+        const total = green + amber + red;
+
+        return {
+          date: month.date,
+          green,
+          amber,
+          red,
+          total,
+          greenPercent: total > 0 ? Math.round((green / total) * 100) : 0,
+          amberPercent: total > 0 ? Math.round((amber / total) * 100) : 0,
+          redPercent: total > 0 ? Math.round((red / total) * 100) : 0,
+        };
+      })
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-12); // Only show last 12 months
+  }, [trends, timeRange]);
 
   if (viewer === undefined || isLoading) {
     return (
@@ -33,11 +98,8 @@ export default function ViewOrganizationPage() {
     );
   }
 
-  // Get today's stats
-  const today = trends[trends.length - 1];
-
   return (
-    <div className="flex flex-col gap-6 max-w-4xl mx-auto">
+    <div className="flex flex-col gap-6 max-w-6xl mx-auto">
       <div>
         <h2 className="font-bold text-2xl text-slate-800 dark:text-slate-200">
           Welcome {viewer ?? "Anonymous"}!
@@ -47,160 +109,92 @@ export default function ViewOrganizationPage() {
         </p>
       </div>
 
-      {/* Today's Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-xl p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-green-700 dark:text-green-300">
-                Feeling Great
-              </p>
-              <p className="text-3xl font-bold text-green-900 dark:text-green-100 mt-2">
-                {today?.green || 0}
-              </p>
-              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                {today?.greenPercent || 0}% of team
-              </p>
-            </div>
-            <div className="text-4xl">😊</div>
-          </div>
-        </div>
-
-        <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-xl p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                Feeling Okay
-              </p>
-              <p className="text-3xl font-bold text-amber-900 dark:text-amber-100 mt-2">
-                {today?.amber || 0}
-              </p>
-              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                {today?.amberPercent || 0}% of team
-              </p>
-            </div>
-            <div className="text-4xl">😐</div>
-          </div>
-        </div>
-
-        <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-xl p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-red-700 dark:text-red-300">
-                Need Support
-              </p>
-              <p className="text-3xl font-bold text-red-900 dark:text-red-100 mt-2">
-                {today?.red || 0}
-              </p>
-              <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                {today?.redPercent || 0}% of team
-              </p>
-            </div>
-            <div className="text-4xl">😔</div>
-          </div>
-        </div>
+      {/* Time Range Toggle */}
+      <div className="flex gap-2 flex-wrap">
+        <button
+          onClick={() => setTimeRange("1day")}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            timeRange === "1day"
+              ? "bg-slate-700 text-white dark:bg-slate-600"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+          }`}
+        >
+          1 Day
+        </button>
+        <button
+          onClick={() => setTimeRange("3days")}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            timeRange === "3days"
+              ? "bg-slate-700 text-white dark:bg-slate-600"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+          }`}
+        >
+          3 Days
+        </button>
+        <button
+          onClick={() => setTimeRange("1week")}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            timeRange === "1week"
+              ? "bg-slate-700 text-white dark:bg-slate-600"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+          }`}
+        >
+          1 Week
+        </button>
+        <button
+          onClick={() => setTimeRange("1month")}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            timeRange === "1month"
+              ? "bg-slate-700 text-white dark:bg-slate-600"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+          }`}
+        >
+          1 Month
+        </button>
+        <button
+          onClick={() => setTimeRange("overall")}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            timeRange === "overall"
+              ? "bg-slate-700 text-white dark:bg-slate-600"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+          }`}
+        >
+          Overall
+        </button>
       </div>
 
-      <div className="h-px bg-slate-200 dark:bg-slate-700"></div>
-
-      {/* 7-Day Trend */}
+      {/* Overall Organization Mood Graph */}
       <div className="flex flex-col gap-4">
         <h2 className="font-semibold text-xl text-slate-800 dark:text-slate-200">
-          7-Day Mood Trend
+          Overall Organization Mood {timeRange === "overall" && "(Monthly Average)"}
         </h2>
-        <p className="text-slate-600 dark:text-slate-400 text-sm">
-          Track your organization's wellbeing over the past week.
-        </p>
-
-        {/* Simple Bar Chart */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
-          <div className="space-y-4">
-            {trends.map((day, index) => (
-              <div key={index} className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="font-medium text-slate-700 dark:text-slate-300">
-                    {new Date(day.date).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </span>
-                  <span className="text-slate-500 dark:text-slate-400">
-                    {day.total} responses
-                  </span>
-                </div>
-                {day.total > 0 ? (
-                  <div className="flex h-8 rounded-lg overflow-hidden">
-                    {day.green > 0 && (
-                      <div
-                        className="bg-green-500 flex items-center justify-center text-white text-xs font-semibold"
-                        style={{ width: `${day.greenPercent}%` }}
-                        title={`${day.green} green (${day.greenPercent}%)`}
-                      >
-                        {day.greenPercent > 15 && `${day.green}`}
-                      </div>
-                    )}
-                    {day.amber > 0 && (
-                      <div
-                        className="bg-amber-500 flex items-center justify-center text-white text-xs font-semibold"
-                        style={{ width: `${day.amberPercent}%` }}
-                        title={`${day.amber} amber (${day.amberPercent}%)`}
-                      >
-                        {day.amberPercent > 15 && `${day.amber}`}
-                      </div>
-                    )}
-                    {day.red > 0 && (
-                      <div
-                        className="bg-red-500 flex items-center justify-center text-white text-xs font-semibold"
-                        style={{ width: `${day.redPercent}%` }}
-                        title={`${day.red} red (${day.redPercent}%)`}
-                      >
-                        {day.redPercent > 15 && `${day.red}`}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="h-8 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center justify-center">
-                    <span className="text-xs text-slate-400">No responses</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Legend */}
-          <div className="flex gap-4 mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded"></div>
-              <span className="text-xs text-slate-600 dark:text-slate-400">
-                Feeling Great
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-amber-500 rounded"></div>
-              <span className="text-xs text-slate-600 dark:text-slate-400">
-                Feeling Okay
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-red-500 rounded"></div>
-              <span className="text-xs text-slate-600 dark:text-slate-400">
-                Need Support
-              </span>
-            </div>
-          </div>
-        </div>
+        <MoodGraph trends={displayTrends} totalPeople={employees.length} isMonthly={timeRange === "overall"} />
       </div>
 
       <div className="h-px bg-slate-200 dark:bg-slate-700"></div>
 
-      {/* Today's Check-ins */}
+      {/* Group-Specific Mood Graphs */}
+      {groups.length > 0 && (
+        <div className="flex flex-col gap-6">
+          <h2 className="font-semibold text-xl text-slate-800 dark:text-slate-200">
+            Mood by Group {timeRange === "overall" && "(Monthly Average)"}
+          </h2>
+          {groups.map((group) => (
+            <GroupMoodGraph key={group._id} groupId={group._id} groupName={group.name} days={days} timeRange={timeRange} />
+          ))}
+        </div>
+      )}
+
+      <div className="h-px bg-slate-200 dark:bg-slate-700"></div>
+
+      {/* Last 24 Hours Check-ins */}
       <div className="flex flex-col gap-4">
         <h2 className="font-semibold text-xl text-slate-800 dark:text-slate-200">
-          Today's Check-ins
+          Recent Check-ins (Last 24 Hours)
         </h2>
         {todayCheckins.length === 0 ? (
           <p className="text-slate-500 dark:text-slate-400 text-center py-8">
-            No check-ins yet today.
+            No check-ins in the last 24 hours.
           </p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -238,6 +232,260 @@ export default function ViewOrganizationPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// Reusable Mood Graph Component
+function MoodGraph({ trends, totalPeople, isMonthly = false }: { trends: any[]; totalPeople: number; isMonthly?: boolean }) {
+  // Y-axis should go up to total number of people
+  const maxY = totalPeople || 1; // Avoid division by zero
+  const yAxisSteps = 5;
+  const stepValue = maxY / yAxisSteps;
+
+  return (
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
+      {/* Graph Container */}
+      <div className="relative h-80 flex">
+        {/* Y-axis labels */}
+        <div className="flex flex-col justify-between pr-4 text-xs text-slate-600 dark:text-slate-400 w-12">
+          {Array.from({ length: yAxisSteps + 1 }).map((_, i) => {
+            const value = maxY - (i * stepValue);
+            return (
+              <div key={i} className="text-right">
+                {Number.isInteger(value) ? value : value.toFixed(1)}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Graph area */}
+        <div className="flex-1 relative border-l-2 border-b-2 border-slate-300 dark:border-slate-600">
+          {/* Horizontal grid lines */}
+          <div className="absolute inset-0">
+            {Array.from({ length: yAxisSteps }).map((_, i) => (
+              <div
+                key={i}
+                className="absolute w-full border-t border-slate-200 dark:border-slate-700"
+                style={{ top: `${(i / yAxisSteps) * 100}%` }}
+              />
+            ))}
+          </div>
+
+          {/* Data visualization */}
+          <div className="absolute inset-0 flex items-end">
+            {trends.map((day, index) => {
+              const noResponse = maxY - day.total;
+              const greenHeight = maxY > 0 ? (day.green / maxY) * 100 : 0;
+              const amberHeight = maxY > 0 ? (day.amber / maxY) * 100 : 0;
+              const redHeight = maxY > 0 ? (day.red / maxY) * 100 : 0;
+              const noResponseHeight = maxY > 0 ? (noResponse / maxY) * 100 : 0;
+
+              return (
+                <div
+                  key={index}
+                  className={`flex-1 flex flex-col items-center justify-end group relative h-full ${index === 0 ? 'pr-0.5' : index === trends.length - 1 ? 'pl-0.5' : 'px-0.5'}`}
+                >
+                  {/* Tooltip on hover */}
+                  <div className="absolute bottom-full mb-2 hidden group-hover:block bg-slate-900 dark:bg-slate-700 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
+                    <div className="font-semibold mb-1">
+                      {new Date(day.date).toLocaleDateString("en-US", isMonthly ? {
+                        month: "long",
+                        year: "numeric",
+                      } : {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                      {isMonthly && " (Avg)"}
+                    </div>
+                    <div className="text-green-300">😊 {isMonthly ? day.green.toFixed(1) : Math.round(day.green)} ({day.greenPercent}%)</div>
+                    <div className="text-amber-300">😐 {isMonthly ? day.amber.toFixed(1) : Math.round(day.amber)} ({day.amberPercent}%)</div>
+                    <div className="text-red-300">😔 {isMonthly ? day.red.toFixed(1) : Math.round(day.red)} ({day.redPercent}%)</div>
+                    <div className="text-slate-400">No response: {isMonthly ? noResponse.toFixed(1) : Math.round(noResponse)}</div>
+                    <div className="border-t border-slate-600 mt-1 pt-1">Total: {isMonthly ? day.total.toFixed(1) : Math.round(day.total)}/{totalPeople}</div>
+                  </div>
+
+                  {/* Stacked bars */}
+                  <div className="w-full flex flex-col-reverse items-center h-full">
+                    {/* Green - at top */}
+                    {day.green > 0 && (
+                      <div
+                        className="w-full bg-green-500 hover:bg-green-600 transition-colors flex items-center justify-center text-xs font-semibold text-white"
+                        style={{ height: `${greenHeight}%` }}
+                      >
+                        {greenHeight > 8 && (isMonthly ? day.green.toFixed(1) : Math.round(day.green))}
+                      </div>
+                    )}
+                    {/* Amber */}
+                    {day.amber > 0 && (
+                      <div
+                        className="w-full bg-amber-500 hover:bg-amber-600 transition-colors flex items-center justify-center text-xs font-semibold text-white"
+                        style={{ height: `${amberHeight}%` }}
+                      >
+                        {amberHeight > 8 && (isMonthly ? day.amber.toFixed(1) : Math.round(day.amber))}
+                      </div>
+                    )}
+                    {/* Red */}
+                    {day.red > 0 && (
+                      <div
+                        className="w-full bg-red-500 hover:bg-red-600 transition-colors flex items-center justify-center text-xs font-semibold text-white"
+                        style={{ height: `${redHeight}%` }}
+                      >
+                        {redHeight > 8 && (isMonthly ? day.red.toFixed(1) : Math.round(day.red))}
+                      </div>
+                    )}
+                    {/* No Response (Grey) - at bottom */}
+                    {noResponse > 0 && (
+                      <div
+                        className="w-full bg-slate-300 dark:bg-slate-600 hover:bg-slate-400 dark:hover:bg-slate-500 transition-colors flex items-center justify-center text-xs font-semibold text-slate-700 dark:text-slate-200"
+                        style={{ height: `${noResponseHeight}%` }}
+                      >
+                        {noResponseHeight > 8 && (isMonthly ? noResponse.toFixed(1) : Math.round(noResponse))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* X-axis labels */}
+      <div className="flex mt-2">
+        <div className="w-12 pr-4"></div>
+        <div className="flex-1 flex border-l-2 border-transparent">
+          {trends.map((day, index) => {
+            // For monthly view, show all labels; for daily, show selectively
+            const showLabel = isMonthly ? true :
+                             trends.length <= 7 ? true :
+                             trends.length <= 14 ? index % 2 === 0 :
+                             trends.length <= 30 ? index % 3 === 0 :
+                             index % 7 === 0 || index === trends.length - 1;
+
+            return (
+              <div
+                key={index}
+                className="flex-1 text-center text-xs text-slate-600 dark:text-slate-400 px-1"
+              >
+                {showLabel && new Date(day.date).toLocaleDateString("en-US", isMonthly ? {
+                  month: "short",
+                  year: "2-digit",
+                } : {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex gap-4 mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 flex-wrap">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-green-500 rounded"></div>
+          <span className="text-xs text-slate-600 dark:text-slate-400">
+            Feeling Great
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-amber-500 rounded"></div>
+          <span className="text-xs text-slate-600 dark:text-slate-400">
+            Feeling Okay
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-red-500 rounded"></div>
+          <span className="text-xs text-slate-600 dark:text-slate-400">
+            Need Support
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-slate-300 dark:bg-slate-600 rounded"></div>
+          <span className="text-xs text-slate-600 dark:text-slate-400">
+            No Response
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Group-Specific Mood Graph Component
+function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"groups">; groupName: string; days: number; timeRange: "1day" | "3days" | "1week" | "1month" | "overall" }) {
+  const trends = useQuery(api.moodCheckins.getGroupTrends, { groupId, days });
+  const members = useQuery(api.groups.getMembers, { groupId });
+
+  // Aggregate into monthly averages when viewing "overall"
+  const displayTrends = useMemo(() => {
+    if (!trends || timeRange !== "overall") return trends;
+
+    const monthMap = new Map<string, { green: number[], amber: number[], red: number[], totalDays: number, date: string }>();
+
+    // Include ALL days from the trends data
+    trends.forEach(day => {
+      const date = new Date(day.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+      if (!monthMap.has(monthKey)) {
+        monthMap.set(monthKey, {
+          green: [],
+          amber: [],
+          red: [],
+          totalDays: 0,
+          date: monthKey + '-01'
+        });
+      }
+
+      const month = monthMap.get(monthKey)!;
+      month.green.push(day.green);
+      month.amber.push(day.amber);
+      month.red.push(day.red);
+      month.totalDays++;
+    });
+
+    // Calculate averages and convert to array
+    return Array.from(monthMap.values())
+      .map(month => {
+        // Sum all values and divide by total days in the month (keep as decimal, don't round yet)
+        const totalGreen = month.green.reduce((a, b) => a + b, 0);
+        const totalAmber = month.amber.reduce((a, b) => a + b, 0);
+        const totalRed = month.red.reduce((a, b) => a + b, 0);
+
+        const green = totalGreen / month.totalDays;
+        const amber = totalAmber / month.totalDays;
+        const red = totalRed / month.totalDays;
+        const total = green + amber + red;
+
+        return {
+          date: month.date,
+          green,
+          amber,
+          red,
+          total,
+          greenPercent: total > 0 ? Math.round((green / total) * 100) : 0,
+          amberPercent: total > 0 ? Math.round((amber / total) * 100) : 0,
+          redPercent: total > 0 ? Math.round((red / total) * 100) : 0,
+        };
+      })
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-12); // Only show last 12 months
+  }, [trends, timeRange]);
+
+  if (trends === undefined || members === undefined) {
+    return (
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
+        <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200 mb-4">{groupName}</h3>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Loading...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
+      <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200 mb-4">{groupName}</h3>
+      <MoodGraph trends={displayTrends} totalPeople={members.length} isMonthly={timeRange === "overall"} />
     </div>
   );
 }

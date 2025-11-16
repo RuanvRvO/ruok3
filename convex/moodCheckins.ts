@@ -207,6 +207,73 @@ export const getTodayCheckins = query({
   },
 });
 
+// Query to get mood trends for a specific group
+export const getGroupTrends = query({
+  args: {
+    groupId: v.id("groups"),
+    days: v.optional(v.number()), // Number of days to look back, default 7
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      return [];
+    }
+
+    const user = await ctx.db.get(userId);
+    const organisation = user?.organisation;
+    if (!organisation) {
+      return [];
+    }
+
+    // Get all members of the group
+    const memberships = await ctx.db
+      .query("groupMembers")
+      .withIndex("by_group", (q) => q.eq("groupId", args.groupId))
+      .collect();
+
+    const employeeIds = memberships.map((m) => m.employeeId);
+
+    const days = args.days || 7;
+    const trends = [];
+
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split("T")[0];
+
+      const checkins = await ctx.db
+        .query("moodCheckins")
+        .withIndex("by_organisation_and_date", (q) =>
+          q.eq("organisation", organisation).eq("date", dateStr)
+        )
+        .collect();
+
+      // Filter to only include employees in this group
+      const groupCheckins = checkins.filter((c) =>
+        employeeIds.includes(c.employeeId)
+      );
+
+      const green = groupCheckins.filter((c) => c.mood === "green").length;
+      const amber = groupCheckins.filter((c) => c.mood === "amber").length;
+      const red = groupCheckins.filter((c) => c.mood === "red").length;
+      const total = groupCheckins.length;
+
+      trends.push({
+        date: dateStr,
+        green,
+        amber,
+        red,
+        total,
+        greenPercent: total > 0 ? Math.round((green / total) * 100) : 0,
+        amberPercent: total > 0 ? Math.round((amber / total) * 100) : 0,
+        redPercent: total > 0 ? Math.round((red / total) * 100) : 0,
+      });
+    }
+
+    return trends;
+  },
+});
+
 // Internal action to send daily mood check-in emails via Resend
 export const sendDailyEmails = internalAction({
   args: {},
