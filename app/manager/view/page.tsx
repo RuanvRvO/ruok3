@@ -20,9 +20,9 @@ export default function ViewOrganizationPage() {
   let days: number;
   if (timeRange === "overall") {
     // Find the earliest employee creation date as proxy for org creation
-    const earliestEmployee = employees?.reduce((earliest, emp) =>
+    const earliestEmployee = employees && employees.length > 0 ? employees.reduce((earliest, emp) =>
       !earliest || emp.createdAt < earliest.createdAt ? emp : earliest
-    , employees[0]);
+    , employees[0]) : null;
 
     if (earliestEmployee) {
       const daysSinceCreation = Math.ceil((Date.now() - earliestEmployee.createdAt) / (1000 * 60 * 60 * 24));
@@ -232,7 +232,7 @@ export default function ViewOrganizationPage() {
             <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 text-center border-b-2 border-slate-300 dark:border-slate-600 pb-3">
               Organization Mood {timeRange === "overall" && "(Monthly Average)"}
             </h2>
-            <MoodGraph trends={displayTrends} totalPeople={employees.length} isMonthly={timeRange === "overall"} />
+            <MoodGraph trends={displayTrends || []} totalPeople={employees?.length || 0} isMonthly={timeRange === "overall"} />
           </div>
 
           <div className="h-px bg-slate-200 dark:bg-slate-700 my-4"></div>
@@ -537,7 +537,7 @@ function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"
   return (
     <div className="mx-auto" style={{ width: "fit-content" }}>
       <h3 className="font-bold text-xl text-slate-900 dark:text-slate-100 mb-6 text-center">{groupName}</h3>
-      <MoodGraph trends={displayTrends} totalPeople={members.length} isMonthly={timeRange === "overall"} />
+      <MoodGraph trends={displayTrends || []} totalPeople={members?.length || 0} isMonthly={timeRange === "overall"} />
     </div>
   );
 }
