@@ -2,7 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Id } from "../../../convex/_generated/dataModel";
 
 export default function ViewOrganizationPage() {
@@ -11,7 +11,8 @@ export default function ViewOrganizationPage() {
       count: 10,
     }) ?? {};
 
-  const [timeRange, setTimeRange] = useState<"1day" | "3days" | "1week" | "1month" | "1year" | "overall">("1week");
+  const [timeRange, setTimeRange] = useState<"1week" | "1month" | "1year" | "overall">("1week");
+  const [selectedGroupId, setSelectedGroupId] = useState<Id<"groups"> | null>(null);
 
   const employees = useQuery(api.employees.list);
 
@@ -31,12 +32,19 @@ export default function ViewOrganizationPage() {
       days = 365; // fallback
     }
   } else {
-    days = timeRange === "1day" ? 1 : timeRange === "3days" ? 3 : timeRange === "1week" ? 7 : timeRange === "1month" ? 30 : 365;
+    days = timeRange === "1week" ? 7 : timeRange === "1month" ? 30 : 365;
   }
 
   const trends = useQuery(api.moodCheckins.getTrends, { days });
   const todayCheckins = useQuery(api.moodCheckins.getTodayCheckins);
   const groups = useQuery(api.groups.list);
+
+  // Auto-select first group when groups load
+  useEffect(() => {
+    if (groups && groups.length > 0 && selectedGroupId === null) {
+      setSelectedGroupId(groups[0]._id);
+    }
+  }, [groups, selectedGroupId]);
 
   const isLoading = trends === undefined || todayCheckins === undefined || groups === undefined || employees === undefined;
 
@@ -175,26 +183,6 @@ export default function ViewOrganizationPage() {
             </h3>
             <div className="flex gap-2 flex-wrap">
             <button
-              onClick={() => setTimeRange("1day")}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                timeRange === "1day"
-                  ? "bg-slate-700 text-white dark:bg-slate-600"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-              }`}
-            >
-              1 Day
-            </button>
-            <button
-              onClick={() => setTimeRange("3days")}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                timeRange === "3days"
-                  ? "bg-slate-700 text-white dark:bg-slate-600"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-              }`}
-            >
-              3 Days
-            </button>
-            <button
               onClick={() => setTimeRange("1week")}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 timeRange === "1week"
@@ -247,15 +235,48 @@ export default function ViewOrganizationPage() {
 
           <div className="h-px bg-slate-200 dark:bg-slate-700 my-4"></div>
 
-          {/* Group-Specific Mood Graphs */}
+          {/* Group Filter and Graph */}
           {groups.length > 0 && (
-            <div className="flex flex-col gap-8">
-              <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 text-center border-b-2 border-slate-300 dark:border-slate-600 pb-3">
-                Mood by Group {(timeRange === "overall" || timeRange === "1year") && "(Monthly Average)"}
-              </h2>
-              {groups.map((group) => (
-                <GroupMoodGraph key={group._id} groupId={group._id} groupName={group.name} days={days} timeRange={timeRange} />
-              ))}
+            <div className="flex flex-col gap-6">
+              {/* Group Filter Tabs */}
+              <div className="flex flex-col gap-3">
+                <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200">
+                  Group Filter
+                </h3>
+                <div className="relative">
+                  <div
+                    className="flex gap-2 overflow-x-auto pb-2"
+                    style={{
+                      scrollbarWidth: 'thin',
+                      scrollbarColor: 'rgb(203 213 225) transparent'
+                    }}
+                  >
+                    {groups.map((group) => (
+                      <button
+                        key={group._id}
+                        onClick={() => setSelectedGroupId(group._id)}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
+                          selectedGroupId === group._id
+                            ? "bg-slate-700 text-white dark:bg-slate-600"
+                            : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                        }`}
+                      >
+                        {group.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Selected Group Mood Graph */}
+              {selectedGroupId && (
+                <div className="flex flex-col gap-6">
+                  <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 text-center border-b-2 border-slate-300 dark:border-slate-600 pb-3">
+                    {groups.find(g => g._id === selectedGroupId)?.name} Mood {(timeRange === "overall" || timeRange === "1year") && "(Monthly Average)"}
+                  </h2>
+                  <GroupMoodGraph groupId={selectedGroupId} groupName={groups.find(g => g._id === selectedGroupId)?.name || ""} days={days} timeRange={timeRange} />
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -475,7 +496,7 @@ function MoodGraph({ trends, totalPeople, isMonthly = false }: { trends: any[]; 
 }
 
 // Group-Specific Mood Graph Component
-function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"groups">; groupName: string; days: number; timeRange: "1day" | "3days" | "1week" | "1month" | "1year" | "overall" }) {
+function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"groups">; groupName: string; days: number; timeRange: "1week" | "1month" | "1year" | "overall" }) {
   const trends = useQuery(api.moodCheckins.getGroupTrends, { groupId, days });
   const members = useQuery(api.groups.getMembers, { groupId });
 
