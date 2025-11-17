@@ -10,10 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Id } from "../../../convex/_generated/dataModel";
 
 export default function EditOrganizationPage() {
-  const { viewer } =
-    useQuery(api.myFunctions.listNumbers, {
-      count: 10,
-    }) ?? {};
+  const user = useQuery(api.users.getCurrentUser);
+  const viewer = user?.name ?? user?.email ?? null;
 
   const employees = useQuery(api.employees.list);
   const addEmployee = useMutation(api.employees.add);

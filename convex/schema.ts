@@ -19,9 +19,6 @@ export default defineSchema({
     image: v.optional(v.string()),
     isAnonymous: v.optional(v.boolean()),
   }),
-  numbers: defineTable({
-    value: v.number(),
-  }),
   employees: defineTable({
     firstName: v.string(),
     email: v.string(),

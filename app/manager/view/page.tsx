@@ -6,10 +6,8 @@ import { useState, useMemo, useEffect } from "react";
 import { Id } from "../../../convex/_generated/dataModel";
 
 export default function ViewOrganizationPage() {
-  const { viewer } =
-    useQuery(api.myFunctions.listNumbers, {
-      count: 10,
-    }) ?? {};
+  const user = useQuery(api.users.getCurrentUser);
+  const viewer = user?.name ?? user?.email ?? null;
 
   const [timeRange, setTimeRange] = useState<"1week" | "1month" | "1year" | "overall">("1week");
   const [selectedGroupId, setSelectedGroupId] = useState<Id<"groups"> | null>(null);
@@ -112,7 +110,7 @@ export default function ViewOrganizationPage() {
       .slice(-12); // Only show last 12 months
   }, [trends, timeRange]);
 
-  if (viewer === undefined || isLoading) {
+  if (user === undefined || isLoading) {
     return (
       <div className="mx-auto">
         <div className="flex items-center gap-2">
