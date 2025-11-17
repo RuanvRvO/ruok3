@@ -11,7 +11,7 @@ export default function ViewOrganizationPage() {
       count: 10,
     }) ?? {};
 
-  const [timeRange, setTimeRange] = useState<"1day" | "3days" | "1week" | "1month" | "overall">("1week");
+  const [timeRange, setTimeRange] = useState<"1day" | "3days" | "1week" | "1month" | "1year" | "overall">("1week");
 
   const employees = useQuery(api.employees.list);
 
@@ -31,7 +31,7 @@ export default function ViewOrganizationPage() {
       days = 365; // fallback
     }
   } else {
-    days = timeRange === "1day" ? 1 : timeRange === "3days" ? 3 : timeRange === "1week" ? 7 : 30;
+    days = timeRange === "1day" ? 1 : timeRange === "3days" ? 3 : timeRange === "1week" ? 7 : timeRange === "1month" ? 30 : 365;
   }
 
   const trends = useQuery(api.moodCheckins.getTrends, { days });
@@ -48,9 +48,9 @@ export default function ViewOrganizationPage() {
       .sort((a, b) => b.timestamp - a.timestamp);
   }, [todayCheckins]);
 
-  // Aggregate into monthly averages when viewing "overall"
+  // Aggregate into monthly averages when viewing "overall" or "1year"
   const displayTrends = useMemo(() => {
-    if (!trends || timeRange !== "overall") return trends;
+    if (!trends || (timeRange !== "overall" && timeRange !== "1year")) return trends;
 
     const monthMap = new Map<string, { green: number[], amber: number[], red: number[], totalDays: number, date: string }>();
 
@@ -215,6 +215,16 @@ export default function ViewOrganizationPage() {
               1 Month
             </button>
             <button
+              onClick={() => setTimeRange("1year")}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                timeRange === "1year"
+                  ? "bg-slate-700 text-white dark:bg-slate-600"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+              }`}
+            >
+              1 Year
+            </button>
+            <button
               onClick={() => setTimeRange("overall")}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 timeRange === "overall"
@@ -230,9 +240,9 @@ export default function ViewOrganizationPage() {
           {/* Overall Organization Mood Graph */}
           <div className="flex flex-col gap-6">
             <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 text-center border-b-2 border-slate-300 dark:border-slate-600 pb-3">
-              Organization Mood {timeRange === "overall" && "(Monthly Average)"}
+              Organization Mood {(timeRange === "overall" || timeRange === "1year") && "(Monthly Average)"}
             </h2>
-            <MoodGraph trends={displayTrends || []} totalPeople={employees?.length || 0} isMonthly={timeRange === "overall"} />
+            <MoodGraph trends={displayTrends || []} totalPeople={employees?.length || 0} isMonthly={timeRange === "overall" || timeRange === "1year"} />
           </div>
 
           <div className="h-px bg-slate-200 dark:bg-slate-700 my-4"></div>
@@ -241,7 +251,7 @@ export default function ViewOrganizationPage() {
           {groups.length > 0 && (
             <div className="flex flex-col gap-8">
               <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 text-center border-b-2 border-slate-300 dark:border-slate-600 pb-3">
-                Mood by Group {timeRange === "overall" && "(Monthly Average)"}
+                Mood by Group {(timeRange === "overall" || timeRange === "1year") && "(Monthly Average)"}
               </h2>
               {groups.map((group) => (
                 <GroupMoodGraph key={group._id} groupId={group._id} groupName={group.name} days={days} timeRange={timeRange} />
@@ -465,13 +475,13 @@ function MoodGraph({ trends, totalPeople, isMonthly = false }: { trends: any[]; 
 }
 
 // Group-Specific Mood Graph Component
-function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"groups">; groupName: string; days: number; timeRange: "1day" | "3days" | "1week" | "1month" | "overall" }) {
+function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"groups">; groupName: string; days: number; timeRange: "1day" | "3days" | "1week" | "1month" | "1year" | "overall" }) {
   const trends = useQuery(api.moodCheckins.getGroupTrends, { groupId, days });
   const members = useQuery(api.groups.getMembers, { groupId });
 
-  // Aggregate into monthly averages when viewing "overall"
+  // Aggregate into monthly averages when viewing "overall" or "1year"
   const displayTrends = useMemo(() => {
-    if (!trends || timeRange !== "overall") return trends;
+    if (!trends || (timeRange !== "overall" && timeRange !== "1year")) return trends;
 
     const monthMap = new Map<string, { green: number[], amber: number[], red: number[], totalDays: number, date: string }>();
 
@@ -537,7 +547,7 @@ function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"
   return (
     <div className="mx-auto" style={{ width: "fit-content" }}>
       <h3 className="font-bold text-xl text-slate-900 dark:text-slate-100 mb-6 text-center">{groupName}</h3>
-      <MoodGraph trends={displayTrends || []} totalPeople={members?.length || 0} isMonthly={timeRange === "overall"} />
+      <MoodGraph trends={displayTrends || []} totalPeople={members?.length || 0} isMonthly={timeRange === "overall" || timeRange === "1year"} />
     </div>
   );
 }

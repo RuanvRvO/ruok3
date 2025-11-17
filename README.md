@@ -18,3 +18,5 @@ After the initial setup (<2 minutes) you'll have a working full-stack app using:
 -each manager should be able to add more organisations to manage from the edit page
 -add email authentication when user creates orginasation
 -removed employess have their responses kept, should this be removed in graphical data? (Yes)
+
+-fix web size width issues
