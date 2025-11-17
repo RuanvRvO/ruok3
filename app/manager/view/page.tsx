@@ -10,11 +10,12 @@ export default function ViewOrganizationPage() {
   const viewer = user?.name ?? user?.email ?? null;
 
   const [timeRange, setTimeRange] = useState<"1week" | "1month" | "1year" | "overall">("1week");
+  const [groupTimeRange, setGroupTimeRange] = useState<"1week" | "1month" | "1year" | "overall">("1week");
   const [selectedGroupId, setSelectedGroupId] = useState<Id<"groups"> | null>(null);
 
   const employees = useQuery(api.employees.list);
 
-  // Calculate days based on time range
+  // Calculate days based on time range (for organization)
   // For "overall", calculate days since organization creation
   let days: number;
   if (timeRange === "overall") {
@@ -33,7 +34,23 @@ export default function ViewOrganizationPage() {
     days = timeRange === "1week" ? 7 : timeRange === "1month" ? 30 : 365;
   }
 
-  const trends = useQuery(api.moodCheckins.getTrends, { days });
+  // Calculate days based on group time range
+  let groupDays: number;
+  if (groupTimeRange === "overall") {
+    const earliestEmployee = employees && employees.length > 0 ? employees.reduce((earliest, emp) =>
+      !earliest || emp.createdAt < earliest.createdAt ? emp : earliest
+    , employees[0]) : null;
+
+    if (earliestEmployee) {
+      const daysSinceCreation = Math.ceil((Date.now() - earliestEmployee.createdAt) / (1000 * 60 * 60 * 24));
+      groupDays = daysSinceCreation;
+    } else {
+      groupDays = 365; // fallback
+    }
+  } else {
+    groupDays = groupTimeRange === "1week" ? 7 : groupTimeRange === "1month" ? 30 : 365;
+  }
+
   const todayCheckins = useQuery(api.moodCheckins.getTodayCheckins);
   const groups = useQuery(api.groups.list);
 
@@ -44,7 +61,7 @@ export default function ViewOrganizationPage() {
     }
   }, [groups, selectedGroupId]);
 
-  const isLoading = trends === undefined || todayCheckins === undefined || groups === undefined || employees === undefined;
+  const isLoading = todayCheckins === undefined || groups === undefined || employees === undefined;
 
   // Sort check-ins by most recent first and filter only those with notes
   const sortedCheckins = useMemo(() => {
@@ -53,62 +70,6 @@ export default function ViewOrganizationPage() {
       .filter((checkin) => checkin.note && checkin.note.trim().length > 0)
       .sort((a, b) => b.timestamp - a.timestamp);
   }, [todayCheckins]);
-
-  // Aggregate into monthly averages when viewing "overall" or "1year"
-  const displayTrends = useMemo(() => {
-    if (!trends || (timeRange !== "overall" && timeRange !== "1year")) return trends;
-
-    const monthMap = new Map<string, { green: number[], amber: number[], red: number[], totalDays: number, date: string }>();
-
-    // Include ALL days from the trends data
-    trends.forEach(day => {
-      const date = new Date(day.date);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-
-      if (!monthMap.has(monthKey)) {
-        monthMap.set(monthKey, {
-          green: [],
-          amber: [],
-          red: [],
-          totalDays: 0,
-          date: monthKey + '-01'
-        });
-      }
-
-      const month = monthMap.get(monthKey)!;
-      month.green.push(day.green);
-      month.amber.push(day.amber);
-      month.red.push(day.red);
-      month.totalDays++;
-    });
-
-    // Calculate averages and convert to array
-    return Array.from(monthMap.values())
-      .map(month => {
-        // Sum all values and divide by total days in the month (keep as decimal, don't round yet)
-        const totalGreen = month.green.reduce((a, b) => a + b, 0);
-        const totalAmber = month.amber.reduce((a, b) => a + b, 0);
-        const totalRed = month.red.reduce((a, b) => a + b, 0);
-
-        const green = totalGreen / month.totalDays;
-        const amber = totalAmber / month.totalDays;
-        const red = totalRed / month.totalDays;
-        const total = green + amber + red;
-
-        return {
-          date: month.date,
-          green,
-          amber,
-          red,
-          total,
-          greenPercent: total > 0 ? Math.round((green / total) * 100) : 0,
-          amberPercent: total > 0 ? Math.round((amber / total) * 100) : 0,
-          redPercent: total > 0 ? Math.round((red / total) * 100) : 0,
-        };
-      })
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(-12); // Only show last 12 months
-  }, [trends, timeRange]);
 
   if (user === undefined || isLoading) {
     return (
@@ -177,7 +138,7 @@ export default function ViewOrganizationPage() {
           {/* Time Range Toggle */}
           <div className="flex flex-col gap-3">
             <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200">
-              Time Range Filter
+              Time Range Filter (Organization)
             </h3>
             <div className="flex gap-2 flex-wrap">
             <button
@@ -228,7 +189,7 @@ export default function ViewOrganizationPage() {
             <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 text-center border-b-2 border-slate-300 dark:border-slate-600 pb-3">
               Organization Mood {(timeRange === "overall" || timeRange === "1year") && "(Monthly Average)"}
             </h2>
-            <MoodGraph trends={displayTrends || []} totalPeople={employees?.length || 0} isMonthly={timeRange === "overall" || timeRange === "1year"} />
+            <OrganizationMoodGraph days={days} timeRange={timeRange} employees={employees} />
           </div>
 
           <div className="h-px bg-slate-200 dark:bg-slate-700 my-4"></div>
@@ -266,13 +227,62 @@ export default function ViewOrganizationPage() {
                 </div>
               </div>
 
+              {/* Group Time Range Filter */}
+              <div className="flex flex-col gap-3">
+                <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200">
+                  Time Range Filter (Group)
+                </h3>
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => setGroupTimeRange("1week")}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      groupTimeRange === "1week"
+                        ? "bg-slate-700 text-white dark:bg-slate-600"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                    }`}
+                  >
+                    1 Week
+                  </button>
+                  <button
+                    onClick={() => setGroupTimeRange("1month")}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      groupTimeRange === "1month"
+                        ? "bg-slate-700 text-white dark:bg-slate-600"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                    }`}
+                  >
+                    1 Month
+                  </button>
+                  <button
+                    onClick={() => setGroupTimeRange("1year")}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      groupTimeRange === "1year"
+                        ? "bg-slate-700 text-white dark:bg-slate-600"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                    }`}
+                  >
+                    1 Year
+                  </button>
+                  <button
+                    onClick={() => setGroupTimeRange("overall")}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      groupTimeRange === "overall"
+                        ? "bg-slate-700 text-white dark:bg-slate-600"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                    }`}
+                  >
+                    Overall
+                  </button>
+                </div>
+              </div>
+
               {/* Selected Group Mood Graph */}
               {selectedGroupId && (
                 <div className="flex flex-col gap-6">
                   <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 text-center border-b-2 border-slate-300 dark:border-slate-600 pb-3">
-                    {groups.find(g => g._id === selectedGroupId)?.name} Mood {(timeRange === "overall" || timeRange === "1year") && "(Monthly Average)"}
+                    {groups.find(g => g._id === selectedGroupId)?.name} Mood {(groupTimeRange === "overall" || groupTimeRange === "1year") && "(Monthly Average)"}
                   </h2>
-                  <GroupMoodGraph groupId={selectedGroupId} groupName={groups.find(g => g._id === selectedGroupId)?.name || ""} days={days} timeRange={timeRange} />
+                  <GroupMoodGraph key={`${selectedGroupId}-${groupDays}`} groupId={selectedGroupId} groupName={groups.find(g => g._id === selectedGroupId)?.name || ""} days={groupDays} timeRange={groupTimeRange} />
                 </div>
               )}
             </div>
@@ -493,6 +503,86 @@ function MoodGraph({ trends, totalPeople, isMonthly = false }: { trends: any[]; 
   );
 }
 
+// Organization Mood Graph Component
+function OrganizationMoodGraph({ days, timeRange, employees }: { days: number; timeRange: "1week" | "1month" | "1year" | "overall"; employees: any[] | undefined }) {
+  const trends = useQuery(api.moodCheckins.getTrends, { days });
+
+  // Aggregate into monthly averages when viewing "overall" or "1year"
+  const displayTrends = useMemo(() => {
+    if (!trends || (timeRange !== "overall" && timeRange !== "1year")) return trends;
+
+    const monthMap = new Map<string, { green: number[], amber: number[], red: number[], totalDays: number, date: string }>();
+
+    // Include ALL days from the trends data
+    trends.forEach(day => {
+      const date = new Date(day.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+      if (!monthMap.has(monthKey)) {
+        monthMap.set(monthKey, {
+          green: [],
+          amber: [],
+          red: [],
+          totalDays: 0,
+          date: monthKey + '-01'
+        });
+      }
+
+      const month = monthMap.get(monthKey)!;
+      month.green.push(day.green);
+      month.amber.push(day.amber);
+      month.red.push(day.red);
+      month.totalDays++;
+    });
+
+    // Calculate averages and convert to array
+    return Array.from(monthMap.values())
+      .map(month => {
+        // Sum all values and divide by total days in the month (keep as decimal, don't round yet)
+        const totalGreen = month.green.reduce((a, b) => a + b, 0);
+        const totalAmber = month.amber.reduce((a, b) => a + b, 0);
+        const totalRed = month.red.reduce((a, b) => a + b, 0);
+
+        const green = totalGreen / month.totalDays;
+        const amber = totalAmber / month.totalDays;
+        const red = totalRed / month.totalDays;
+        const total = green + amber + red;
+
+        return {
+          date: month.date,
+          green,
+          amber,
+          red,
+          total,
+          greenPercent: total > 0 ? Math.round((green / total) * 100) : 0,
+          amberPercent: total > 0 ? Math.round((amber / total) * 100) : 0,
+          redPercent: total > 0 ? Math.round((red / total) * 100) : 0,
+        };
+      })
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-12); // Only show last 12 months
+  }, [trends, timeRange]);
+
+  if (trends === undefined) {
+    return (
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 mx-auto" style={{ width: "600px", height: "480px" }}>
+        <div className="flex items-center justify-center h-full">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
+            <div className="w-2 h-2 bg-slate-600 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+            <p className="ml-2 text-slate-600 dark:text-slate-400">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <MoodGraph trends={displayTrends || []} totalPeople={employees?.length || 0} isMonthly={timeRange === "overall" || timeRange === "1year"} />
+  );
+}
+
 // Group-Specific Mood Graph Component
 function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"groups">; groupName: string; days: number; timeRange: "1week" | "1month" | "1year" | "overall" }) {
   const trends = useQuery(api.moodCheckins.getGroupTrends, { groupId, days });
@@ -556,9 +646,15 @@ function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"
 
   if (trends === undefined || members === undefined) {
     return (
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 mx-auto" style={{ maxWidth: "fit-content" }}>
-        <h3 className="font-bold text-xl text-slate-900 dark:text-slate-100 mb-6 text-center border-b border-slate-200 dark:border-slate-600 pb-3">{groupName}</h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400">Loading...</p>
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 mx-auto" style={{ width: "600px", height: "480px" }}>
+        <div className="flex items-center justify-center h-full">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
+            <div className="w-2 h-2 bg-slate-600 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+            <p className="ml-2 text-slate-600 dark:text-slate-400">Loading...</p>
+          </div>
+        </div>
       </div>
     );
   }
