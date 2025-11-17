@@ -133,10 +133,24 @@ export const getTrends = query({
     const days = args.days || 7;
     const trends = [];
 
+    // Get all employees for this organization
+    const allEmployees = await ctx.db
+      .query("employees")
+      .withIndex("by_organisation", (q) => q.eq("organisation", organisation))
+      .collect();
+
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split("T")[0];
+
+      // Calculate the start of the next day (end boundary for this day)
+      const nextDayStart = new Date(dateStr);
+      nextDayStart.setDate(nextDayStart.getDate() + 1);
+      const dayEndTimestamp = nextDayStart.getTime();
+
+      // Count employees that existed on this day (created before the next day started)
+      const employeeCountOnDay = allEmployees.filter(emp => emp.createdAt < dayEndTimestamp).length;
 
       const checkins = await ctx.db
         .query("moodCheckins")
@@ -156,6 +170,7 @@ export const getTrends = query({
         amber,
         red,
         total,
+        employeeCount: employeeCountOnDay,
         greenPercent: total > 0 ? Math.round((green / total) * 100) : 0,
         amberPercent: total > 0 ? Math.round((amber / total) * 100) : 0,
         redPercent: total > 0 ? Math.round((red / total) * 100) : 0,
@@ -233,6 +248,16 @@ export const getGroupTrends = query({
 
     const employeeIds = memberships.map((m) => m.employeeId);
 
+    // Get employee details for calculating historical membership
+    const employees = await Promise.all(
+      employeeIds.map(id => ctx.db.get(id))
+    );
+
+    // Create a map of employeeId to employee for quick lookup
+    const employeeMap = new Map(
+      employees.filter(e => e !== null).map(e => [e!._id, e!])
+    );
+
     const days = args.days || 7;
     const trends = [];
 
@@ -241,6 +266,22 @@ export const getGroupTrends = query({
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split("T")[0];
 
+      // Calculate the start of the next day (end boundary for this day)
+      const nextDayStart = new Date(dateStr);
+      nextDayStart.setDate(nextDayStart.getDate() + 1);
+      const dayEndTimestamp = nextDayStart.getTime();
+
+      // Calculate group member count on this day
+      // Count memberships that were created before the next day started
+      const memberCountOnDay = memberships.filter(m => {
+        const employee = employeeMap.get(m.employeeId);
+        if (!employee) return false;
+
+        // If membership has createdAt, use it; otherwise fall back to employee's createdAt
+        const effectiveCreatedAt = m.createdAt || employee.createdAt;
+        return effectiveCreatedAt < dayEndTimestamp;
+      }).length;
+
       const checkins = await ctx.db
         .query("moodCheckins")
         .withIndex("by_organisation_and_date", (q) =>
@@ -248,15 +289,26 @@ export const getGroupTrends = query({
         )
         .collect();
 
-      // Filter to only include employees in this group
-      const groupCheckins = checkins.filter((c) =>
-        employeeIds.includes(c.employeeId)
-      );
+      // Filter to only include employees in this group (who were members on that day)
+      const groupCheckinsOnDay = checkins.filter((c) => {
+        if (!employeeIds.includes(c.employeeId)) return false;
 
-      const green = groupCheckins.filter((c) => c.mood === "green").length;
-      const amber = groupCheckins.filter((c) => c.mood === "amber").length;
-      const red = groupCheckins.filter((c) => c.mood === "red").length;
-      const total = groupCheckins.length;
+        const employee = employeeMap.get(c.employeeId);
+        if (!employee) return false;
+
+        // Check if this employee was a member on this day
+        const membership = memberships.find(m => m.employeeId === c.employeeId);
+        if (!membership) return false;
+
+        // If membership has createdAt, use it; otherwise fall back to employee's createdAt
+        const effectiveCreatedAt = membership.createdAt || employee.createdAt;
+        return effectiveCreatedAt < dayEndTimestamp;
+      });
+
+      const green = groupCheckinsOnDay.filter((c) => c.mood === "green").length;
+      const amber = groupCheckinsOnDay.filter((c) => c.mood === "amber").length;
+      const red = groupCheckinsOnDay.filter((c) => c.mood === "red").length;
+      const total = groupCheckinsOnDay.length;
 
       trends.push({
         date: dateStr,
@@ -264,6 +316,7 @@ export const getGroupTrends = query({
         amber,
         red,
         total,
+        employeeCount: memberCountOnDay,
         greenPercent: total > 0 ? Math.round((green / total) * 100) : 0,
         amberPercent: total > 0 ? Math.round((amber / total) * 100) : 0,
         redPercent: total > 0 ? Math.round((red / total) * 100) : 0,

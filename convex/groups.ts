@@ -164,6 +164,7 @@ export const addMember = mutation({
     const membershipId = await ctx.db.insert("groupMembers", {
       groupId: args.groupId,
       employeeId: args.employeeId,
+      createdAt: Date.now(),
     });
 
     return membershipId;

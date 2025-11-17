@@ -350,9 +350,9 @@ export default function ViewOrganizationPage() {
 }
 
 // Reusable Mood Graph Component
-function MoodGraph({ trends, totalPeople, isMonthly = false }: { trends: any[]; totalPeople: number; isMonthly?: boolean }) {
-  // Y-axis should go up to total number of people
-  const maxY = totalPeople || 1; // Avoid division by zero
+function MoodGraph({ trends, isMonthly = false }: { trends: any[]; isMonthly?: boolean }) {
+  // Y-axis should go up to the maximum number of employees across all days
+  const maxY = Math.max(...trends.map(d => d.employeeCount || 0), 1); // Avoid division by zero
   // Adjust y-axis steps based on group size to prevent duplicate labels
   const yAxisSteps = Math.min(maxY, 5);
   const stepValue = maxY / yAxisSteps;
@@ -394,7 +394,8 @@ function MoodGraph({ trends, totalPeople, isMonthly = false }: { trends: any[]; 
           {/* Data visualization */}
           <div className="absolute inset-0 flex items-end">
             {trends.map((day, index) => {
-              const noResponse = maxY - day.total;
+              const employeeCountOnDay = day.employeeCount || 0;
+              const noResponse = employeeCountOnDay - day.total;
               const greenHeight = maxY > 0 ? (day.green / maxY) * 100 : 0;
               const amberHeight = maxY > 0 ? (day.amber / maxY) * 100 : 0;
               const redHeight = maxY > 0 ? (day.red / maxY) * 100 : 0;
@@ -421,7 +422,7 @@ function MoodGraph({ trends, totalPeople, isMonthly = false }: { trends: any[]; 
                     <div className="text-amber-300">😐 {isMonthly ? day.amber.toFixed(1) : Math.round(day.amber)} ({day.amberPercent}%)</div>
                     <div className="text-red-300">😔 {isMonthly ? day.red.toFixed(1) : Math.round(day.red)} ({day.redPercent}%)</div>
                     <div className="text-slate-400">No response: {isMonthly ? noResponse.toFixed(1) : Math.round(noResponse)}</div>
-                    <div className="border-t border-slate-600 mt-1 pt-1">Total: {isMonthly ? day.total.toFixed(1) : Math.round(day.total)}/{totalPeople}</div>
+                    <div className="border-t border-slate-600 mt-1 pt-1">Total: {isMonthly ? day.total.toFixed(1) : Math.round(day.total)}/{isMonthly ? day.employeeCount.toFixed(1) : Math.round(employeeCountOnDay)}</div>
                   </div>
 
                   {/* Stacked bars */}
@@ -511,7 +512,7 @@ function OrganizationMoodGraph({ days, timeRange, employees }: { days: number; t
   const displayTrends = useMemo(() => {
     if (!trends || (timeRange !== "overall" && timeRange !== "1year")) return trends;
 
-    const monthMap = new Map<string, { green: number[], amber: number[], red: number[], totalDays: number, date: string }>();
+    const monthMap = new Map<string, { green: number[], amber: number[], red: number[], employeeCounts: number[], totalDays: number, date: string }>();
 
     // Include ALL days from the trends data
     trends.forEach(day => {
@@ -523,6 +524,7 @@ function OrganizationMoodGraph({ days, timeRange, employees }: { days: number; t
           green: [],
           amber: [],
           red: [],
+          employeeCounts: [],
           totalDays: 0,
           date: monthKey + '-01'
         });
@@ -532,6 +534,7 @@ function OrganizationMoodGraph({ days, timeRange, employees }: { days: number; t
       month.green.push(day.green);
       month.amber.push(day.amber);
       month.red.push(day.red);
+      month.employeeCounts.push(day.employeeCount || 0);
       month.totalDays++;
     });
 
@@ -542,11 +545,13 @@ function OrganizationMoodGraph({ days, timeRange, employees }: { days: number; t
         const totalGreen = month.green.reduce((a, b) => a + b, 0);
         const totalAmber = month.amber.reduce((a, b) => a + b, 0);
         const totalRed = month.red.reduce((a, b) => a + b, 0);
+        const totalEmployees = month.employeeCounts.reduce((a, b) => a + b, 0);
 
         const green = totalGreen / month.totalDays;
         const amber = totalAmber / month.totalDays;
         const red = totalRed / month.totalDays;
         const total = green + amber + red;
+        const employeeCount = totalEmployees / month.totalDays;
 
         return {
           date: month.date,
@@ -554,6 +559,7 @@ function OrganizationMoodGraph({ days, timeRange, employees }: { days: number; t
           amber,
           red,
           total,
+          employeeCount,
           greenPercent: total > 0 ? Math.round((green / total) * 100) : 0,
           amberPercent: total > 0 ? Math.round((amber / total) * 100) : 0,
           redPercent: total > 0 ? Math.round((red / total) * 100) : 0,
@@ -579,7 +585,7 @@ function OrganizationMoodGraph({ days, timeRange, employees }: { days: number; t
   }
 
   return (
-    <MoodGraph trends={displayTrends || []} totalPeople={employees?.length || 0} isMonthly={timeRange === "overall" || timeRange === "1year"} />
+    <MoodGraph trends={displayTrends || []} isMonthly={timeRange === "overall" || timeRange === "1year"} />
   );
 }
 
@@ -592,7 +598,7 @@ function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"
   const displayTrends = useMemo(() => {
     if (!trends || (timeRange !== "overall" && timeRange !== "1year")) return trends;
 
-    const monthMap = new Map<string, { green: number[], amber: number[], red: number[], totalDays: number, date: string }>();
+    const monthMap = new Map<string, { green: number[], amber: number[], red: number[], employeeCounts: number[], totalDays: number, date: string }>();
 
     // Include ALL days from the trends data
     trends.forEach(day => {
@@ -604,6 +610,7 @@ function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"
           green: [],
           amber: [],
           red: [],
+          employeeCounts: [],
           totalDays: 0,
           date: monthKey + '-01'
         });
@@ -613,6 +620,7 @@ function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"
       month.green.push(day.green);
       month.amber.push(day.amber);
       month.red.push(day.red);
+      month.employeeCounts.push(day.employeeCount || 0);
       month.totalDays++;
     });
 
@@ -623,11 +631,13 @@ function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"
         const totalGreen = month.green.reduce((a, b) => a + b, 0);
         const totalAmber = month.amber.reduce((a, b) => a + b, 0);
         const totalRed = month.red.reduce((a, b) => a + b, 0);
+        const totalEmployees = month.employeeCounts.reduce((a, b) => a + b, 0);
 
         const green = totalGreen / month.totalDays;
         const amber = totalAmber / month.totalDays;
         const red = totalRed / month.totalDays;
         const total = green + amber + red;
+        const employeeCount = totalEmployees / month.totalDays;
 
         return {
           date: month.date,
@@ -635,6 +645,7 @@ function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"
           amber,
           red,
           total,
+          employeeCount,
           greenPercent: total > 0 ? Math.round((green / total) * 100) : 0,
           amberPercent: total > 0 ? Math.round((amber / total) * 100) : 0,
           redPercent: total > 0 ? Math.round((red / total) * 100) : 0,
@@ -662,7 +673,7 @@ function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"
   return (
     <div className="mx-auto" style={{ width: "fit-content" }}>
       <h3 className="font-bold text-xl text-slate-900 dark:text-slate-100 mb-6 text-center">{groupName}</h3>
-      <MoodGraph trends={displayTrends || []} totalPeople={members?.length || 0} isMonthly={timeRange === "overall" || timeRange === "1year"} />
+      <MoodGraph trends={displayTrends || []} isMonthly={timeRange === "overall" || timeRange === "1year"} />
     </div>
   );
 }

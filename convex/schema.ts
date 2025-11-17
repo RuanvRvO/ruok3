@@ -33,6 +33,7 @@ export default defineSchema({
   groupMembers: defineTable({
     groupId: v.id("groups"),
     employeeId: v.id("employees"),
+    createdAt: v.optional(v.number()), // Track when employee joined the group
   })
     .index("by_group", ["groupId"])
     .index("by_employee", ["employeeId"])
