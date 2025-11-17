@@ -12,6 +12,7 @@ export default function ViewOrganizationPage() {
   const [timeRange, setTimeRange] = useState<"1week" | "1month" | "1year" | "overall">("1week");
   const [groupTimeRange, setGroupTimeRange] = useState<"1week" | "1month" | "1year" | "overall">("1week");
   const [selectedGroupId, setSelectedGroupId] = useState<Id<"groups"> | null>(null);
+  const [historicalMoodFilter, setHistoricalMoodFilter] = useState<"all" | "green" | "amber" | "red">("all");
 
   const employees = useQuery(api.employees.list);
 
@@ -53,6 +54,11 @@ export default function ViewOrganizationPage() {
 
   const todayCheckins = useQuery(api.moodCheckins.getTodayCheckins);
   const groups = useQuery(api.groups.list);
+  const groupCheckins = useQuery(
+    api.moodCheckins.getGroupTodayCheckins,
+    selectedGroupId ? { groupId: selectedGroupId } : "skip"
+  );
+  const historicalCheckins = useQuery(api.moodCheckins.getHistoricalCheckins, { days: 30 });
 
   // Auto-select first group when groups load
   useEffect(() => {
@@ -70,6 +76,21 @@ export default function ViewOrganizationPage() {
       .filter((checkin) => checkin.note && checkin.note.trim().length > 0)
       .sort((a, b) => b.timestamp - a.timestamp);
   }, [todayCheckins]);
+
+  // Sort group check-ins by most recent first and filter only those with notes
+  const sortedGroupCheckins = useMemo(() => {
+    if (!groupCheckins) return [];
+    return [...groupCheckins]
+      .filter((checkin) => checkin.note && checkin.note.trim().length > 0)
+      .sort((a, b) => b.timestamp - a.timestamp);
+  }, [groupCheckins]);
+
+  // Filter historical check-ins based on mood filter
+  const filteredHistoricalCheckins = useMemo(() => {
+    if (!historicalCheckins) return [];
+    if (historicalMoodFilter === "all") return historicalCheckins;
+    return historicalCheckins.filter((checkin) => checkin.mood === historicalMoodFilter);
+  }, [historicalCheckins, historicalMoodFilter]);
 
   if (user === undefined || isLoading) {
     return (
@@ -343,6 +364,119 @@ export default function ViewOrganizationPage() {
               ))
             )}
           </div>
+
+          {/* Historical Check-ins Section (Organization-wide) */}
+          {selectedGroupId && groups.length > 0 && (
+            <>
+              {/* Spacer to align with group mood graph heading */}
+              <div className="h-px bg-slate-200 dark:bg-slate-700 my-4"></div>
+
+              {/* Spacer to push down to group section:
+                  Organization graph + divider + group filters + time range filters */}
+              <div className="h-[500px]"></div>
+
+              <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 border-b-2 border-slate-300 dark:border-slate-600 pb-3">
+                Check-in History
+              </h2>
+              <p className="text-sm text-slate-600 dark:text-slate-400 -mt-3">
+                Past 30 days
+              </p>
+
+              {/* Mood Filter Buttons */}
+              <div className="flex gap-2 flex-wrap mt-3">
+                <button
+                  onClick={() => setHistoricalMoodFilter("all")}
+                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                    historicalMoodFilter === "all"
+                      ? "bg-slate-700 text-white dark:bg-slate-600"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setHistoricalMoodFilter("green")}
+                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                    historicalMoodFilter === "green"
+                      ? "bg-green-600 text-white"
+                      : "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-300 dark:hover:bg-green-800"
+                  }`}
+                >
+                  😊 Great
+                </button>
+                <button
+                  onClick={() => setHistoricalMoodFilter("amber")}
+                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                    historicalMoodFilter === "amber"
+                      ? "bg-amber-600 text-white"
+                      : "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900 dark:text-amber-300 dark:hover:bg-amber-800"
+                  }`}
+                >
+                  😐 Okay
+                </button>
+                <button
+                  onClick={() => setHistoricalMoodFilter("red")}
+                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                    historicalMoodFilter === "red"
+                      ? "bg-red-600 text-white"
+                      : "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900 dark:text-red-300 dark:hover:bg-red-800"
+                  }`}
+                >
+                  😔 Support
+                </button>
+              </div>
+
+              <div
+                className="flex flex-col gap-4 max-h-[600px] overflow-y-auto pr-2 mt-4"
+                style={{
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: 'rgb(203 213 225) transparent'
+                }}
+              >
+                {filteredHistoricalCheckins.length === 0 ? (
+                  <p className="text-slate-500 dark:text-slate-400 text-center py-8">
+                    No historical check-ins with notes.
+                  </p>
+                ) : (
+                  filteredHistoricalCheckins.map((checkin: any) => (
+                    <div
+                      key={checkin._id}
+                      className={`p-4 rounded-lg border ${
+                        checkin.mood === "green"
+                          ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
+                          : checkin.mood === "amber"
+                          ? "bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800"
+                          : "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-slate-800 dark:text-slate-200 text-sm">
+                          {checkin.isAnonymous ? "Anonymous" : checkin.employeeName}
+                        </span>
+                        <span className="text-xl">
+                          {checkin.mood === "green" ? "😊" : checkin.mood === "amber" ? "😐" : "😔"}
+                        </span>
+                      </div>
+                      {checkin.note && (
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
+                          "{checkin.note}"
+                        </p>
+                      )}
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                        {new Date(checkin.timestamp).toLocaleString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                        {checkin.isAnonymous && " • Anonymous"}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -510,11 +644,13 @@ function OrganizationMoodGraph({ days, timeRange, employees }: { days: number; t
 
   // Aggregate into monthly averages when viewing "overall" or "1year"
   const displayTrends = useMemo(() => {
-    if (!trends || (timeRange !== "overall" && timeRange !== "1year")) return trends;
+    if (!trends) return trends;
+
+    if (timeRange !== "overall" && timeRange !== "1year") return trends;
 
     const monthMap = new Map<string, { green: number[], amber: number[], red: number[], employeeCounts: number[], totalDays: number, date: string }>();
 
-    // Include ALL days from the trends data
+    // Include all days from the trends data
     trends.forEach(day => {
       const date = new Date(day.date);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -545,13 +681,13 @@ function OrganizationMoodGraph({ days, timeRange, employees }: { days: number; t
         const totalGreen = month.green.reduce((a, b) => a + b, 0);
         const totalAmber = month.amber.reduce((a, b) => a + b, 0);
         const totalRed = month.red.reduce((a, b) => a + b, 0);
-        const totalEmployees = month.employeeCounts.reduce((a, b) => a + b, 0);
 
         const green = totalGreen / month.totalDays;
         const amber = totalAmber / month.totalDays;
         const red = totalRed / month.totalDays;
         const total = green + amber + red;
-        const employeeCount = totalEmployees / month.totalDays;
+        // Use maximum employee count for the month (not average) for proper graph scaling
+        const employeeCount = Math.max(...month.employeeCounts, 0);
 
         return {
           date: month.date,
@@ -596,11 +732,13 @@ function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"
 
   // Aggregate into monthly averages when viewing "overall" or "1year"
   const displayTrends = useMemo(() => {
-    if (!trends || (timeRange !== "overall" && timeRange !== "1year")) return trends;
+    if (!trends) return trends;
+
+    if (timeRange !== "overall" && timeRange !== "1year") return trends;
 
     const monthMap = new Map<string, { green: number[], amber: number[], red: number[], employeeCounts: number[], totalDays: number, date: string }>();
 
-    // Include ALL days from the trends data
+    // Include all days from the trends data
     trends.forEach(day => {
       const date = new Date(day.date);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -631,13 +769,13 @@ function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"
         const totalGreen = month.green.reduce((a, b) => a + b, 0);
         const totalAmber = month.amber.reduce((a, b) => a + b, 0);
         const totalRed = month.red.reduce((a, b) => a + b, 0);
-        const totalEmployees = month.employeeCounts.reduce((a, b) => a + b, 0);
 
         const green = totalGreen / month.totalDays;
         const amber = totalAmber / month.totalDays;
         const red = totalRed / month.totalDays;
         const total = green + amber + red;
-        const employeeCount = totalEmployees / month.totalDays;
+        // Use maximum employee count for the month (not average) for proper graph scaling
+        const employeeCount = Math.max(...month.employeeCounts, 0);
 
         return {
           date: month.date,

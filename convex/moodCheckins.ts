@@ -222,6 +222,118 @@ export const getTodayCheckins = query({
   },
 });
 
+// Query to get today's check-ins for a specific group
+export const getGroupTodayCheckins = query({
+  args: {
+    groupId: v.id("groups"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      return [];
+    }
+
+    const user = await ctx.db.get(userId);
+    const organisation = user?.organisation;
+    if (!organisation) {
+      return [];
+    }
+
+    // Get all members of the group
+    const memberships = await ctx.db
+      .query("groupMembers")
+      .withIndex("by_group", (q) => q.eq("groupId", args.groupId))
+      .collect();
+
+    const employeeIds = memberships.map((m) => m.employeeId);
+
+    const today = new Date().toISOString().split("T")[0];
+
+    const checkins = await ctx.db
+      .query("moodCheckins")
+      .withIndex("by_organisation_and_date", (q) =>
+        q.eq("organisation", organisation).eq("date", today)
+      )
+      .collect();
+
+    // Filter to only include employees in this group
+    const groupCheckins = checkins.filter((c) =>
+      employeeIds.includes(c.employeeId)
+    );
+
+    // Get employee details for each check-in
+    const checkinsWithEmployees = await Promise.all(
+      groupCheckins.map(async (checkin) => {
+        const employee = await ctx.db.get(checkin.employeeId);
+        return {
+          ...checkin,
+          employeeName: employee?.firstName,
+          employeeEmail: employee?.email,
+        };
+      })
+    );
+
+    return checkinsWithEmployees;
+  },
+});
+
+// Query to get historical check-ins for organization (excluding today)
+export const getHistoricalCheckins = query({
+  args: {
+    days: v.optional(v.number()), // Number of days to look back, default 30
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      return [];
+    }
+
+    const user = await ctx.db.get(userId);
+    const organisation = user?.organisation;
+    if (!organisation) {
+      return [];
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    const days = args.days || 30;
+    const allCheckins = [];
+
+    // Get check-ins from the past N days, excluding today
+    for (let i = 1; i <= days; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split("T")[0];
+
+      const checkins = await ctx.db
+        .query("moodCheckins")
+        .withIndex("by_organisation_and_date", (q) =>
+          q.eq("organisation", organisation).eq("date", dateStr)
+        )
+        .collect();
+
+      // Only include check-ins with notes
+      const checkinsWithNotes = checkins.filter((c) => c.note && c.note.trim().length > 0);
+
+      allCheckins.push(...checkinsWithNotes);
+    }
+
+    // Get employee details for each check-in
+    const checkinsWithEmployees = await Promise.all(
+      allCheckins.map(async (checkin) => {
+        const employee = await ctx.db.get(checkin.employeeId);
+        return {
+          ...checkin,
+          employeeName: employee?.firstName,
+          employeeEmail: employee?.email,
+        };
+      })
+    );
+
+    // Sort by most recent first
+    return checkinsWithEmployees.sort((a, b) => b.timestamp - a.timestamp);
+  },
+});
+
 // Query to get mood trends for a specific group
 export const getGroupTrends = query({
   args: {
