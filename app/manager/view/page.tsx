@@ -491,8 +491,13 @@ function MoodGraph({ trends, isMonthly = false }: { trends: any[]; isMonthly?: b
   const yAxisSteps = Math.min(maxY, 5);
   const stepValue = maxY / yAxisSteps;
 
-  // Calculate dynamic graph width based on number of bars (40px per bar)
-  const graphWidth = trends.length * 40;
+  // Calculate dynamic graph width based on number of bars
+  // Adjust bar width based on data density to keep graphs at similar overall width
+  const barWidth = trends.length <= 7 ? 50 :      // 1 week: 50px per bar = 350px
+                   trends.length <= 14 ? 40 :     // 2 weeks: 40px per bar = 560px
+                   trends.length <= 30 ? 30 :     // 1 month: 30px per bar = 900px
+                   50;                            // 1 year (12 months): 50px per bar = 600px
+  const graphWidth = trends.length * barWidth;
   // Total container width = y-axis labels (64px) + graph width + padding (48px)
   const containerWidth = graphWidth + 112;
 
@@ -538,7 +543,7 @@ function MoodGraph({ trends, isMonthly = false }: { trends: any[]; isMonthly?: b
               return (
                 <div
                   key={index}
-                  className={`w-10 flex flex-col items-center justify-end group relative h-full ${index === 0 ? 'pr-0.5' : index === trends.length - 1 ? 'pl-0.5' : 'px-0.5'}`}
+                  className={`flex-1 flex flex-col items-center justify-end group relative h-full px-1`}
                 >
                   {/* Tooltip on hover */}
                   <div className="absolute bottom-full mb-2 hidden group-hover:block bg-slate-900 dark:bg-slate-700 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
@@ -617,18 +622,34 @@ function MoodGraph({ trends, isMonthly = false }: { trends: any[]; isMonthly?: b
                              trends.length <= 30 ? index % 3 === 0 :
                              index % 7 === 0 || index === trends.length - 1;
 
+            const date = new Date(day.date);
+            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+            let monthLabel = "";
+            let dayOrYearLabel = "";
+
+            if (showLabel) {
+              monthLabel = monthNames[date.getMonth()];
+              if (isMonthly) {
+                // Show year underneath for monthly view
+                dayOrYearLabel = `'${date.getFullYear().toString().slice(-2)}`;
+              } else {
+                // Show day underneath for daily view
+                dayOrYearLabel = date.getDate().toString();
+              }
+            }
+
             return (
               <div
                 key={index}
-                className="w-10 text-center text-xs text-slate-600 dark:text-slate-400 px-1"
+                className="flex-1 text-center text-xs text-slate-600 dark:text-slate-400 px-1 flex flex-col leading-tight"
               >
-                {showLabel && new Date(day.date).toLocaleDateString("en-US", isMonthly ? {
-                  month: "short",
-                  year: "2-digit",
-                } : {
-                  month: "short",
-                  day: "numeric",
-                })}
+                {showLabel && (
+                  <>
+                    <div>{monthLabel}</div>
+                    <div>{dayOrYearLabel}</div>
+                  </>
+                )}
               </div>
             );
           })}
@@ -650,7 +671,7 @@ function OrganizationMoodGraph({ days, timeRange, employees }: { days: number; t
 
     const monthMap = new Map<string, { green: number[], amber: number[], red: number[], employeeCounts: number[], totalDays: number, date: string }>();
 
-    // Include all days from the trends data
+    // Process all days and aggregate by month
     trends.forEach(day => {
       const date = new Date(day.date);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -667,17 +688,37 @@ function OrganizationMoodGraph({ days, timeRange, employees }: { days: number; t
       }
 
       const month = monthMap.get(monthKey)!;
-      month.green.push(day.green);
-      month.amber.push(day.amber);
-      month.red.push(day.red);
-      month.employeeCounts.push(day.employeeCount || 0);
-      month.totalDays++;
+      const hasEmployees = (day.employeeCount || 0) > 0;
+
+      // Only include days with employees in the averaging
+      if (hasEmployees) {
+        month.green.push(day.green);
+        month.amber.push(day.amber);
+        month.red.push(day.red);
+        month.employeeCounts.push(day.employeeCount || 0);
+        month.totalDays++;
+      }
     });
 
     // Calculate averages and convert to array
     return Array.from(monthMap.values())
       .map(month => {
-        // Sum all values and divide by total days in the month (keep as decimal, don't round yet)
+        // If no days with employees in this month, return empty month
+        if (month.totalDays === 0) {
+          return {
+            date: month.date,
+            green: 0,
+            amber: 0,
+            red: 0,
+            total: 0,
+            employeeCount: 0,
+            greenPercent: 0,
+            amberPercent: 0,
+            redPercent: 0,
+          };
+        }
+
+        // Sum all values and divide by total days with employees
         const totalGreen = month.green.reduce((a, b) => a + b, 0);
         const totalAmber = month.amber.reduce((a, b) => a + b, 0);
         const totalRed = month.red.reduce((a, b) => a + b, 0);
@@ -738,7 +779,7 @@ function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"
 
     const monthMap = new Map<string, { green: number[], amber: number[], red: number[], employeeCounts: number[], totalDays: number, date: string }>();
 
-    // Include all days from the trends data
+    // Process all days and aggregate by month
     trends.forEach(day => {
       const date = new Date(day.date);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -755,17 +796,37 @@ function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"
       }
 
       const month = monthMap.get(monthKey)!;
-      month.green.push(day.green);
-      month.amber.push(day.amber);
-      month.red.push(day.red);
-      month.employeeCounts.push(day.employeeCount || 0);
-      month.totalDays++;
+      const hasMembers = (day.employeeCount || 0) > 0;
+
+      // Only include days with group members in the averaging
+      if (hasMembers) {
+        month.green.push(day.green);
+        month.amber.push(day.amber);
+        month.red.push(day.red);
+        month.employeeCounts.push(day.employeeCount || 0);
+        month.totalDays++;
+      }
     });
 
     // Calculate averages and convert to array
     return Array.from(monthMap.values())
       .map(month => {
-        // Sum all values and divide by total days in the month (keep as decimal, don't round yet)
+        // If no days with members in this month, return empty month
+        if (month.totalDays === 0) {
+          return {
+            date: month.date,
+            green: 0,
+            amber: 0,
+            red: 0,
+            total: 0,
+            employeeCount: 0,
+            greenPercent: 0,
+            amberPercent: 0,
+            redPercent: 0,
+          };
+        }
+
+        // Sum all values and divide by total days with members
         const totalGreen = month.green.reduce((a, b) => a + b, 0);
         const totalAmber = month.amber.reduce((a, b) => a + b, 0);
         const totalRed = month.red.reduce((a, b) => a + b, 0);
