@@ -26,6 +26,7 @@ export default function EditOrganizationPage() {
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [groupName, setGroupName] = useState("");
   const [isAddingGroup, setIsAddingGroup] = useState(false);
@@ -43,15 +44,20 @@ export default function EditOrganizationPage() {
 
     setIsSubmitting(true);
     try {
-      await addEmployee({
+      const result = await addEmployee({
         firstName: firstName.trim(),
         email: email.trim(),
       });
-      setFirstName("");
-      setEmail("");
-    } catch (error) {
-      console.error("Failed to add employee:", error);
-      alert("Failed to add employee. Please try again.");
+
+      if (result.success) {
+        setFirstName("");
+        setEmail("");
+      } else {
+        setErrorMessage(result.error || "Failed to add employee. Please try again.");
+      }
+    } catch (error: any) {
+      // Handle unexpected errors
+      setErrorMessage("Failed to add employee. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -118,6 +124,39 @@ export default function EditOrganizationPage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
+      {/* Error Modal */}
+      {errorMessage && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl max-w-md w-full mx-4 border border-slate-200 dark:border-slate-700">
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                    Unable to Add Employee
+                  </h3>
+                  <p className="text-slate-600 dark:text-slate-400">
+                    {errorMessage}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end">
+                <Button
+                  onClick={() => setErrorMessage(null)}
+                  className="bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500"
+                >
+                  Okay
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div>
         <h2 className="font-bold text-2xl text-slate-800 dark:text-slate-200">
           Organization Management - {viewer ?? "Anonymous"}

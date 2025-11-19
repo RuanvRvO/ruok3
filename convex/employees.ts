@@ -48,14 +48,34 @@ export const add = mutation({
       throw new Error("User does not belong to an organization");
     }
 
+    const organisation = user.organisation;
+
+    // Check if an employee with the same email already exists in this organization
+    const existingEmployees = await ctx.db
+      .query("employees")
+      .withIndex("by_organisation", (q) =>
+        q.eq("organisation", organisation)
+      )
+      .collect();
+
+    const duplicateEmployee = existingEmployees.find(
+      emp => emp.email.toLowerCase() === args.email.toLowerCase() &&
+             emp.firstName.toLowerCase() === args.firstName.toLowerCase() &&
+             !emp.deletedAt // Only check active employees
+    );
+
+    if (duplicateEmployee) {
+      return { success: false, error: "This employee is already added" };
+    }
+
     const employeeId = await ctx.db.insert("employees", {
       firstName: args.firstName,
       email: args.email,
-      organisation: user.organisation,
+      organisation: organisation,
       createdAt: Date.now(),
     });
 
-    return employeeId;
+    return { success: true, employeeId };
   },
 });
 
