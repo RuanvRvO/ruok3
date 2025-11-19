@@ -482,7 +482,10 @@ export default function ViewOrganizationPage() {
 // Reusable Mood Graph Component
 function MoodGraph({ trends, isMonthly = false }: { trends: any[]; isMonthly?: boolean }) {
   // Y-axis should go up to the maximum number of employees across all days
-  const maxY = Math.max(...trends.map(d => d.employeeCount || 0), 1); // Avoid division by zero
+  // Also consider actual response totals to ensure historical data isn't cut off
+  const maxEmployeeCount = Math.max(...trends.map(d => d.employeeCount || 0), 1);
+  const maxResponseTotal = Math.max(...trends.map(d => (d.green || 0) + (d.amber || 0) + (d.red || 0)), 1);
+  const maxY = Math.max(maxEmployeeCount, maxResponseTotal); // Avoid division by zero
   // Adjust y-axis steps based on group size to prevent duplicate labels
   const yAxisSteps = Math.min(maxY, 5);
   const stepValue = maxY / yAxisSteps;

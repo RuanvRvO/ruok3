@@ -133,7 +133,7 @@ export const getTrends = query({
     const days = args.days || 7;
     const trends = [];
 
-    // Get all employees for this organization
+    // Get all employees for this organization (including soft-deleted ones for historical accuracy)
     const allEmployees = await ctx.db
       .query("employees")
       .withIndex("by_organisation", (q) => q.eq("organisation", organisation))
@@ -149,8 +149,14 @@ export const getTrends = query({
       nextDayStart.setDate(nextDayStart.getDate() + 1);
       const dayEndTimestamp = nextDayStart.getTime();
 
-      // Count employees that existed on this day (created before the next day started)
-      const employeeCountOnDay = allEmployees.filter(emp => emp.createdAt < dayEndTimestamp).length;
+      // Count employees that existed on this day:
+      // - Created before the day ended
+      // - Either not deleted, or deleted after this day
+      const employeeCountOnDay = allEmployees.filter(emp => {
+        const wasCreated = emp.createdAt < dayEndTimestamp;
+        const wasNotDeleted = !emp.deletedAt || emp.deletedAt >= dayEndTimestamp;
+        return wasCreated && wasNotDeleted;
+      }).length;
 
       const checkins = await ctx.db
         .query("moodCheckins")
@@ -385,13 +391,19 @@ export const getGroupTrends = query({
 
       // Calculate group member count on this day
       // Count memberships that were created before the next day started
+      // and employees that weren't deleted yet (or deleted after this day)
       const memberCountOnDay = memberships.filter(m => {
         const employee = employeeMap.get(m.employeeId);
         if (!employee) return false;
 
         // If membership has createdAt, use it; otherwise fall back to employee's createdAt
         const effectiveCreatedAt = m.createdAt || employee.createdAt;
-        return effectiveCreatedAt < dayEndTimestamp;
+        const wasCreated = effectiveCreatedAt < dayEndTimestamp;
+
+        // Check if employee was not deleted or was deleted after this day
+        const wasNotDeleted = !employee.deletedAt || employee.deletedAt >= dayEndTimestamp;
+
+        return wasCreated && wasNotDeleted;
       }).length;
 
       const checkins = await ctx.db
@@ -414,7 +426,12 @@ export const getGroupTrends = query({
 
         // If membership has createdAt, use it; otherwise fall back to employee's createdAt
         const effectiveCreatedAt = membership.createdAt || employee.createdAt;
-        return effectiveCreatedAt < dayEndTimestamp;
+        const wasCreated = effectiveCreatedAt < dayEndTimestamp;
+
+        // Check if employee was not deleted or was deleted after this day
+        const wasNotDeleted = !employee.deletedAt || employee.deletedAt >= dayEndTimestamp;
+
+        return wasCreated && wasNotDeleted;
       });
 
       const green = groupCheckinsOnDay.filter((c) => c.mood === "green").length;

@@ -24,6 +24,7 @@ export default defineSchema({
     email: v.string(),
     organisation: v.string(),
     createdAt: v.number(),
+    deletedAt: v.optional(v.number()),
   }).index("by_organisation", ["organisation"]),
   groups: defineTable({
     name: v.string(),

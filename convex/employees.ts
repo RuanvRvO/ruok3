@@ -26,7 +26,8 @@ export const list = query({
       .order("desc")
       .collect();
 
-    return employees;
+    // Filter out soft-deleted employees
+    return employees.filter(emp => !emp.deletedAt);
   },
 });
 
@@ -91,8 +92,10 @@ export const remove = mutation({
       await ctx.db.delete(membership._id);
     }
 
-    // Now delete the employee
-    await ctx.db.delete(args.employeeId);
+    // Soft delete the employee (mark as deleted instead of removing from database)
+    await ctx.db.patch(args.employeeId, {
+      deletedAt: Date.now(),
+    });
   },
 });
 
@@ -100,6 +103,8 @@ export const remove = mutation({
 export const listAll = internalQuery({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("employees").collect();
+    const allEmployees = await ctx.db.query("employees").collect();
+    // Filter out soft-deleted employees
+    return allEmployees.filter(emp => !emp.deletedAt);
   },
 });
