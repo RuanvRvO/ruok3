@@ -321,7 +321,7 @@ export default function ViewOrganizationPage() {
           <p className="text-sm text-slate-600 dark:text-slate-400 -mt-3">
             Last 24 hours
           </p>
-          <div className="flex flex-col gap-4 max-h-[800px] overflow-y-auto pr-2">
+          <div className="flex flex-col gap-4 h-[600px] overflow-y-auto pr-2">
             {sortedCheckins.length === 0 ? (
               <p className="text-slate-500 dark:text-slate-400 text-center py-8">
                 No check-ins in the last 24 hours.
@@ -368,12 +368,8 @@ export default function ViewOrganizationPage() {
           {/* Historical Check-ins Section (Organization-wide) */}
           {selectedGroupId && groups.length > 0 && (
             <>
-              {/* Spacer to align with group mood graph heading */}
-              <div className="h-px bg-slate-200 dark:bg-slate-700 my-4"></div>
-
-              {/* Spacer to push down to group section:
-                  Organization graph + divider + group filters + time range filters */}
-              <div className="h-[500px]"></div>
+              {/* Spacer between sections */}
+              <div className="h-[42px]"></div>
 
               <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 border-b-2 border-slate-300 dark:border-slate-600 pb-3">
                 Check-in History
