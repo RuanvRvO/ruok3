@@ -73,13 +73,27 @@ export const add = mutation({
       throw new Error("User does not belong to an organization");
     }
 
+    // Check if a group with the same name already exists in this organization
+    const existingGroups = await ctx.db
+      .query("groups")
+      .withIndex("by_organisation", (q) => q.eq("organisation", organisation))
+      .collect();
+
+    const duplicateGroup = existingGroups.find(
+      group => group.name.toLowerCase() === args.name.toLowerCase()
+    );
+
+    if (duplicateGroup) {
+      return { success: false, error: "This group name is already in use" };
+    }
+
     const groupId = await ctx.db.insert("groups", {
       name: args.name,
       organisation: organisation,
       createdAt: Date.now(),
     });
 
-    return groupId;
+    return { success: true, groupId };
   },
 });
 

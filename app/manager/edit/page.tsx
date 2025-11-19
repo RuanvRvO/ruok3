@@ -86,11 +86,16 @@ export default function EditOrganizationPage() {
 
     setIsAddingGroup(true);
     try {
-      await addGroup({ name: groupName.trim() });
-      setGroupName("");
-    } catch (error) {
-      console.error("Failed to add group:", error);
-      alert("Failed to add group. Please try again.");
+      const result = await addGroup({ name: groupName.trim() });
+
+      if (result.success) {
+        setGroupName("");
+      } else {
+        setErrorMessage(result.error || "Failed to add group. Please try again.");
+      }
+    } catch (error: any) {
+      // Handle unexpected errors
+      setErrorMessage("Failed to add group. Please try again.");
     } finally {
       setIsAddingGroup(false);
     }
@@ -141,7 +146,7 @@ export default function EditOrganizationPage() {
                 </div>
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
-                    Unable to Add Employee
+                    Error
                   </h3>
                   <p className="text-slate-600 dark:text-slate-400">
                     {errorMessage}
