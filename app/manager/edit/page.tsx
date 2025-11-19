@@ -27,6 +27,7 @@ export default function EditOrganizationPage() {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [employeeToDelete, setEmployeeToDelete] = useState<{ id: string; name: string } | null>(null);
 
   const [groupName, setGroupName] = useState("");
   const [isAddingGroup, setIsAddingGroup] = useState(false);
@@ -63,12 +64,15 @@ export default function EditOrganizationPage() {
     }
   };
 
-  const handleRemoveEmployee = async (employeeId: string) => {
+  const confirmRemoveEmployee = async () => {
+    if (!employeeToDelete) return;
+
     try {
-      await removeEmployee({ employeeId: employeeId as any });
+      await removeEmployee({ employeeId: employeeToDelete.id as any });
+      setEmployeeToDelete(null);
     } catch (error) {
-      console.error("Failed to remove employee:", error);
-      alert("Failed to remove employee. Please try again.");
+      setEmployeeToDelete(null);
+      setErrorMessage("Failed to remove employee. Please try again.");
     }
   };
 
@@ -150,6 +154,46 @@ export default function EditOrganizationPage() {
                   className="bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500"
                 >
                   Okay
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {employeeToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl max-w-md w-full mx-4 border border-slate-200 dark:border-slate-700">
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                    Remove Employee
+                  </h3>
+                  <p className="text-slate-600 dark:text-slate-400">
+                    Are you sure you want to remove <span className="font-semibold text-slate-800 dark:text-slate-200">{employeeToDelete.name}</span>? This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end gap-3">
+                <Button
+                  onClick={() => setEmployeeToDelete(null)}
+                  variant="outline"
+                  className="border-slate-300 dark:border-slate-600"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={confirmRemoveEmployee}
+                  className="bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white"
+                >
+                  Remove
                 </Button>
               </div>
             </div>
@@ -250,7 +294,7 @@ export default function EditOrganizationPage() {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  onClick={() => handleRemoveEmployee(employee._id)}
+                  onClick={() => setEmployeeToDelete({ id: employee._id, name: employee.firstName })}
                   className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
                 >
                   <span className="text-xl">×</span>
