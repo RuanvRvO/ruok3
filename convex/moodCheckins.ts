@@ -220,11 +220,13 @@ export const getTodayCheckins = query({
           ...checkin,
           employeeName: employee?.firstName,
           employeeEmail: employee?.email,
+          employee,
         };
       })
     );
 
-    return checkinsWithEmployees;
+    // Filter out check-ins from deleted employees
+    return checkinsWithEmployees.filter(c => c.employee && !c.employee.deletedAt);
   },
 });
 
@@ -275,11 +277,13 @@ export const getGroupTodayCheckins = query({
           ...checkin,
           employeeName: employee?.firstName,
           employeeEmail: employee?.email,
+          employee,
         };
       })
     );
 
-    return checkinsWithEmployees;
+    // Filter out check-ins from deleted employees
+    return checkinsWithEmployees.filter(c => c.employee && !c.employee.deletedAt);
   },
 });
 
@@ -331,12 +335,15 @@ export const getHistoricalCheckins = query({
           ...checkin,
           employeeName: employee?.firstName,
           employeeEmail: employee?.email,
+          employee,
         };
       })
     );
 
-    // Sort by most recent first
-    return checkinsWithEmployees.sort((a, b) => b.timestamp - a.timestamp);
+    // Filter out check-ins from deleted employees and sort by most recent first
+    return checkinsWithEmployees
+      .filter(c => c.employee && !c.employee.deletedAt)
+      .sort((a, b) => b.timestamp - a.timestamp);
   },
 });
 
