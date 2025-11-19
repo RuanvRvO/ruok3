@@ -571,7 +571,7 @@ function MoodGraph({ trends, isMonthly = false }: { trends: any[]; isMonthly?: b
                         className="w-full bg-green-500 hover:bg-green-600 transition-colors flex items-center justify-center text-xs font-semibold text-white"
                         style={{ height: `${greenHeight}%` }}
                       >
-                        {greenHeight > 8 && (isMonthly ? day.green.toFixed(1) : Math.round(day.green))}
+                        {greenHeight > 3 && (isMonthly ? day.green.toFixed(1) : Math.round(day.green))}
                       </div>
                     )}
                     {/* Amber */}
@@ -580,7 +580,7 @@ function MoodGraph({ trends, isMonthly = false }: { trends: any[]; isMonthly?: b
                         className="w-full bg-amber-500 hover:bg-amber-600 transition-colors flex items-center justify-center text-xs font-semibold text-white"
                         style={{ height: `${amberHeight}%` }}
                       >
-                        {amberHeight > 8 && (isMonthly ? day.amber.toFixed(1) : Math.round(day.amber))}
+                        {amberHeight > 3 && (isMonthly ? day.amber.toFixed(1) : Math.round(day.amber))}
                       </div>
                     )}
                     {/* Red */}
@@ -589,7 +589,7 @@ function MoodGraph({ trends, isMonthly = false }: { trends: any[]; isMonthly?: b
                         className="w-full bg-red-500 hover:bg-red-600 transition-colors flex items-center justify-center text-xs font-semibold text-white"
                         style={{ height: `${redHeight}%` }}
                       >
-                        {redHeight > 8 && (isMonthly ? day.red.toFixed(1) : Math.round(day.red))}
+                        {redHeight > 3 && (isMonthly ? day.red.toFixed(1) : Math.round(day.red))}
                       </div>
                     )}
                     {/* No Response (Grey) - at bottom */}
@@ -598,7 +598,7 @@ function MoodGraph({ trends, isMonthly = false }: { trends: any[]; isMonthly?: b
                         className="w-full bg-slate-300 dark:bg-slate-600 hover:bg-slate-400 dark:hover:bg-slate-500 transition-colors flex items-center justify-center text-xs font-semibold text-slate-700 dark:text-slate-200"
                         style={{ height: `${noResponseHeight}%` }}
                       >
-                        {noResponseHeight > 8 && (isMonthly ? noResponse.toFixed(1) : Math.round(noResponse))}
+                        {noResponseHeight > 3 && (isMonthly ? noResponse.toFixed(1) : Math.round(noResponse))}
                       </div>
                     )}
                   </div>
