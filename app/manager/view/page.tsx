@@ -111,8 +111,25 @@ export default function ViewOrganizationPage() {
     );
   }
 
+  // Check if this is a new user with no employees
+  const isNewUser = employees && employees.length === 0;
+
   return (
     <div className="flex flex-col gap-10 px-8 py-8 mx-auto w-full max-w-[80%]">
+      {/* Onboarding Guide for New Users */}
+      {isNewUser && (
+        <div className="fixed top-5 right-[952px] z-50 animate-bounce">
+          <svg
+            className="w-16 h-8 text-blue-500 dark:text-blue-400"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+            style={{ transform: 'rotate(180deg)' }}
+          >
+            <path d="M13.025 1l-2.847 2.828 6.176 6.176h-16.354v3.992h16.354l-6.176 6.176 2.847 2.828 11.975-11.976z"/>
+          </svg>
+        </div>
+      )}
+
       <div className="text-center">
         <h1 className="font-bold text-3xl text-slate-900 dark:text-slate-100 mb-3">
           Welcome {viewer ?? "Anonymous"}!
@@ -152,7 +169,43 @@ export default function ViewOrganizationPage() {
         </div>
       </div>
 
+      {/* Empty State for New Users */}
+      {isNewUser && (
+        <div className="flex flex-col items-center justify-center py-16 px-8 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600">
+          <div className="text-center max-w-2xl">
+            <div className="text-6xl mb-6">🚀</div>
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-4">
+              Let's Get Started!
+            </h2>
+            <p className="text-lg text-slate-600 dark:text-slate-400 mb-8">
+              Your organization dashboard is ready, but you haven't added any employees yet.
+              Click the <span className="font-semibold text-slate-800 dark:text-slate-200">"Make Changes To Your Organization"</span> button
+              in the top navigation to add your first employee and start tracking wellbeing.
+            </p>
+            <div className="flex flex-col gap-4 items-center">
+              <div className="flex items-center gap-3 text-slate-700 dark:text-slate-300">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 font-bold">1</div>
+                <span>Add employees to your organization</span>
+              </div>
+              <div className="flex items-center gap-3 text-slate-700 dark:text-slate-300">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 font-bold">2</div>
+                <span>Create groups (optional)</span>
+              </div>
+              <div className="flex items-center gap-3 text-slate-700 dark:text-slate-300">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 font-bold">3</div>
+                <span>Employees will receive daily check-in emails</span>
+              </div>
+              <div className="flex items-center gap-3 text-slate-700 dark:text-slate-300">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 font-bold">4</div>
+                <span>Track wellbeing trends on this dashboard</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Two Column Layout */}
+      {!isNewUser && (
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-32">
         {/* LEFT COLUMN - Graphs (3/4 width) */}
         <div className="lg:col-span-3 flex flex-col gap-8">
@@ -475,6 +528,7 @@ export default function ViewOrganizationPage() {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }
