@@ -489,7 +489,7 @@ export const sendDailyEmails = internalAction({
           await delay(500);
         }
         // Generate unique response URLs for each mood option
-        const baseUrl = process.env.CONVEX_SITE_URL || "http://localhost:3000";
+        const baseUrl = process.env.SITE_URL || "http://localhost:3000";
 
         const greenUrl = `${baseUrl}/mood-response?employeeId=${employee._id}&mood=green`;
         const amberUrl = `${baseUrl}/mood-response?employeeId=${employee._id}&mood=amber`;
