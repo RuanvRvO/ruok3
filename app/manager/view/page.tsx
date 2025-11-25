@@ -115,7 +115,7 @@ export default function ViewOrganizationPage() {
   const isNewUser = employees && employees.length === 0;
 
   return (
-    <div className="flex flex-col gap-10 px-8 py-8 mx-auto w-full max-w-[80%]">
+    <div className="flex flex-col gap-10 px-4 md:px-8 py-8 mx-auto w-full max-w-full md:max-w-[90%] lg:max-w-[80%]">
       {/* Onboarding Guide for New Users */}
       {isNewUser && (
         <div className="fixed top-5 right-[952px] z-50 animate-bounce">
@@ -206,7 +206,7 @@ export default function ViewOrganizationPage() {
 
       {/* Two Column Layout */}
       {!isNewUser && (
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-32">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-12 lg:gap-32">
         {/* LEFT COLUMN - Graphs (3/4 width) */}
         <div className="lg:col-span-3 flex flex-col gap-8">
           {/* Time Range Toggle */}
@@ -366,7 +366,7 @@ export default function ViewOrganizationPage() {
         {/* RIGHT COLUMN - Recent Comments (1/3 width) */}
         <div className="flex flex-col gap-6">
           {/* Spacer to align with Overall Organization Mood heading */}
-          <div className="h-[88px]"></div>
+          <div className="hidden lg:block h-[88px]"></div>
 
           <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 border-b-2 border-slate-300 dark:border-slate-600 pb-3">
             Recent Check-ins
@@ -422,7 +422,7 @@ export default function ViewOrganizationPage() {
           {selectedGroupId && groups.length > 0 && (
             <>
               {/* Spacer between sections */}
-              <div className="h-[42px]"></div>
+              <div className="h-[42px] lg:h-[42px]"></div>
 
               <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 border-b-2 border-slate-300 dark:border-slate-600 pb-3">
                 Check-in History
@@ -555,9 +555,11 @@ function MoodGraph({ trends, isMonthly = false }: { trends: any[]; isMonthly?: b
   const containerWidth = graphWidth + 112;
 
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 mx-auto" style={{ width: `${containerWidth}px` }}>
-      {/* Graph Container */}
-      <div className="relative h-80 flex justify-center">
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
+      <div className="flex justify-center">
+        <div className="overflow-x-auto max-w-full" style={{ paddingTop: '9rem', marginTop: '-9rem' }}>
+        {/* Graph Container */}
+        <div className="relative h-80 flex" style={{ minWidth: `${containerWidth}px` }}>
         {/* Y-axis labels */}
         <div className="flex flex-col justify-between pr-4 text-xs text-slate-600 dark:text-slate-400 w-12">
           {Array.from({ length: yAxisSteps + 1 }).map((_, i) => {
@@ -598,7 +600,8 @@ function MoodGraph({ trends, isMonthly = false }: { trends: any[]; isMonthly?: b
                   key={index}
                   className={`flex-1 flex flex-col items-center justify-end group relative h-full px-1`}
                 >
-                  {/* Tooltip on hover */}
+                  {/* Tooltip on hover - only show if there are employees on this day */}
+                  {employeeCountOnDay > 0 && (
                   <div className="absolute bottom-full mb-2 hidden group-hover:block bg-slate-900 dark:bg-slate-700 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
                     <div className="font-semibold mb-1">
                       {new Date(day.date).toLocaleDateString("en-US", isMonthly ? {
@@ -616,6 +619,7 @@ function MoodGraph({ trends, isMonthly = false }: { trends: any[]; isMonthly?: b
                     <div className="text-slate-400">No response: {isMonthly ? noResponse.toFixed(1) : Math.round(noResponse)}</div>
                     <div className="border-t border-slate-600 mt-1 pt-1">Total: {isMonthly ? day.total.toFixed(1) : Math.round(day.total)}/{isMonthly ? day.employeeCount.toFixed(1) : Math.round(employeeCountOnDay)}</div>
                   </div>
+                  )}
 
                   {/* Stacked bars */}
                   <div className="w-full flex flex-col-reverse items-center h-full">
@@ -664,7 +668,7 @@ function MoodGraph({ trends, isMonthly = false }: { trends: any[]; isMonthly?: b
       </div>
 
       {/* X-axis labels */}
-      <div className="flex mt-2 justify-center">
+      <div className="flex mt-2" style={{ minWidth: `${containerWidth}px` }}>
         <div className="w-12 pr-4"></div>
         <div className="flex border-l-2 border-transparent" style={{ width: `${graphWidth}px` }}>
           {trends.map((day, index) => {
@@ -707,6 +711,8 @@ function MoodGraph({ trends, isMonthly = false }: { trends: any[]; isMonthly?: b
             );
           })}
         </div>
+      </div>
+      </div>
       </div>
     </div>
   );
@@ -923,7 +929,7 @@ function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"
   }
 
   return (
-    <div className="mx-auto" style={{ width: "fit-content" }}>
+    <div className="w-full">
       <h3 className="font-bold text-xl text-slate-900 dark:text-slate-100 mb-6 text-center">{groupName}</h3>
       <MoodGraph trends={displayTrends || []} isMonthly={timeRange === "overall" || timeRange === "1year"} />
     </div>

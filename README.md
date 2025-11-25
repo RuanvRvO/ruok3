@@ -18,5 +18,12 @@ After the initial setup (<2 minutes) you'll have a working full-stack app using:
 -each manager should be able to add more organisations to manage from the edit page
 -add email authentication when user creates orginasation
 -removed employess have their responses kept, should this be removed in graphical data? (Yes)
+-submitting response with 0 info on the response shouldnt be accepted
 
 -fix web size width issues
+
+-should responses be captured 4pm-4pm instead of that days hours, cause what if i only respond tomorrow about how yesterday was?
+    -maybe make the question state "how was your monday?"
+
+-consider to filter per person ?
+
