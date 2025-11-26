@@ -206,9 +206,9 @@ export default function ViewOrganizationPage() {
 
       {/* Two Column Layout */}
       {!isNewUser && (
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-12 lg:gap-32">
+      <div className="grid grid-cols-1 2xl:grid-cols-4 gap-12 2xl:gap-32">
         {/* LEFT COLUMN - Graphs (3/4 width) */}
-        <div className="lg:col-span-3 flex flex-col gap-8">
+        <div className="2xl:col-span-3 flex flex-col gap-8">
           {/* Time Range Toggle */}
           <div className="flex flex-col gap-3">
             <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200">
@@ -364,9 +364,9 @@ export default function ViewOrganizationPage() {
         </div>
 
         {/* RIGHT COLUMN - Recent Comments (1/3 width) */}
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-3 2xl:gap-6">
           {/* Spacer to align with Overall Organization Mood heading */}
-          <div className="hidden lg:block h-[88px]"></div>
+          <div className="hidden 2xl:block h-[88px]"></div>
 
           <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 border-b-2 border-slate-300 dark:border-slate-600 pb-3">
             Recent Check-ins
@@ -374,9 +374,9 @@ export default function ViewOrganizationPage() {
           <p className="text-sm text-slate-600 dark:text-slate-400 -mt-3">
             Last 24 hours
           </p>
-          <div className="flex flex-col gap-4 h-[600px] overflow-y-auto pr-2">
+          <div className="grid grid-cols-3 2xl:grid-cols-1 gap-4 max-h-[650px] 2xl:h-[600px] overflow-y-auto pr-2 items-start" style={{ gridAutoRows: 'min-content', scrollbarWidth: 'thin', scrollbarColor: 'rgb(203 213 225) transparent' }}>
             {sortedCheckins.length === 0 ? (
-              <p className="text-slate-500 dark:text-slate-400 text-center py-8">
+              <p className="text-slate-500 dark:text-slate-400 text-center py-8 col-span-3 2xl:col-span-1">
                 No check-ins in the last 24 hours.
               </p>
             ) : (
@@ -421,8 +421,8 @@ export default function ViewOrganizationPage() {
           {/* Historical Check-ins Section (Organization-wide) */}
           {selectedGroupId && groups.length > 0 && (
             <>
-              {/* Spacer between sections */}
-              <div className="h-[42px] lg:h-[42px]"></div>
+              {/* Spacer between sections - aligns Check-in History with Group Mood heading on wide screens */}
+              <div className="h-[24px] 2xl:flex-1 2xl:min-h-[42px]"></div>
 
               <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 border-b-2 border-slate-300 dark:border-slate-600 pb-3">
                 Check-in History
@@ -476,14 +476,15 @@ export default function ViewOrganizationPage() {
               </div>
 
               <div
-                className="flex flex-col gap-4 max-h-[600px] overflow-y-auto pr-2 mt-4"
+                className="grid grid-cols-3 2xl:grid-cols-1 gap-4 max-h-[376px] 2xl:max-h-[600px] overflow-y-auto pr-2 mt-4 items-start"
                 style={{
+                  gridAutoRows: 'min-content',
                   scrollbarWidth: 'thin',
                   scrollbarColor: 'rgb(203 213 225) transparent'
                 }}
               >
                 {filteredHistoricalCheckins.length === 0 ? (
-                  <p className="text-slate-500 dark:text-slate-400 text-center py-8">
+                  <p className="text-slate-500 dark:text-slate-400 text-center py-8 col-span-3 2xl:col-span-1">
                     No historical check-ins with notes.
                   </p>
                 ) : (
