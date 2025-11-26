@@ -41,8 +41,11 @@ export const getMembers = query({
       .withIndex("by_group", (q) => q.eq("groupId", args.groupId))
       .collect();
 
+    // Filter out removed memberships (soft-deleted)
+    const activeMemberships = memberships.filter(m => !m.removedAt);
+
     const members = await Promise.all(
-      memberships.map(async (membership) => {
+      activeMemberships.map(async (membership) => {
         const employee = await ctx.db.get(membership.employeeId);
         return {
           membershipId: membership._id,
@@ -163,18 +166,20 @@ export const addMember = mutation({
       throw new Error("Not authorized");
     }
 
-    // Check if already a member
+    // Check if already an active member (not removed)
     const existing = await ctx.db
       .query("groupMembers")
       .withIndex("by_group_and_employee", (q) =>
         q.eq("groupId", args.groupId).eq("employeeId", args.employeeId)
       )
+      .filter((q) => q.eq(q.field("removedAt"), undefined))
       .first();
 
     if (existing) {
       throw new Error("Employee is already a member of this group");
     }
 
+    // Create a new membership (even if they were previously removed, we create a new record)
     const membershipId = await ctx.db.insert("groupMembers", {
       groupId: args.groupId,
       employeeId: args.employeeId,
@@ -210,6 +215,9 @@ export const removeMember = mutation({
       throw new Error("Not authorized");
     }
 
-    await ctx.db.delete(args.membershipId);
+    // Soft delete the membership (mark as removed instead of deleting)
+    await ctx.db.patch(args.membershipId, {
+      removedAt: Date.now(),
+    });
   },
 });

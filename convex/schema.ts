@@ -35,6 +35,7 @@ export default defineSchema({
     groupId: v.id("groups"),
     employeeId: v.id("employees"),
     createdAt: v.optional(v.number()), // Track when employee joined the group
+    removedAt: v.optional(v.number()), // Track when employee was removed from the group
   })
     .index("by_group", ["groupId"])
     .index("by_employee", ["employeeId"])

@@ -102,14 +102,19 @@ export const remove = mutation({
       throw new Error("Not authorized to remove this employee");
     }
 
-    // Remove employee from all groups first
+    // Remove employee from all groups first (soft delete memberships)
     const groupMemberships = await ctx.db
       .query("groupMembers")
       .withIndex("by_employee", (q) => q.eq("employeeId", args.employeeId))
       .collect();
 
     for (const membership of groupMemberships) {
-      await ctx.db.delete(membership._id);
+      // Only remove if not already removed
+      if (!membership.removedAt) {
+        await ctx.db.patch(membership._id, {
+          removedAt: Date.now(),
+        });
+      }
     }
 
     // Soft delete the employee (mark as deleted instead of removing from database)

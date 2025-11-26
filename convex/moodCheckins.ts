@@ -144,17 +144,18 @@ export const getTrends = query({
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split("T")[0];
 
-      // Calculate the start of the next day (end boundary for this day)
+      // Calculate timestamps for this day
+      const dayStartTimestamp = new Date(dateStr).getTime();
       const nextDayStart = new Date(dateStr);
       nextDayStart.setDate(nextDayStart.getDate() + 1);
       const dayEndTimestamp = nextDayStart.getTime();
 
-      // Count employees that existed on this day:
+      // Count employees that existed on this day (should match how many got emails):
       // - Created before the day ended
-      // - Either not deleted, or deleted after this day
+      // - Either not deleted, or deleted on/after this day started (so they got the email)
       const employeeCountOnDay = allEmployees.filter(emp => {
         const wasCreated = emp.createdAt < dayEndTimestamp;
-        const wasNotDeleted = !emp.deletedAt || emp.deletedAt >= dayEndTimestamp;
+        const wasNotDeleted = !emp.deletedAt || emp.deletedAt >= dayStartTimestamp;
         return wasCreated && wasNotDeleted;
       }).length;
 
@@ -225,8 +226,9 @@ export const getTodayCheckins = query({
       })
     );
 
-    // Filter out check-ins from deleted employees
-    return checkinsWithEmployees.filter(c => c.employee && !c.employee.deletedAt);
+    // Keep all check-ins (including from deleted employees) for recent check-ins view
+    // Only filter out if employee record is missing (data integrity)
+    return checkinsWithEmployees.filter(c => c.employee);
   },
 });
 
@@ -253,9 +255,14 @@ export const getGroupTodayCheckins = query({
       .withIndex("by_group", (q) => q.eq("groupId", args.groupId))
       .collect();
 
-    const employeeIds = memberships.map((m) => m.employeeId);
-
+    // Include employees removed today (they may have responded earlier in the day)
     const today = new Date().toISOString().split("T")[0];
+    const todayStartTimestamp = new Date(today).getTime();
+
+    const relevantMemberships = memberships.filter(m =>
+      !m.removedAt || m.removedAt >= todayStartTimestamp
+    );
+    const employeeIds = relevantMemberships.map((m) => m.employeeId);
 
     const checkins = await ctx.db
       .query("moodCheckins")
@@ -282,8 +289,9 @@ export const getGroupTodayCheckins = query({
       })
     );
 
-    // Filter out check-ins from deleted employees
-    return checkinsWithEmployees.filter(c => c.employee && !c.employee.deletedAt);
+    // Keep all check-ins (including from deleted employees) for today's view
+    // Only filter out if employee record is missing (data integrity)
+    return checkinsWithEmployees.filter(c => c.employee);
   },
 });
 
@@ -340,9 +348,10 @@ export const getHistoricalCheckins = query({
       })
     );
 
-    // Filter out check-ins from deleted employees and sort by most recent first
+    // Keep all historical check-ins (including from deleted employees) and sort by most recent first
+    // Only filter out if employee record is missing (data integrity)
     return checkinsWithEmployees
-      .filter(c => c.employee && !c.employee.deletedAt)
+      .filter(c => c.employee)
       .sort((a, b) => b.timestamp - a.timestamp);
   },
 });
@@ -365,12 +374,13 @@ export const getGroupTrends = query({
       return [];
     }
 
-    // Get all members of the group
+    // Get all members of the group (including removed ones for historical accuracy)
     const memberships = await ctx.db
       .query("groupMembers")
       .withIndex("by_group", (q) => q.eq("groupId", args.groupId))
       .collect();
 
+    // Include all employeeIds (even from removed memberships) for historical data
     const employeeIds = memberships.map((m) => m.employeeId);
 
     // Get employee details for calculating historical membership
@@ -391,14 +401,15 @@ export const getGroupTrends = query({
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split("T")[0];
 
-      // Calculate the start of the next day (end boundary for this day)
+      // Calculate timestamps for this day
+      const dayStartTimestamp = new Date(dateStr).getTime();
       const nextDayStart = new Date(dateStr);
       nextDayStart.setDate(nextDayStart.getDate() + 1);
       const dayEndTimestamp = nextDayStart.getTime();
 
-      // Calculate group member count on this day
-      // Count memberships that were created before the next day started
-      // and employees that weren't deleted yet (or deleted after this day)
+      // Calculate group member count on this day (should match how many got emails)
+      // Count memberships that were created before the next day started,
+      // employees that weren't deleted yet, and memberships that weren't removed yet
       const memberCountOnDay = memberships.filter(m => {
         const employee = employeeMap.get(m.employeeId);
         if (!employee) return false;
@@ -407,10 +418,13 @@ export const getGroupTrends = query({
         const effectiveCreatedAt = m.createdAt || employee.createdAt;
         const wasCreated = effectiveCreatedAt < dayEndTimestamp;
 
-        // Check if employee was not deleted or was deleted after this day
-        const wasNotDeleted = !employee.deletedAt || employee.deletedAt >= dayEndTimestamp;
+        // Check if employee was not deleted or was deleted on/after this day started
+        const wasNotDeleted = !employee.deletedAt || employee.deletedAt >= dayStartTimestamp;
 
-        return wasCreated && wasNotDeleted;
+        // Check if membership was not removed or was removed on/after this day started
+        const wasNotRemoved = !m.removedAt || m.removedAt >= dayStartTimestamp;
+
+        return wasCreated && wasNotDeleted && wasNotRemoved;
       }).length;
 
       const checkins = await ctx.db
@@ -435,10 +449,13 @@ export const getGroupTrends = query({
         const effectiveCreatedAt = membership.createdAt || employee.createdAt;
         const wasCreated = effectiveCreatedAt < dayEndTimestamp;
 
-        // Check if employee was not deleted or was deleted after this day
-        const wasNotDeleted = !employee.deletedAt || employee.deletedAt >= dayEndTimestamp;
+        // Check if employee was not deleted or was deleted on/after this day started
+        const wasNotDeleted = !employee.deletedAt || employee.deletedAt >= dayStartTimestamp;
 
-        return wasCreated && wasNotDeleted;
+        // Check if membership was not removed or was removed on/after this day started
+        const wasNotRemoved = !membership.removedAt || membership.removedAt >= dayStartTimestamp;
+
+        return wasCreated && wasNotDeleted && wasNotRemoved;
       });
 
       const green = groupCheckinsOnDay.filter((c) => c.mood === "green").length;
