@@ -115,7 +115,7 @@ export default function ViewOrganizationPage() {
   const isNewUser = employees && employees.length === 0;
 
   return (
-    <div className="flex flex-col gap-10 px-4 md:px-8 py-8 mx-auto w-full max-w-full md:max-w-[90%] lg:max-w-[80%]">
+    <div className="flex flex-col gap-10 px-4 md:px-8 py-8 mx-auto w-full max-w-full md:max-w-[90%] lg:max-w-[80%] min-w-[777px]">
       {/* Onboarding Guide for New Users */}
       {isNewUser && (
         <div className="fixed top-5 right-[952px] z-50 animate-bounce">
