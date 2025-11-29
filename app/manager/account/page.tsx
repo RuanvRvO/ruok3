@@ -23,7 +23,10 @@ export default function AccountSettingsPage() {
   // Populate form when user data loads
   useEffect(() => {
     if (user) {
-      const fullName = user.name || "";
+      // Handle both old users (with surname) and new users (full name in name field)
+      const fullName = user.surname
+        ? `${user.name} ${user.surname}`.trim()
+        : user.name || "";
       const org = user.organisation || "";
 
       setName(fullName);

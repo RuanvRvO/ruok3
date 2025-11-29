@@ -126,9 +126,6 @@ export const addManager = mutation({
       name: args.name,
       organisation: organisation,
       emailVerificationTime: undefined,
-      phone: undefined,
-      phoneVerificationTime: undefined,
-      image: undefined,
       isAnonymous: false,
     });
 
@@ -196,8 +193,10 @@ export const updateAccount = mutation({
     }
 
     // Update the user's account details
+    // Remove surname field if it exists (migrate old users to new format)
     await ctx.db.patch(userId, {
       name: args.name,
+      surname: undefined,
       organisation: args.organisation,
     });
 

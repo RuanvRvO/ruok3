@@ -7,7 +7,10 @@ import { Id } from "../../../convex/_generated/dataModel";
 
 export default function ViewOrganizationPage() {
   const user = useQuery(api.users.getCurrentUser);
-  const viewer = user?.name ?? user?.email ?? null;
+  // Support both old users (with surname field) and new users (full name in name field)
+  const viewer = user?.surname
+    ? `${user.name} ${user.surname}`.trim()
+    : user?.name ?? user?.email ?? null;
 
   const [timeRange, setTimeRange] = useState<"1week" | "1month" | "1year" | "overall">("1week");
   const [groupTimeRange, setGroupTimeRange] = useState<"1week" | "1month" | "1year" | "overall">("1week");

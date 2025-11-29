@@ -5,16 +5,27 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
     Password({
       profile(params) {
-        // Combine name and surname into a single name field
-        const fullName = params.surname
-          ? `${params.name} ${params.surname}`
-          : (params.name as string);
-
-        return {
+        const profile: {
+          email: string;
+          name?: string;
+          surname?: string;
+          organisation?: string;
+        } = {
           email: params.email as string,
-          name: fullName,
-          organisation: params.organisation as string,
         };
+
+        // Add custom fields if they're present (signUp flow)
+        if (params.name) {
+          profile.name = params.name as string;
+        }
+        if (params.surname) {
+          profile.surname = params.surname as string;
+        }
+        if (params.organisation) {
+          profile.organisation = params.organisation as string;
+        }
+
+        return profile;
       },
     }),
   ],
