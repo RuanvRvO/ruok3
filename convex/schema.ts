@@ -10,7 +10,6 @@ export default defineSchema({
   // Extend users table with custom fields (Convex Auth will merge this)
   users: defineTable({
     name: v.optional(v.string()),
-    surname: v.optional(v.string()),
     organisation: v.optional(v.string()),
     email: v.optional(v.string()),
     emailVerificationTime: v.optional(v.number()),

@@ -5,10 +5,14 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
     Password({
       profile(params) {
+        // Combine name and surname into a single name field
+        const fullName = params.surname
+          ? `${params.name} ${params.surname}`
+          : (params.name as string);
+
         return {
           email: params.email as string,
-          name: params.name as string,
-          surname: params.surname as string,
+          name: fullName,
           organisation: params.organisation as string,
         };
       },

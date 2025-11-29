@@ -21,7 +21,7 @@ import {
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Eye, Edit, LogOut } from "lucide-react";
+import { Eye, Edit, LogOut, Users, UserCog } from "lucide-react";
 
 export default function ManagerLayout({
   children,
@@ -108,6 +108,24 @@ export default function ManagerLayout({
                   >
                     <Edit className="size-4" />
                     <span>Edit Organization</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => router.push("/manager/managers")}
+                    isActive={pathname === "/manager/managers"}
+                  >
+                    <Users className="size-4" />
+                    <span>Manage Managers</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => router.push("/manager/account")}
+                    isActive={pathname === "/manager/account"}
+                  >
+                    <UserCog className="size-4" />
+                    <span>Account Settings</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
