@@ -11,9 +11,11 @@ export default function AccountSettingsPage() {
   const updateAccount = useMutation(api.users.updateAccount);
 
   const [name, setName] = useState("");
+  const [surname, setSurname] = useState("");
   const [organisation, setOrganisation] = useState("");
   const [originalValues, setOriginalValues] = useState({
     name: "",
+    surname: "",
     organisation: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,18 +25,18 @@ export default function AccountSettingsPage() {
   // Populate form when user data loads
   useEffect(() => {
     if (user) {
-      // Handle both old users (with surname) and new users (full name in name field)
-      const fullName = user.surname
-        ? `${user.name} ${user.surname}`.trim()
-        : user.name || "";
+      const firstName = user.name || "";
+      const lastName = user.surname || "";
       const org = user.organisation || "";
 
-      setName(fullName);
+      setName(firstName);
+      setSurname(lastName);
       setOrganisation(org);
 
       // Store original values
       setOriginalValues({
-        name: fullName,
+        name: firstName,
+        surname: lastName,
         organisation: org,
       });
     }
@@ -43,6 +45,7 @@ export default function AccountSettingsPage() {
   // Check if form has been modified
   const hasChanges =
     name !== originalValues.name ||
+    surname !== originalValues.surname ||
     organisation !== originalValues.organisation;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,6 +57,7 @@ export default function AccountSettingsPage() {
     try {
       await updateAccount({
         name: name.trim(),
+        surname: surname.trim(),
         organisation,
       });
       setSuccess("Account settings updated successfully!");
@@ -61,6 +65,7 @@ export default function AccountSettingsPage() {
       // Update original values after successful save
       setOriginalValues({
         name,
+        surname,
         organisation,
       });
     } catch (err: any) {
@@ -106,22 +111,41 @@ export default function AccountSettingsPage() {
           Personal Information
         </h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-          <div>
-            <label
-              htmlFor="name"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
-            >
-              Full Name
-            </label>
-            <input
-              type="text"
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
-              placeholder="John Doe"
-              required
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+              >
+                First Name
+              </label>
+              <input
+                type="text"
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                placeholder="John"
+                required
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="surname"
+                className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+              >
+                Last Name
+              </label>
+              <input
+                type="text"
+                id="surname"
+                value={surname}
+                onChange={(e) => setSurname(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                placeholder="Doe"
+                required
+              />
+            </div>
           </div>
 
           <div>

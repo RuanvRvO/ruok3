@@ -179,6 +179,7 @@ export const removeManager = mutation({
 export const updateAccount = mutation({
   args: {
     name: v.string(),
+    surname: v.string(),
     organisation: v.string(),
   },
   handler: async (ctx, args) => {
@@ -193,10 +194,9 @@ export const updateAccount = mutation({
     }
 
     // Update the user's account details
-    // Remove surname field if it exists (migrate old users to new format)
     await ctx.db.patch(userId, {
       name: args.name,
-      surname: undefined,
+      surname: args.surname,
       organisation: args.organisation,
     });
 
