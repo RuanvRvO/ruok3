@@ -116,20 +116,6 @@ export default function ViewOrganizationPage() {
 
   return (
     <div className="flex flex-col gap-10 px-4 md:px-8 py-8 mx-auto w-full max-w-full md:max-w-[90%] lg:max-w-[80%] min-w-[777px]">
-      {/* Onboarding Guide for New Users */}
-      {isNewUser && (
-        <div className="fixed top-5 right-[952px] z-50 animate-bounce">
-          <svg
-            className="w-16 h-8 text-blue-500 dark:text-blue-400"
-            fill="currentColor"
-            viewBox="0 0 24 24"
-            style={{ transform: 'rotate(180deg)' }}
-          >
-            <path d="M13.025 1l-2.847 2.828 6.176 6.176h-16.354v3.992h16.354l-6.176 6.176 2.847 2.828 11.975-11.976z"/>
-          </svg>
-        </div>
-      )}
-
       <div className="text-center">
         <h1 className="font-bold text-3xl text-slate-900 dark:text-slate-100 mb-3">
           Welcome {viewer ?? "Anonymous"}!
@@ -179,10 +165,10 @@ export default function ViewOrganizationPage() {
             </h2>
             <p className="text-lg text-slate-600 dark:text-slate-400 mb-8">
               Your organization dashboard is ready, but you haven't added any employees yet.
-              Click the <span className="font-semibold text-slate-800 dark:text-slate-200">"Make Changes To Your Organization"</span> button
-              in the top navigation to add your first employee and start tracking wellbeing.
+              Click the <span className="font-semibold text-slate-800 dark:text-slate-200">"Edit Organization"</span> button
+              in the sidebar to add your first employees.
             </p>
-            <div className="flex flex-col gap-4 items-center">
+            <div className="flex flex-col gap-4 items-start mx-auto pl-43">
               <div className="flex items-center gap-3 text-slate-700 dark:text-slate-300">
                 <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 font-bold">1</div>
                 <span>Add employees to your organization</span>

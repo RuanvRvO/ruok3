@@ -6,6 +6,22 @@ import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { Eye, Edit, LogOut } from "lucide-react";
 
 export default function ManagerLayout({
   children,
@@ -54,10 +70,10 @@ export default function ManagerLayout({
   }
 
   return (
-    <>
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md p-4 border-b border-slate-200 dark:border-slate-700 flex flex-row justify-between items-center shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-3">
+    <SidebarProvider>
+      <Sidebar>
+        <SidebarHeader>
+          <div className="flex items-center gap-3 p-2">
             <Image src="/smile.png" alt="Smile Logo" width={32} height={32} />
             <div className="w-px h-8 bg-slate-300 dark:bg-slate-600"></div>
             <Image
@@ -68,55 +84,83 @@ export default function ManagerLayout({
               className="dark:hidden"
             />
           </div>
-          <h1 className="font-semibold text-slate-800 dark:text-slate-200">
+          <h1 className="font-semibold text-slate-800 dark:text-slate-200 px-2">
             R u OK today?
           </h1>
-        </div>
-
-        {/* Navigation Buttons */}
-        <div className="flex gap-2">
-          <Button
-            variant={pathname === "/manager/view" ? "default" : "outline"}
-            onClick={() => router.push("/manager/view")}
-            size="sm"
-          >
-            View Your Organization
-          </Button>
-          <Button
-            variant={pathname === "/manager/edit" ? "default" : "outline"}
-            onClick={() => router.push("/manager/edit")}
-            size="sm"
-          >
-            Make Changes To Your Organization
-          </Button>
-        </div>
-
-        <SignOutButton />
-      </header>
-
-      <main className="p-8 flex flex-col gap-8">{children}</main>
-    </>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => router.push("/manager/view")}
+                    isActive={pathname === "/manager/view"}
+                  >
+                    <Eye className="size-4" />
+                    <span>View Organization</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => router.push("/manager/edit")}
+                    isActive={pathname === "/manager/edit"}
+                  >
+                    <Edit className="size-4" />
+                    <span>Edit Organization</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+        <SidebarFooter>
+          <SignOutButtonSidebar />
+        </SidebarFooter>
+      </Sidebar>
+      <SidebarInset>
+        <SidebarToggleButton />
+        <main className="p-8 flex flex-col gap-8">{children}</main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 
-function SignOutButton() {
-  const { isAuthenticated } = useConvexAuth();
+function SidebarToggleButton() {
+  const { open, toggleSidebar } = useSidebar();
+
+  return (
+    <div
+      className={`fixed top-4 z-50 bg-sidebar border-t border-b border-sidebar-border h-12 px-3 flex items-center transition-all duration-300 ${
+        open ? 'left-[240px] border-r rounded-r' : 'left-0 border-r rounded-r shadow-sm'
+      }`}
+    >
+      <Switch
+        checked={open}
+        onCheckedChange={toggleSidebar}
+        className="data-[state=checked]:bg-blue-300 data-[state=unchecked]:bg-slate-300 dark:data-[state=unchecked]:bg-slate-600"
+      />
+    </div>
+  );
+}
+
+function SignOutButtonSidebar() {
   const { signOut } = useAuthActions();
   const router = useRouter();
   return (
-    <>
-      {isAuthenticated && (
-        <button
-          className="bg-slate-600 hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 text-white rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer"
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton
           onClick={() =>
             void signOut().then(() => {
               router.push("/signin");
             })
           }
         >
-          Sign out
-        </button>
-      )}
-    </>
+          <LogOut className="size-4" />
+          <span>Sign Out</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
   );
 }

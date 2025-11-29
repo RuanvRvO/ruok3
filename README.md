@@ -17,9 +17,9 @@ After the initial setup (<2 minutes) you'll have a working full-stack app using:
 -Review http being used and not https? 
 -each manager should be able to add more organisations to manage from the edit page
 -add email authentication when user creates orginasation
+-add sidebar for buttons, include settings and such where user can add other super users instead of button at the top
 
 ## fix:
--removed employess have their responses kept, should this be removed in graphical data? (no)
 -submitting response with 0 info on the response shouldnt be accepted
 
 ## idea
