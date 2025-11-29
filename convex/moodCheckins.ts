@@ -188,7 +188,7 @@ export const getTrends = query({
   },
 });
 
-// Query to get today's check-ins for an organization
+// Query to get check-ins from the last 24 hours for an organization
 export const getTodayCheckins = query({
   args: {},
   handler: async (ctx) => {
@@ -204,18 +204,36 @@ export const getTodayCheckins = query({
       return [];
     }
 
-    const today = new Date().toISOString().split("T")[0];
+    // Get the last 24 hours of check-ins
+    const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
 
-    const checkins = await ctx.db
-      .query("moodCheckins")
-      .withIndex("by_organisation_and_date", (q) =>
-        q.eq("organisation", organisation).eq("date", today)
-      )
-      .collect();
+    // Get today and yesterday's dates to query both
+    const today = new Date().toISOString().split("T")[0];
+    const yesterday = new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString().split("T")[0];
+
+    // Fetch check-ins from both today and yesterday
+    const [todayCheckins, yesterdayCheckins] = await Promise.all([
+      ctx.db
+        .query("moodCheckins")
+        .withIndex("by_organisation_and_date", (q) =>
+          q.eq("organisation", organisation).eq("date", today)
+        )
+        .collect(),
+      ctx.db
+        .query("moodCheckins")
+        .withIndex("by_organisation_and_date", (q) =>
+          q.eq("organisation", organisation).eq("date", yesterday)
+        )
+        .collect()
+    ]);
+
+    // Combine and filter by timestamp to get only last 24 hours
+    const allCheckins = [...todayCheckins, ...yesterdayCheckins];
+    const recentCheckins = allCheckins.filter(c => c.timestamp >= twentyFourHoursAgo);
 
     // Get employee details for each check-in
     const checkinsWithEmployees = await Promise.all(
-      checkins.map(async (checkin) => {
+      recentCheckins.map(async (checkin) => {
         const employee = await ctx.db.get(checkin.employeeId);
         return {
           ...checkin,
@@ -232,7 +250,7 @@ export const getTodayCheckins = query({
   },
 });
 
-// Query to get today's check-ins for a specific group
+// Query to get check-ins from the last 24 hours for a specific group
 export const getGroupTodayCheckins = query({
   args: {
     groupId: v.id("groups"),
@@ -255,24 +273,41 @@ export const getGroupTodayCheckins = query({
       .withIndex("by_group", (q) => q.eq("groupId", args.groupId))
       .collect();
 
-    // Include employees removed today (they may have responded earlier in the day)
-    const today = new Date().toISOString().split("T")[0];
-    const todayStartTimestamp = new Date(today).getTime();
+    // Get the last 24 hours of check-ins
+    const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
 
+    // Include employees removed in the last 24 hours (they may have responded before removal)
     const relevantMemberships = memberships.filter(m =>
-      !m.removedAt || m.removedAt >= todayStartTimestamp
+      !m.removedAt || m.removedAt >= twentyFourHoursAgo
     );
     const employeeIds = relevantMemberships.map((m) => m.employeeId);
 
-    const checkins = await ctx.db
-      .query("moodCheckins")
-      .withIndex("by_organisation_and_date", (q) =>
-        q.eq("organisation", organisation).eq("date", today)
-      )
-      .collect();
+    // Get today and yesterday's dates to query both
+    const today = new Date().toISOString().split("T")[0];
+    const yesterday = new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString().split("T")[0];
+
+    // Fetch check-ins from both today and yesterday
+    const [todayCheckins, yesterdayCheckins] = await Promise.all([
+      ctx.db
+        .query("moodCheckins")
+        .withIndex("by_organisation_and_date", (q) =>
+          q.eq("organisation", organisation).eq("date", today)
+        )
+        .collect(),
+      ctx.db
+        .query("moodCheckins")
+        .withIndex("by_organisation_and_date", (q) =>
+          q.eq("organisation", organisation).eq("date", yesterday)
+        )
+        .collect()
+    ]);
+
+    // Combine and filter by timestamp to get only last 24 hours
+    const allCheckins = [...todayCheckins, ...yesterdayCheckins];
+    const recentCheckins = allCheckins.filter(c => c.timestamp >= twentyFourHoursAgo);
 
     // Filter to only include employees in this group
-    const groupCheckins = checkins.filter((c) =>
+    const groupCheckins = recentCheckins.filter((c) =>
       employeeIds.includes(c.employeeId)
     );
 
@@ -289,7 +324,7 @@ export const getGroupTodayCheckins = query({
       })
     );
 
-    // Keep all check-ins (including from deleted employees) for today's view
+    // Keep all check-ins (including from deleted employees) for recent check-ins view
     // Only filter out if employee record is missing (data integrity)
     return checkinsWithEmployees.filter(c => c.employee);
   },
