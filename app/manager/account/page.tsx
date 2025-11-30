@@ -94,6 +94,16 @@ export default function AccountSettingsPage() {
     );
   }
 
+  if (!user) {
+    return (
+      <div className="mx-auto">
+        <p className="text-slate-600 dark:text-slate-400">
+          Please sign in to view this page.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-8 max-w-4xl mx-auto">
       <div>
