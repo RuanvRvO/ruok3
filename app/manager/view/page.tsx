@@ -413,14 +413,13 @@ export default function ViewOrganizationPage() {
           </div>
 
           {/* Historical Check-ins Section (Organization-wide) */}
-          {selectedGroupId && groups.length > 0 && (
-            <>
-              {/* Spacer between sections - aligns Check-in History with Group Mood heading on wide screens */}
-              <div className="h-[24px] 2xl:flex-1 2xl:min-h-[42px]"></div>
+          <>
+            {/* Spacer between sections */}
+            <div className="h-[48px]"></div>
 
-              <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 border-b-2 border-slate-300 dark:border-slate-600 pb-3">
-                Check-in History
-              </h2>
+            <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 border-b-2 border-slate-300 dark:border-slate-600 pb-3">
+              Check-in History
+            </h2>
               <p className="text-sm text-slate-600 dark:text-slate-400 -mt-3">
                 Past 30 days
               </p>
@@ -519,8 +518,7 @@ export default function ViewOrganizationPage() {
                   ))
                 )}
               </div>
-            </>
-          )}
+          </>
         </div>
       </div>
       )}

@@ -28,3 +28,5 @@ After the initial setup (<2 minutes) you'll have a working full-stack app using:
 
 -consider to filter per person ?
 
+## investigate
+- when a user changes org name - how does it effect other managers given access to that org? (make user tied to org id not name)
