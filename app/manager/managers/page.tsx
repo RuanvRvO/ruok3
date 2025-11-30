@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { Id } from "../../../convex/_generated/dataModel";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Trash2, UserPlus, Mail, Eye, Edit2, Clock, CheckCircle, XCircle } from "lucide-react";
@@ -40,7 +41,7 @@ export default function ManageManagersPage() {
     }
   };
 
-  const handleToggleRole = async (managerId: string, currentRole: "viewer" | "editor") => {
+  const handleToggleRole = async (managerId: Id<"users">, currentRole: "viewer" | "editor") => {
     const newRole = currentRole === "viewer" ? "editor" : "viewer";
     try {
       await updateManagerRole({ managerId, role: newRole });
@@ -50,7 +51,7 @@ export default function ManageManagersPage() {
     }
   };
 
-  const handleRemoveManager = async (userId: string) => {
+  const handleRemoveManager = async (userId: Id<"users">) => {
     if (!confirm("Are you sure you want to remove this manager's access?")) {
       return;
     }
@@ -63,7 +64,7 @@ export default function ManageManagersPage() {
     }
   };
 
-  const handleRevokeInvitation = async (invitationId: string) => {
+  const handleRevokeInvitation = async (invitationId: Id<"managerInvitations">) => {
     if (!confirm("Are you sure you want to revoke this invitation?")) {
       return;
     }
@@ -92,6 +93,16 @@ export default function ManageManagersPage() {
           <div className="w-2 h-2 bg-slate-600 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
           <p className="ml-2 text-slate-600 dark:text-slate-400">Loading...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="mx-auto">
+        <p className="text-slate-600 dark:text-slate-400">
+          Please sign in to view this page.
+        </p>
       </div>
     );
   }
