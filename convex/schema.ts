@@ -12,10 +12,24 @@ const schema = defineSchema({
     name: v.optional(v.string()),
     surname: v.optional(v.string()),
     organisation: v.optional(v.string()),
+    role: v.optional(v.union(v.literal("owner"), v.literal("editor"), v.literal("viewer"))),
     email: v.optional(v.string()),
     emailVerificationTime: v.optional(v.number()),
     isAnonymous: v.optional(v.boolean()),
   }).index("email", ["email"]),
+  managerInvitations: defineTable({
+    email: v.string(),
+    organisation: v.string(),
+    role: v.union(v.literal("editor"), v.literal("viewer")),
+    invitedBy: v.id("users"),
+    token: v.string(),
+    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("expired")),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index("by_email", ["email"])
+    .index("by_token", ["token"])
+    .index("by_organisation", ["organisation"]),
   employees: defineTable({
     firstName: v.string(),
     email: v.string(),

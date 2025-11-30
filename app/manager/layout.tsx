@@ -1,8 +1,9 @@
 "use client";
 
-import { useConvexAuth } from "convex/react";
+import { useConvexAuth, useQuery, useMutation } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useRouter, usePathname } from "next/navigation";
+import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Eye, Edit, LogOut, Users, UserCog } from "lucide-react";
+import { api } from "../../convex/_generated/api";
 
 export default function ManagerLayout({
   children,
@@ -31,6 +33,8 @@ export default function ManagerLayout({
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const user = useQuery(api.users.getCurrentUser);
+  const migrateUserRole = useMutation(api.users.migrateUserRole);
 
   // Redirect to sign in if not authenticated
   useEffect(() => {
@@ -38,6 +42,22 @@ export default function ManagerLayout({
       router.push("/signin");
     }
   }, [isAuthenticated, isLoading, router]);
+
+  // Migrate legacy users who have organization but no role
+  useEffect(() => {
+    const migrate = async () => {
+      if (user && user.needsMigration) {
+        console.log("Migrating user role...", user);
+        try {
+          const result = await migrateUserRole();
+          console.log("Migration result:", result);
+        } catch (error) {
+          console.error("Migration failed:", error);
+        }
+      }
+    };
+    void migrate();
+  }, [user, migrateUserRole]);
 
   // Show loading while checking authentication
   if (isLoading) {
@@ -101,33 +121,7 @@ export default function ManagerLayout({
                     <span>View Organization</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => router.push("/manager/edit")}
-                    isActive={pathname === "/manager/edit"}
-                  >
-                    <Edit className="size-4" />
-                    <span>Edit Organization</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => router.push("/manager/managers")}
-                    isActive={pathname === "/manager/managers"}
-                  >
-                    <Users className="size-4" />
-                    <span>Manage Managers</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => router.push("/manager/account")}
-                    isActive={pathname === "/manager/account"}
-                  >
-                    <UserCog className="size-4" />
-                    <span>Account Settings</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <ManagerLayoutNav pathname={pathname} router={router} />
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -159,6 +153,51 @@ function SidebarToggleButton() {
         className="data-[state=checked]:bg-blue-300 data-[state=unchecked]:bg-slate-300 dark:data-[state=unchecked]:bg-slate-600"
       />
     </div>
+  );
+}
+
+function ManagerLayoutNav({ pathname, router }: { pathname: string; router: AppRouterInstance }) {
+  const user = useQuery(api.users.getCurrentUser);
+
+  if (!user) return null;
+
+  const canEdit = user.role === "owner" || user.role === "editor";
+  const isOwner = user.role === "owner";
+
+  return (
+    <>
+      {canEdit && (
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            onClick={() => router.push("/manager/edit")}
+            isActive={pathname === "/manager/edit"}
+          >
+            <Edit className="size-4" />
+            <span>Edit Organization</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      )}
+      {isOwner && (
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            onClick={() => router.push("/manager/managers")}
+            isActive={pathname === "/manager/managers"}
+          >
+            <Users className="size-4" />
+            <span>Manage Managers</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      )}
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          onClick={() => router.push("/manager/account")}
+          isActive={pathname === "/manager/account"}
+        >
+          <UserCog className="size-4" />
+          <span>Account Settings</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </>
   );
 }
 

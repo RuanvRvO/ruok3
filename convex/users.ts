@@ -25,16 +25,32 @@ export const getCurrentUser = query({
     }
 
     const user = await ctx.db.get(userId);
+    if (!user) {
+      return null;
+    }
 
-    // Debug log to check if organisation is present
-    console.log("Current user data:", {
-      id: user?._id,
-      email: user?.email,
-      name: user?.name,
-      organisation: user?.organisation,
+    console.log("getCurrentUser - raw user data:", {
+      organisation: user.organisation,
+      role: user.role,
+      email: user.email,
+      name: user.name,
     });
 
-    return user;
+    // If user has an organization but no role, they must be the owner (legacy users)
+    // This handles users created before the role system was added
+    if (user.organisation && !user.role) {
+      console.log("User needs migration - has org but no role");
+      return {
+        ...user,
+        role: "owner" as const,
+        needsMigration: true, // Flag to trigger migration in UI
+      };
+    }
+
+    return {
+      ...user,
+      needsMigration: false,
+    };
   },
 });
 
@@ -81,6 +97,8 @@ export const listManagers = query({
       _id: manager._id,
       name: manager.name || manager.email,
       email: manager.email,
+      // If manager has organisation but no role, they're the owner (legacy users)
+      role: manager.role || (manager.organisation ? "owner" : "viewer"),
     }));
   },
 });
@@ -201,5 +219,70 @@ export const updateAccount = mutation({
     });
 
     return { success: true };
+  },
+});
+
+// Mutation to migrate legacy users who have organization but no role
+export const migrateUserRole = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    const user = await ctx.db.get(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    console.log("migrateUserRole - checking user:", {
+      organisation: user.organisation,
+      role: user.role,
+      email: user.email,
+    });
+
+    // If user has an organization but no role, set them as owner
+    if (user.organisation && !user.role) {
+      console.log("Setting role to owner for user:", user.email);
+      await ctx.db.patch(userId, {
+        role: "owner",
+      });
+      console.log("Migration successful");
+      return { updated: true, role: "owner" };
+    }
+
+    console.log("No migration needed - user already has role:", user.role);
+    return { updated: false, role: user.role };
+  },
+});
+
+// Mutation to set organization for users who are missing it
+export const setOrganization = mutation({
+  args: {
+    organisation: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    const user = await ctx.db.get(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Only allow setting organization if user doesn't have one
+    if (user.organisation) {
+      throw new Error("User already belongs to an organization");
+    }
+
+    await ctx.db.patch(userId, {
+      organisation: args.organisation,
+      role: "owner", // First user in an org is always the owner
+    });
+
+    return { success: true, organisation: args.organisation, role: "owner" };
   },
 });

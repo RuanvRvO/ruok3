@@ -13,6 +13,7 @@ import type * as crons from "../crons.js";
 import type * as employees from "../employees.js";
 import type * as groups from "../groups.js";
 import type * as http from "../http.js";
+import type * as managerInvitations from "../managerInvitations.js";
 import type * as moodCheckins from "../moodCheckins.js";
 import type * as users from "../users.js";
 
@@ -28,6 +29,7 @@ declare const fullApi: ApiFromModules<{
   employees: typeof employees;
   groups: typeof groups;
   http: typeof http;
+  managerInvitations: typeof managerInvitations;
   moodCheckins: typeof moodCheckins;
   users: typeof users;
 }>;
