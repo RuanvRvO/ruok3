@@ -253,6 +253,12 @@ export const sendInvitationEmail = internalAction({
     inviterName: v.string(),
   },
   handler: async (ctx, args): Promise<{ success: boolean; error?: string }> => {
+    // Validate email address
+    if (!args.email || typeof args.email !== 'string' || args.email.trim() === '') {
+      console.error("Invalid email address provided:", args.email);
+      return { success: false, error: "Invalid email address" };
+    }
+
     const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey) {
       console.error("RESEND_API_KEY not configured");
