@@ -259,8 +259,13 @@ export const sendInvitationEmail = internalAction({
       return { success: false, error: "Resend API key not configured" };
     }
 
-    const baseUrl = process.env.SITE_URL || "http://localhost:3000";
-    const inviteLink = `${baseUrl}/manager-signup?token=${args.token}`;
+    // Remove trailing slash from baseUrl if present
+    let baseUrl = process.env.SITE_URL || "http://localhost:3000";
+    if (baseUrl.endsWith('/')) {
+      baseUrl = baseUrl.slice(0, -1);
+    }
+    const encodedToken = encodeURIComponent(args.token);
+    const inviteLink = `${baseUrl}/manager-signup?token=${encodedToken}`;
     const roleDisplay = args.role === "viewer" ? "View Only" : "Can Edit";
 
     const emailHtml = `
@@ -293,7 +298,7 @@ export const sendInvitationEmail = internalAction({
         Click the button below to set up your account and get started:
       </p>
 
-      <div style="margin: 32px 0;">
+      <div style="margin: 32px 0; text-align: center;">
         <a href="${inviteLink}" style="display: inline-block; background-color: #3b82f6; color: white; text-decoration: none; padding: 16px 32px; border-radius: 8px; text-align: center; font-weight: 600; font-size: 18px;">
           Accept Invitation
         </a>
@@ -321,7 +326,7 @@ export const sendInvitationEmail = internalAction({
           Authorization: `Bearer ${resendApiKey}`,
         },
         body: JSON.stringify({
-          from: "R u OK <onboarding@resend.dev>",
+          from: "R u OK <noreply@harbourweb.org>",
           to: args.email,
           subject: `You've been invited to join ${args.organisation} on R u OK`,
           html: emailHtml,

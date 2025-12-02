@@ -17,6 +17,18 @@ const schema = defineSchema({
     emailVerificationTime: v.optional(v.number()),
     isAnonymous: v.optional(v.boolean()),
   }).index("email", ["email"]),
+  // Separate table for viewer-only accounts
+  viewers: defineTable({
+    name: v.string(),
+    surname: v.string(),
+    email: v.string(),
+    password: v.string(), // Hashed password
+    organisation: v.string(),
+    role: v.union(v.literal("editor"), v.literal("viewer")),
+    createdAt: v.number(),
+  })
+    .index("by_email", ["email"])
+    .index("by_organisation", ["organisation"]),
   managerInvitations: defineTable({
     email: v.string(),
     organisation: v.string(),

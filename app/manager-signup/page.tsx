@@ -1,6 +1,5 @@
 "use client";
 
-import { useAuthActions } from "@convex-dev/auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -9,18 +8,16 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
 export default function ManagerSignUp() {
-  const { signIn } = useAuthActions();
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token");
 
   const invitation = useQuery(api.managerInvitations.getInvitationByToken, token ? { token } : "skip");
-  const acceptInvitation = useMutation(api.managerInvitations.acceptInvitation);
-  const currentUser = useQuery(api.users.getCurrentUser);
+  const createViewer = useMutation(api.viewers.createViewer);
+  const revokeInvitation = useMutation(api.managerInvitations.revokeInvitation);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [accountCreated, setAccountCreated] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     surname: "",
@@ -34,24 +31,6 @@ export default function ManagerSignUp() {
       router.push("/signin");
     }
   }, [token, router]);
-
-  // Accept invitation after user is authenticated
-  useEffect(() => {
-    const handleInvitationAcceptance = async () => {
-      if (accountCreated && currentUser && token && invitation && !invitation.isExpired) {
-        try {
-          await acceptInvitation({ token, userId: currentUser._id });
-          router.push("/manager/view");
-        } catch (err: any) {
-          setError(err.message || "Failed to accept invitation");
-          setLoading(false);
-          setAccountCreated(false);
-        }
-      }
-    };
-
-    void handleInvitationAcceptance();
-  }, [accountCreated, currentUser, token, invitation, acceptInvitation, router]);
 
   if (!token || invitation === undefined) {
     return (
@@ -108,19 +87,28 @@ export default function ManagerSignUp() {
       return;
     }
 
+    if (!invitation) {
+      setError("Invalid invitation");
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Create the password auth account
-      const signupFormData = new FormData();
-      signupFormData.set("email", invitation.email);
-      signupFormData.set("name", formData.name);
-      signupFormData.set("surname", formData.surname);
-      signupFormData.set("password", formData.password);
-      signupFormData.set("flow", "signUp");
+      // Create the viewer account
+      await createViewer({
+        name: formData.name,
+        surname: formData.surname,
+        email: invitation.email,
+        password: formData.password,
+        organisation: invitation.organisation,
+        role: invitation.role,
+      });
 
-      await signIn("password", signupFormData);
+      // Mark the invitation as accepted by revoking it
+      await revokeInvitation({ invitationId: invitation._id });
 
-      // Mark account as created - the useEffect will handle accepting the invitation and redirecting
-      setAccountCreated(true);
+      // Redirect to viewer sign-in page with success message
+      router.push("/signin?viewer=true&success=account_created");
     } catch (err: any) {
       setError(err.message || "Failed to create account");
       setLoading(false);
@@ -196,9 +184,9 @@ export default function ManagerSignUp() {
         <button
           className="bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 text-white font-semibold rounded-lg py-3 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           type="submit"
-          disabled={loading || accountCreated}
+          disabled={loading}
         >
-          {accountCreated ? "Setting up your account..." : loading ? "Creating Account..." : "Create Account"}
+          {loading ? "Creating Account..." : "Create Account"}
         </button>
         {error && (
           <div className="bg-rose-500/10 border border-rose-500/30 dark:border-rose-500/50 rounded-lg p-4">
