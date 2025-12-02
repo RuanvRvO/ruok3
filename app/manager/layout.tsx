@@ -184,7 +184,7 @@ function ManagerLayoutNav({ pathname, router }: { pathname: string; router: AppR
             isActive={pathname === "/manager/managers"}
           >
             <Users className="size-4" />
-            <span>Manage Managers</span>
+            <span>Viewer Access</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       )}

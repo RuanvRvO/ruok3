@@ -45,22 +45,22 @@ export default function ManageManagersPage() {
     const newRole = currentRole === "viewer" ? "editor" : "viewer";
     try {
       await updateManagerRole({ managerId, role: newRole });
-      setSuccess(`Manager role updated to ${newRole}`);
+      setSuccess(`User role updated to ${newRole}`);
     } catch (err: any) {
       setError(err.message || "Failed to update role");
     }
   };
 
   const handleRemoveManager = async (userId: Id<"users">) => {
-    if (!confirm("Are you sure you want to remove this manager's access?")) {
+    if (!confirm("Are you sure you want to remove this user's access?")) {
       return;
     }
 
     try {
       await removeManager({ userId });
-      setSuccess("Manager removed successfully!");
+      setSuccess("User removed successfully!");
     } catch (err: any) {
-      setError(err.message || "Failed to remove manager");
+      setError(err.message || "Failed to remove user");
     }
   };
 
@@ -115,16 +115,16 @@ export default function ManageManagersPage() {
     <div className="flex flex-col gap-8 max-w-4xl mx-auto">
       <div>
         <h1 className="font-bold text-3xl text-slate-900 dark:text-slate-100 mb-3">
-          Manage Managers
+          Viewer Access
         </h1>
         <p className="text-slate-600 dark:text-slate-400">
-          Invite managers to view or edit your organization's wellbeing data.
+          Invite users to view or edit your organization's wellbeing data.
         </p>
       </div>
 
       {!isOwner && (
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 px-4 py-3 rounded-lg">
-          Only organization owners can manage managers.
+          Only organization owners can manage viewer access.
         </div>
       )}
 
@@ -133,7 +133,7 @@ export default function ManageManagersPage() {
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6">
           <h2 className="font-semibold text-xl text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
             <UserPlus className="size-5" />
-            Invite New Manager
+            Invite New User
           </h2>
           <form onSubmit={handleSendInvitation} className="flex flex-col gap-4">
             <div>
@@ -146,7 +146,7 @@ export default function ManageManagersPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
-                placeholder="manager@example.com"
+                placeholder="user@example.com"
                 required
               />
             </div>
@@ -264,9 +264,9 @@ export default function ManageManagersPage() {
 
       {/* Active Managers */}
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6">
-        <h2 className="font-semibold text-xl text-slate-900 dark:text-slate-100 mb-4">Active Managers</h2>
+        <h2 className="font-semibold text-xl text-slate-900 dark:text-slate-100 mb-4">Active Users</h2>
         {activeManagers.length === 0 ? (
-          <p className="text-slate-500 dark:text-slate-400 text-center py-8">No additional managers yet.</p>
+          <p className="text-slate-500 dark:text-slate-400 text-center py-8">No additional users yet.</p>
         ) : (
           <div className="flex flex-col gap-3">
             {activeManagers.map((manager) => (

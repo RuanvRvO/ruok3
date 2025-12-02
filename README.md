@@ -21,6 +21,7 @@ After the initial setup (<2 minutes) you'll have a working full-stack app using:
 
 ## fix:
 -submitting response with 0 info on the response shouldnt be accepted
+-users on the phone has bad view
 
 ## idea
 -should responses be captured 4pm-4pm instead of that days hours, cause what if i only respond tomorrow about how yesterday was?
