@@ -24,14 +24,15 @@ export const createViewer = mutation({
     role: v.union(v.literal("editor"), v.literal("viewer")),
   },
   handler: async (ctx, args) => {
-    // Check if viewer with this email already exists
+    // Check if viewer with this email already exists for THIS organization
     const existingViewer = await ctx.db
       .query("viewers")
       .withIndex("by_email", (q) => q.eq("email", args.email))
+      .filter((q) => q.eq(q.field("organisation"), args.organisation))
       .first();
 
     if (existingViewer) {
-      throw new Error("A viewer account with this email already exists");
+      throw new Error("A viewer account with this email already exists for this organization");
     }
 
     // Hash the password
