@@ -15,6 +15,24 @@ export const checkEmailExists = query({
   },
 });
 
+// Query to check if an organization name is already in use
+export const checkOrganizationExists = query({
+  args: {
+    organisation: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Check in users table
+    const allUsers = await ctx.db.query("users").collect();
+    const existingUserOrg = allUsers.find((u) => u.organisation === args.organisation);
+
+    // Also check in viewers table
+    const allViewers = await ctx.db.query("viewers").collect();
+    const existingViewerOrg = allViewers.find((v) => v.organisation === args.organisation);
+
+    return existingUserOrg !== undefined || existingViewerOrg !== undefined;
+  },
+});
+
 // Query to get current user's full info
 export const getCurrentUser = query({
   args: {},

@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 export default function SignIn() {
   const { signIn } = useAuthActions();
@@ -102,6 +104,30 @@ export default function SignIn() {
             } catch (err) {
               console.error("Email check error:", err);
               setError("Unable to verify email. Please try again.");
+              setLoading(false);
+              return;
+            }
+
+            // Check if organization name already exists
+            const organisation = formData.get("organisation") as string;
+            try {
+              const response = await fetch("/api/check-organization", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ organisation }),
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                if (data.exists) {
+                  setError("This organization name is already in use. Please choose a different name.");
+                  setLoading(false);
+                  return;
+                }
+              }
+            } catch (err) {
+              console.error("Organization check error:", err);
+              setError("Unable to verify organization name. Please try again.");
               setLoading(false);
               return;
             }
