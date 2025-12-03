@@ -107,8 +107,8 @@ export default function ManagerSignUp() {
       // Mark the invitation as accepted by revoking it
       await revokeInvitation({ invitationId: invitation._id });
 
-      // Redirect to viewer sign-in page with success message
-      router.push("/signin?viewer=true&success=account_created");
+      // Redirect to signin page with success message
+      router.push("/signin?success=account_created");
     } catch (err: any) {
       setError(err.message || "Failed to create account");
       setLoading(false);

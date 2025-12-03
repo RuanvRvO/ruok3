@@ -286,3 +286,48 @@ export const setOrganization = mutation({
     return { success: true, organisation: args.organisation, role: "owner" };
   },
 });
+
+// Query to get all organizations a user has access to (from users table and viewers table)
+export const getUserOrganizations = query({
+  args: {
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const organizations: Array<{
+      organisation: string;
+      role: "owner" | "editor" | "viewer";
+      source: "user" | "viewer";
+    }> = [];
+
+    // Check users table for organizations where user is owner/editor/viewer
+    const allUsers = await ctx.db.query("users").collect();
+    const matchingUsers = allUsers.filter((u) => u.email === args.email && u.organisation);
+
+    for (const user of matchingUsers) {
+      organizations.push({
+        organisation: user.organisation!,
+        role: user.role || "owner", // Default to owner for legacy users
+        source: "user",
+      });
+    }
+
+    // Check viewers table for organizations where user is a viewer
+    const viewers = await ctx.db
+      .query("viewers")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .collect();
+
+    for (const viewer of viewers) {
+      // Only add if not already in the list from users table
+      if (!organizations.some((org) => org.organisation === viewer.organisation)) {
+        organizations.push({
+          organisation: viewer.organisation,
+          role: viewer.role,
+          source: "viewer",
+        });
+      }
+    }
+
+    return organizations;
+  },
+});
