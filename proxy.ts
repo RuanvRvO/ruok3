@@ -6,6 +6,7 @@ import {
 
 const isSignInPage = createRouteMatcher(["/signin"]);
 const isManagerSignupPage = createRouteMatcher(["/manager-signup"]);
+const isAcceptInvitationPage = createRouteMatcher(["/accept-invitation"]);
 const isProtectedRoute = createRouteMatcher(["/manager(.*)"]);
 
 
@@ -15,6 +16,10 @@ export default convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
   }
   // Allow access to manager-signup page without authentication
   if (isManagerSignupPage(request)) {
+    return;
+  }
+  // Allow access to accept-invitation page without authentication
+  if (isAcceptInvitationPage(request)) {
     return;
   }
   if (isProtectedRoute(request) && !(await convexAuth.isAuthenticated())) {

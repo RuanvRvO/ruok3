@@ -6,30 +6,20 @@ import Image from "next/image";
 import Link from "next/link";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { useAuthActions } from "@convex-dev/auth/react";
 
-export default function ManagerSignUp() {
+export default function AcceptInvitation() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token");
+  const { signIn } = useAuthActions();
 
   const invitation = useQuery(api.managerInvitations.getInvitationByToken, token ? { token } : "skip");
-  const createViewer = useMutation(api.viewers.createViewer);
-  const revokeInvitation = useMutation(api.managerInvitations.revokeInvitation);
-
-  // Check if user with this email already exists
-  const userExists = useQuery(
-    api.users.checkEmailExists,
-    invitation && !invitation.isExpired ? { email: invitation.email } : "skip"
-  );
+  const acceptInvitationForExistingUser = useMutation(api.managerInvitations.acceptInvitationForExistingUser);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    surname: "",
-    password: "",
-    confirmPassword: "",
-  });
+  const [password, setPassword] = useState("");
 
   // Redirect if no token
   useEffect(() => {
@@ -37,13 +27,6 @@ export default function ManagerSignUp() {
       router.push("/signin");
     }
   }, [token, router]);
-
-  // If user already exists, redirect to accept-invitation signin page
-  useEffect(() => {
-    if (invitation && userExists === true && token) {
-      router.push(`/accept-invitation?token=${token}`);
-    }
-  }, [invitation, userExists, token, router]);
 
   if (!token || invitation === undefined) {
     return (
@@ -87,43 +70,22 @@ export default function ManagerSignUp() {
     setLoading(true);
     setError(null);
 
-    // Check if passwords match
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      setLoading(false);
-      return;
-    }
-
-    if (formData.password.length < 8) {
-      setError("Password must be at least 8 characters");
-      setLoading(false);
-      return;
-    }
-
-    if (!invitation) {
-      setError("Invalid invitation");
-      setLoading(false);
-      return;
-    }
-
     try {
-      // Create the viewer account
-      await createViewer({
-        name: formData.name,
-        surname: formData.surname,
-        email: invitation.email,
-        password: formData.password,
-        organisation: invitation.organisation,
-        role: invitation.role,
-      });
+      // Sign in the user
+      const formData = new FormData();
+      formData.set("email", invitation.email);
+      formData.set("password", password);
+      formData.set("flow", "signIn");
 
-      // Mark the invitation as accepted by revoking it
-      await revokeInvitation({ invitationId: invitation._id });
+      await signIn("password", formData);
 
-      // Redirect to signin page with success message
-      router.push("/signin?success=account_created");
+      // After successful signin, link the account to the organization
+      await acceptInvitationForExistingUser({ token });
+
+      // Redirect to organization selection
+      router.push("/select-organization");
     } catch (err: any) {
-      setError(err.message || "Failed to create account");
+      setError(err.message || "Failed to sign in. Please check your password.");
       setLoading(false);
     }
   };
@@ -131,7 +93,7 @@ export default function ManagerSignUp() {
   return (
     <div className="flex flex-col gap-8 w-full max-w-lg mx-auto h-screen justify-center items-center px-4">
       <div className="text-center flex flex-col items-center gap-4">
-        <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">Complete Your Signup</h1>
+        <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">Accept Invitation</h1>
         <div className="flex items-center gap-6">
           <Image src="/smile.png" alt="Smile Logo" width={95} height={95} />
           <div className="w-px h-20 bg-slate-300 dark:bg-slate-600"></div>
@@ -144,28 +106,18 @@ export default function ManagerSignUp() {
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Access Level: {invitation.role === "viewer" ? "View Only" : "Can Edit"}
           </p>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-3">
+            An account with email <span className="font-semibold">{invitation.email}</span> already exists.
+          </p>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+            Please sign in to accept this invitation and add access to your account.
+          </p>
         </div>
       </div>
       <form
         className="flex flex-col gap-4 w-full bg-slate-100 dark:bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-300 dark:border-slate-600"
         onSubmit={handleSubmit}
       >
-        <input
-          className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
-          type="text"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder="First Name"
-          required
-        />
-        <input
-          className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
-          type="text"
-          value={formData.surname}
-          onChange={(e) => setFormData({ ...formData, surname: e.target.value })}
-          placeholder="Last Name"
-          required
-        />
         <input
           className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 cursor-not-allowed opacity-60"
           type="email"
@@ -176,30 +128,19 @@ export default function ManagerSignUp() {
           <input
             className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
             type="password"
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
             minLength={8}
             required
           />
-          <input
-            className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
-            type="password"
-            value={formData.confirmPassword}
-            onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-            placeholder="Confirm Password"
-            required
-          />
-          <p className="text-xs text-slate-500 dark:text-slate-400 px-1">
-            Password must be at least 8 characters
-          </p>
         </div>
         <button
           className="bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 text-white font-semibold rounded-lg py-3 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           type="submit"
           disabled={loading}
         >
-          {loading ? "Creating Account..." : "Create Account"}
+          {loading ? "Signing In..." : "Sign In & Accept Invitation"}
         </button>
         {error && (
           <div className="bg-rose-500/10 border border-rose-500/30 dark:border-rose-500/50 rounded-lg p-4">

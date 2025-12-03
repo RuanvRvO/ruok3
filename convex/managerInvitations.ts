@@ -243,6 +243,93 @@ export const acceptInvitation = mutation({
   },
 });
 
+// Mutation to accept invitation for existing users (creates viewer entry)
+export const acceptInvitationForExistingUser = mutation({
+  args: {
+    token: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    const user = await ctx.db.get(userId);
+    if (!user || !user.email) {
+      throw new Error("User not found or invalid user data");
+    }
+
+    const invitation = await ctx.db
+      .query("managerInvitations")
+      .withIndex("by_token", (q) => q.eq("token", args.token))
+      .first();
+
+    if (!invitation) {
+      throw new Error("Invalid invitation token");
+    }
+
+    if (invitation.status !== "pending") {
+      throw new Error("This invitation has already been used");
+    }
+
+    if (invitation.expiresAt < Date.now()) {
+      await ctx.db.patch(invitation._id, { status: "expired" });
+      throw new Error("This invitation has expired");
+    }
+
+    const userEmail = user.email; // TypeScript now knows this is definitely a string
+
+    // Verify the invitation email matches the authenticated user's email
+    if (invitation.email !== userEmail) {
+      throw new Error("This invitation is for a different email address");
+    }
+
+    // Check if user already has access to this organization
+    const existingViewer = await ctx.db
+      .query("viewers")
+      .withIndex("by_email", (q) => q.eq("email", userEmail))
+      .filter((q) => q.eq(q.field("organisation"), invitation.organisation))
+      .first();
+
+    if (existingViewer) {
+      throw new Error("You already have access to this organization");
+    }
+
+    // Check if user is owner/editor of this organization in users table
+    const existingUserInOrg = await ctx.db
+      .query("users")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("email"), userEmail),
+          q.eq(q.field("organisation"), invitation.organisation)
+        )
+      )
+      .first();
+
+    if (existingUserInOrg) {
+      throw new Error("You already have access to this organization");
+    }
+
+    // Create a viewer entry for this user with the new organization
+    await ctx.db.insert("viewers", {
+      name: user.name || "",
+      surname: user.surname || "",
+      email: userEmail,
+      password: "", // Empty password since they use their main account credentials
+      organisation: invitation.organisation,
+      role: invitation.role,
+      createdAt: Date.now(),
+    });
+
+    // Mark invitation as accepted
+    await ctx.db.patch(invitation._id, {
+      status: "accepted",
+    });
+
+    return { success: true };
+  },
+});
+
 // Internal action to send invitation email via Resend
 export const sendInvitationEmail = internalAction({
   args: {
