@@ -13,6 +13,7 @@ export const createInvitation = mutation({
   args: {
     email: v.string(),
     role: v.union(v.literal("editor"), v.literal("viewer")),
+    organisation: v.string(),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -20,15 +21,16 @@ export const createInvitation = mutation({
       throw new Error("Not authenticated");
     }
 
-    const user = await ctx.db.get(userId);
-    const organisation = user?.organisation;
-    if (!organisation) {
-      throw new Error("No organization found");
-    }
+    // Check if user is owner of the organization
+    const membership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", userId).eq("organisation", args.organisation)
+      )
+      .first();
 
-    // Only owners can invite managers
-    if (user.role !== "owner") {
-      throw new Error("Only organization owners can invite managers");
+    if (!membership || membership.role !== "owner") {
+      throw new Error("Only organization owners can invite members");
     }
 
     // Check if there's already a pending invitation for this email
@@ -37,7 +39,7 @@ export const createInvitation = mutation({
       .withIndex("by_email", (q) => q.eq("email", args.email))
       .filter((q) =>
         q.and(
-          q.eq(q.field("organisation"), organisation),
+          q.eq(q.field("organisation"), args.organisation),
           q.eq(q.field("status"), "pending")
         )
       )
@@ -47,14 +49,23 @@ export const createInvitation = mutation({
       throw new Error("An invitation has already been sent to this email");
     }
 
-    // Check if user with this email already exists in the organization
+    // Check if user with this email already has access to the organization
     const existingUser = await ctx.db
       .query("users")
       .withIndex("email", (q) => q.eq("email", args.email))
       .first();
 
-    if (existingUser && existingUser.organisation === organisation) {
-      throw new Error("This user already has access to your organization");
+    if (existingUser) {
+      const userMembership = await ctx.db
+        .query("organizationMemberships")
+        .withIndex("by_user_and_org", (q) =>
+          q.eq("userId", existingUser._id).eq("organisation", args.organisation)
+        )
+        .first();
+
+      if (userMembership) {
+        throw new Error("This user already has access to your organization");
+      }
     }
 
     // Create the invitation
@@ -64,7 +75,7 @@ export const createInvitation = mutation({
 
     const invitationId = await ctx.db.insert("managerInvitations", {
       email: args.email,
-      organisation,
+      organisation: args.organisation,
       role: args.role,
       invitedBy: userId,
       token,
@@ -73,20 +84,23 @@ export const createInvitation = mutation({
       expiresAt,
     });
 
+    // Get user for email
+    const user = await ctx.db.get(userId);
+
     // Schedule email sending
     await ctx.scheduler.runAfter(0, internal.managerInvitations.sendInvitationEmail, {
       email: args.email,
-      organisation,
+      organisation: args.organisation,
       role: args.role,
       token,
-      inviterName: user.name || user.email || "Your organization",
+      inviterName: user?.name || user?.email || "Your organization",
     });
 
     return { invitationId, token };
   },
 });
 
-// Query to list all manager invitations for an organization
+// Query to list all manager invitations (returns all, frontend filters by org)
 export const listInvitations = query({
   args: {},
   handler: async (ctx) => {
@@ -95,56 +109,12 @@ export const listInvitations = query({
       return [];
     }
 
-    const user = await ctx.db.get(userId);
-    const organisation = user?.organisation;
-    if (!organisation) {
-      return [];
-    }
-
+    // Return all invitations - frontend will filter by selected org
     const invitations = await ctx.db
       .query("managerInvitations")
-      .withIndex("by_organisation", (q) => q.eq("organisation", organisation))
       .collect();
 
     return invitations;
-  },
-});
-
-// Mutation to update manager role
-export const updateManagerRole = mutation({
-  args: {
-    managerId: v.id("users"),
-    role: v.union(v.literal("editor"), v.literal("viewer")),
-  },
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Not authenticated");
-    }
-
-    const user = await ctx.db.get(userId);
-    if (user?.role !== "owner") {
-      throw new Error("Only organization owners can update manager roles");
-    }
-
-    const manager = await ctx.db.get(args.managerId);
-    if (!manager) {
-      throw new Error("Manager not found");
-    }
-
-    if (manager.organisation !== user.organisation) {
-      throw new Error("Manager is not in your organization");
-    }
-
-    if (manager.role === "owner") {
-      throw new Error("Cannot change the role of an organization owner");
-    }
-
-    await ctx.db.patch(args.managerId, {
-      role: args.role,
-    });
-
-    return { success: true };
   },
 });
 
@@ -159,18 +129,21 @@ export const revokeInvitation = mutation({
       throw new Error("Not authenticated");
     }
 
-    const user = await ctx.db.get(userId);
-    if (user?.role !== "owner") {
-      throw new Error("Only organization owners can revoke invitations");
-    }
-
     const invitation = await ctx.db.get(args.invitationId);
     if (!invitation) {
       throw new Error("Invitation not found");
     }
 
-    if (invitation.organisation !== user.organisation) {
-      throw new Error("This invitation is not from your organization");
+    // Check if user is owner of the organization
+    const membership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", userId).eq("organisation", invitation.organisation)
+      )
+      .first();
+
+    if (!membership || membership.role !== "owner") {
+      throw new Error("Only organization owners can revoke invitations");
     }
 
     await ctx.db.delete(args.invitationId);
@@ -228,10 +201,12 @@ export const acceptInvitation = mutation({
       throw new Error("This invitation has expired");
     }
 
-    // Update the user with organization and role
-    await ctx.db.patch(args.userId, {
+    // Create organization membership for the user
+    await ctx.db.insert("organizationMemberships", {
+      userId: args.userId,
       organisation: invitation.organisation,
       role: invitation.role,
+      createdAt: Date.now(),
     });
 
     // Mark invitation as accepted
@@ -279,43 +254,27 @@ export const acceptInvitationForExistingUser = mutation({
 
     const userEmail = user.email; // TypeScript now knows this is definitely a string
 
-    // Verify the invitation email matches the authenticated user's email
-    if (invitation.email !== userEmail) {
+    // Verify the invitation email matches the authenticated user's email (case-insensitive)
+    if (invitation.email.toLowerCase().trim() !== userEmail.toLowerCase().trim()) {
+      console.error(`Email mismatch: invitation email="${invitation.email}" vs user email="${userEmail}"`);
       throw new Error("This invitation is for a different email address");
     }
 
     // Check if user already has access to this organization
-    const existingViewer = await ctx.db
-      .query("viewers")
-      .withIndex("by_email", (q) => q.eq("email", userEmail))
-      .filter((q) => q.eq(q.field("organisation"), invitation.organisation))
-      .first();
-
-    if (existingViewer) {
-      throw new Error("You already have access to this organization");
-    }
-
-    // Check if user is owner/editor of this organization in users table
-    const existingUserInOrg = await ctx.db
-      .query("users")
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("email"), userEmail),
-          q.eq(q.field("organisation"), invitation.organisation)
-        )
+    const existingMembership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", userId).eq("organisation", invitation.organisation)
       )
       .first();
 
-    if (existingUserInOrg) {
+    if (existingMembership) {
       throw new Error("You already have access to this organization");
     }
 
-    // Create a viewer entry for this user with the new organization
-    await ctx.db.insert("viewers", {
-      name: user.name || "",
-      surname: user.surname || "",
-      email: userEmail,
-      password: "", // Empty password since they use their main account credentials
+    // Create organization membership for this user
+    await ctx.db.insert("organizationMemberships", {
+      userId: userId,
       organisation: invitation.organisation,
       role: invitation.role,
       createdAt: Date.now(),

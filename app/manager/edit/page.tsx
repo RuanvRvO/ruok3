@@ -4,7 +4,7 @@
 
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -13,11 +13,27 @@ export default function EditOrganizationPage() {
   const user = useQuery(api.users.getCurrentUser);
   const viewer = user?.name ?? user?.email ?? null;
 
-  const employees = useQuery(api.employees.list);
+  const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
+
+  // Get selected organization from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const org = localStorage.getItem("selectedOrganization");
+      setSelectedOrg(org);
+    }
+  }, []);
+
+  const employees = useQuery(
+    api.employees.list,
+    selectedOrg ? { organisation: selectedOrg } : "skip"
+  );
   const addEmployee = useMutation(api.employees.add);
   const removeEmployee = useMutation(api.employees.remove);
 
-  const groups = useQuery(api.groups.list);
+  const groups = useQuery(
+    api.groups.list,
+    selectedOrg ? { organisation: selectedOrg } : "skip"
+  );
   const addGroup = useMutation(api.groups.add);
   const removeGroup = useMutation(api.groups.remove);
   const addMember = useMutation(api.groups.addMember);
@@ -40,7 +56,7 @@ export default function EditOrganizationPage() {
   const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!firstName.trim() || !email.trim() || isSubmitting) {
+    if (!firstName.trim() || !email.trim() || isSubmitting || !selectedOrg) {
       return;
     }
 
@@ -49,6 +65,7 @@ export default function EditOrganizationPage() {
       const result = await addEmployee({
         firstName: firstName.trim(),
         email: email.trim(),
+        organisation: selectedOrg,
       });
 
       if (result.success) {
@@ -66,10 +83,13 @@ export default function EditOrganizationPage() {
   };
 
   const confirmRemoveEmployee = async () => {
-    if (!employeeToDelete) return;
+    if (!employeeToDelete || !selectedOrg) return;
 
     try {
-      await removeEmployee({ employeeId: employeeToDelete.id as any });
+      await removeEmployee({
+        employeeId: employeeToDelete.id as any,
+        organisation: selectedOrg
+      });
       setEmployeeToDelete(null);
     } catch (error) {
       setEmployeeToDelete(null);
@@ -80,13 +100,16 @@ export default function EditOrganizationPage() {
   const handleAddGroup = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!groupName.trim() || isAddingGroup) {
+    if (!groupName.trim() || isAddingGroup || !selectedOrg) {
       return;
     }
 
     setIsAddingGroup(true);
     try {
-      const result = await addGroup({ name: groupName.trim() });
+      const result = await addGroup({
+        name: groupName.trim(),
+        organisation: selectedOrg
+      });
 
       if (result.success) {
         setGroupName("");
@@ -102,10 +125,13 @@ export default function EditOrganizationPage() {
   };
 
   const confirmRemoveGroup = async () => {
-    if (!groupToDelete) return;
+    if (!groupToDelete || !selectedOrg) return;
 
     try {
-      await removeGroup({ groupId: groupToDelete.id });
+      await removeGroup({
+        groupId: groupToDelete.id,
+        organisation: selectedOrg
+      });
       setGroupToDelete(null);
     } catch (error) {
       setGroupToDelete(null);
@@ -114,8 +140,14 @@ export default function EditOrganizationPage() {
   };
 
   const handleAddMemberToGroup = async (groupId: Id<"groups">, employeeId: Id<"employees">) => {
+    if (!selectedOrg) return;
+
     try {
-      await addMember({ groupId, employeeId });
+      await addMember({
+        groupId,
+        employeeId,
+        organisation: selectedOrg
+      });
     } catch (error: any) {
       console.error("Failed to add member:", error);
       alert(error?.message || "Failed to add member. Please try again.");
@@ -123,8 +155,13 @@ export default function EditOrganizationPage() {
   };
 
   const handleRemoveMemberFromGroup = async (membershipId: Id<"groupMembers">) => {
+    if (!selectedOrg) return;
+
     try {
-      await removeMember({ membershipId });
+      await removeMember({
+        membershipId,
+        organisation: selectedOrg
+      });
     } catch (error) {
       console.error("Failed to remove member:", error);
       alert("Failed to remove member. Please try again.");

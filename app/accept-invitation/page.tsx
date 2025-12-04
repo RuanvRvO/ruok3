@@ -16,6 +16,7 @@ export default function AcceptInvitation() {
 
   const invitation = useQuery(api.managerInvitations.getInvitationByToken, token ? { token } : "skip");
   const acceptInvitationForExistingUser = useMutation(api.managerInvitations.acceptInvitationForExistingUser);
+  const currentUser = useQuery(api.users.getCurrentUser);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

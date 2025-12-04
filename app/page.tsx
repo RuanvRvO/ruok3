@@ -11,10 +11,16 @@ export default function LandingPage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
 
-  // Redirect authenticated users to manager view page
+  // Redirect authenticated users to organization selection or manager view
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.push("/manager/view");
+      // Check if user has selected an organization
+      const selectedOrg = localStorage.getItem("selectedOrganization");
+      if (selectedOrg) {
+        router.push("/manager/view");
+      } else {
+        router.push("/select-organization");
+      }
     }
   }, [isAuthenticated, isLoading, router]);
 

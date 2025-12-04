@@ -15,8 +15,8 @@ import type * as groups from "../groups.js";
 import type * as http from "../http.js";
 import type * as managerInvitations from "../managerInvitations.js";
 import type * as moodCheckins from "../moodCheckins.js";
+import type * as organizationMemberships from "../organizationMemberships.js";
 import type * as users from "../users.js";
-import type * as viewers from "../viewers.js";
 
 import type {
   ApiFromModules,
@@ -32,8 +32,8 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   managerInvitations: typeof managerInvitations;
   moodCheckins: typeof moodCheckins;
+  organizationMemberships: typeof organizationMemberships;
   users: typeof users;
-  viewers: typeof viewers;
 }>;
 
 /**

@@ -116,6 +116,7 @@ export const record = mutation({
 export const getTrends = query({
   args: {
     days: v.optional(v.number()), // Number of days to look back, default 7
+    organisation: v.string(),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -123,12 +124,19 @@ export const getTrends = query({
       return [];
     }
 
-    const user = await ctx.db.get(userId);
+    // Verify user has access to this organization
+    const membership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", userId).eq("organisation", args.organisation)
+      )
+      .first();
 
-    const organisation = user?.organisation;
-    if (!organisation) {
+    if (!membership) {
       return [];
     }
+
+    const organisation = args.organisation;
 
     const days = args.days || 7;
     const trends = [];
@@ -190,19 +198,28 @@ export const getTrends = query({
 
 // Query to get check-ins from the last 24 hours for an organization
 export const getTodayCheckins = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    organisation: v.string(),
+  },
+  handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
       return [];
     }
 
-    const user = await ctx.db.get(userId);
+    // Verify user has access to this organization
+    const membership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", userId).eq("organisation", args.organisation)
+      )
+      .first();
 
-    const organisation = user?.organisation;
-    if (!organisation) {
+    if (!membership) {
       return [];
     }
+
+    const organisation = args.organisation;
 
     // Get the last 24 hours of check-ins
     const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
@@ -254,6 +271,7 @@ export const getTodayCheckins = query({
 export const getGroupTodayCheckins = query({
   args: {
     groupId: v.id("groups"),
+    organisation: v.string(),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -261,11 +279,19 @@ export const getGroupTodayCheckins = query({
       return [];
     }
 
-    const user = await ctx.db.get(userId);
-    const organisation = user?.organisation;
-    if (!organisation) {
+    // Verify user has access to this organization
+    const membership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", userId).eq("organisation", args.organisation)
+      )
+      .first();
+
+    if (!membership) {
       return [];
     }
+
+    const organisation = args.organisation;
 
     // Get all members of the group
     const memberships = await ctx.db
@@ -334,6 +360,7 @@ export const getGroupTodayCheckins = query({
 export const getHistoricalCheckins = query({
   args: {
     days: v.optional(v.number()), // Number of days to look back, default 30
+    organisation: v.string(),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -341,11 +368,19 @@ export const getHistoricalCheckins = query({
       return [];
     }
 
-    const user = await ctx.db.get(userId);
-    const organisation = user?.organisation;
-    if (!organisation) {
+    // Verify user has access to this organization
+    const membership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", userId).eq("organisation", args.organisation)
+      )
+      .first();
+
+    if (!membership) {
       return [];
     }
+
+    const organisation = args.organisation;
 
     const today = new Date().toISOString().split("T")[0];
     const days = args.days || 30;
@@ -396,6 +431,7 @@ export const getGroupTrends = query({
   args: {
     groupId: v.id("groups"),
     days: v.optional(v.number()), // Number of days to look back, default 7
+    organisation: v.string(),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -403,11 +439,19 @@ export const getGroupTrends = query({
       return [];
     }
 
-    const user = await ctx.db.get(userId);
-    const organisation = user?.organisation;
-    if (!organisation) {
+    // Verify user has access to this organization
+    const membership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", userId).eq("organisation", args.organisation)
+      )
+      .first();
+
+    if (!membership) {
       return [];
     }
+
+    const organisation = args.organisation;
 
     // Get all members of the group (including removed ones for historical accuracy)
     const memberships = await ctx.db

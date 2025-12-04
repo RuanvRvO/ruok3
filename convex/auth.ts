@@ -9,8 +9,6 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
           email: string;
           name?: string;
           surname?: string;
-          organisation?: string;
-          role?: "owner" | "editor" | "viewer";
         } = {
           email: params.email as string,
         };
@@ -21,11 +19,6 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         }
         if (params.surname) {
           profile.surname = params.surname as string;
-        }
-        if (params.organisation) {
-          profile.organisation = params.organisation as string;
-          // If signing up with an organization, they're the owner
-          profile.role = "owner";
         }
 
         return profile;

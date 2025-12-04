@@ -8,15 +8,14 @@ import { Save } from "lucide-react";
 
 export default function AccountSettingsPage() {
   const user = useQuery(api.users.getCurrentUser);
+  const organizations = useQuery(api.organizationMemberships.getUserOrganizations);
   const updateAccount = useMutation(api.users.updateAccount);
 
   const [name, setName] = useState("");
   const [surname, setSurname] = useState("");
-  const [organisation, setOrganisation] = useState("");
   const [originalValues, setOriginalValues] = useState({
     name: "",
     surname: "",
-    organisation: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,17 +26,14 @@ export default function AccountSettingsPage() {
     if (user) {
       const firstName = user.name || "";
       const lastName = user.surname || "";
-      const org = user.organisation || "";
 
       setName(firstName);
       setSurname(lastName);
-      setOrganisation(org);
 
       // Store original values
       setOriginalValues({
         name: firstName,
         surname: lastName,
-        organisation: org,
       });
     }
   }, [user]);
@@ -45,8 +41,7 @@ export default function AccountSettingsPage() {
   // Check if form has been modified
   const hasChanges =
     name !== originalValues.name ||
-    surname !== originalValues.surname ||
-    organisation !== originalValues.organisation;
+    surname !== originalValues.surname;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +53,6 @@ export default function AccountSettingsPage() {
       await updateAccount({
         name: name.trim(),
         surname: surname.trim(),
-        organisation,
       });
       setSuccess("Account settings updated successfully!");
 
@@ -66,7 +60,6 @@ export default function AccountSettingsPage() {
       setOriginalValues({
         name,
         surname,
-        organisation,
       });
     } catch (err: any) {
       setError(err.message || "Failed to update account settings");
@@ -159,21 +152,45 @@ export default function AccountSettingsPage() {
           </div>
 
           <div>
-            <label
-              htmlFor="organisation"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
-            >
-              Organization Name
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              Organization Memberships
             </label>
-            <input
-              type="text"
-              id="organisation"
-              value={organisation}
-              onChange={(e) => setOrganisation(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
-              placeholder="Acme Inc."
-              required
-            />
+            {organizations && organizations.length > 0 ? (
+              <div className="space-y-2">
+                {organizations.map((org) => (
+                  <div
+                    key={org._id}
+                    className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 flex items-center justify-between"
+                  >
+                    <span className="text-slate-800 dark:text-slate-200 font-medium">
+                      {org.organisation}
+                    </span>
+                    <span
+                      className={`text-sm font-medium px-2 py-1 rounded ${
+                        org.role === "owner"
+                          ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                          : org.role === "editor"
+                          ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+                          : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                      }`}
+                    >
+                      {org.role === "owner"
+                        ? "Owner"
+                        : org.role === "editor"
+                        ? "Editor"
+                        : "Viewer"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-100 dark:bg-slate-950 text-slate-500 dark:text-slate-500">
+                No organizations
+              </div>
+            )}
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Organization membership is managed by organization owners
+            </p>
           </div>
 
           <div>

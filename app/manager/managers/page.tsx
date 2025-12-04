@@ -3,17 +3,35 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Trash2, UserPlus, Mail, Eye, Edit2, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Trash2, UserPlus, Mail, Eye, Edit2, Clock } from "lucide-react";
 
 export default function ManageManagersPage() {
   const user = useQuery(api.users.getCurrentUser);
-  const managers = useQuery(api.users.listManagers);
+  const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
+
+  // Get selected organization from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const org = localStorage.getItem("selectedOrganization");
+      setSelectedOrg(org);
+    }
+  }, []);
+
+  const userRole = useQuery(
+    api.users.getUserRoleInOrg,
+    selectedOrg ? { organisation: selectedOrg } : "skip"
+  );
+
+  const members = useQuery(
+    api.users.getOrganizationMembersWithDetails,
+    selectedOrg ? { organisation: selectedOrg } : "skip"
+  );
+
   const invitations = useQuery(api.managerInvitations.listInvitations);
   const createInvitation = useMutation(api.managerInvitations.createInvitation);
-  const updateManagerRole = useMutation(api.managerInvitations.updateManagerRole);
-  const removeManager = useMutation(api.users.removeManager);
+  const removeMember = useMutation(api.organizationMemberships.removeOrganizationMember);
   const revokeInvitation = useMutation(api.managerInvitations.revokeInvitation);
 
   const [email, setEmail] = useState("");
@@ -24,12 +42,14 @@ export default function ManageManagersPage() {
 
   const handleSendInvitation = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedOrg) return;
+
     setIsSubmitting(true);
     setError(null);
     setSuccess(null);
 
     try {
-      await createInvitation({ email, role });
+      await createInvitation({ email, role, organisation: selectedOrg });
 
       setEmail("");
       setRole("viewer");
@@ -41,23 +61,13 @@ export default function ManageManagersPage() {
     }
   };
 
-  const handleToggleRole = async (managerId: Id<"users">, currentRole: "viewer" | "editor") => {
-    const newRole = currentRole === "viewer" ? "editor" : "viewer";
-    try {
-      await updateManagerRole({ managerId, role: newRole });
-      setSuccess(`User role updated to ${newRole}`);
-    } catch (err: any) {
-      setError(err.message || "Failed to update role");
-    }
-  };
-
-  const handleRemoveManager = async (userId: Id<"users">) => {
+  const handleRemoveMember = async (membershipId: Id<"organizationMemberships">) => {
     if (!confirm("Are you sure you want to remove this user's access?")) {
       return;
     }
 
     try {
-      await removeManager({ userId });
+      await removeMember({ membershipId });
       setSuccess("User removed successfully!");
     } catch (err: any) {
       setError(err.message || "Failed to remove user");
@@ -84,7 +94,7 @@ export default function ManageManagersPage() {
     setSuccess("Invitation link copied to clipboard!");
   };
 
-  if (user === undefined || managers === undefined || invitations === undefined) {
+  if (user === undefined || members === undefined || invitations === undefined || userRole === undefined) {
     return (
       <div className="mx-auto">
         <div className="flex items-center gap-2">
@@ -97,25 +107,27 @@ export default function ManageManagersPage() {
     );
   }
 
-  if (!user) {
+  if (!user || !selectedOrg) {
     return (
       <div className="mx-auto">
         <p className="text-slate-600 dark:text-slate-400">
-          Please sign in to view this page.
+          Please select an organization to view this page.
         </p>
       </div>
     );
   }
 
-  const isOwner = user.role === "owner";
-  const activeManagers = managers.filter((m) => m._id !== user._id);
-  const pendingInvitations = invitations.filter((inv) => inv.status === "pending");
+  const isOwner = userRole === "owner";
+  const activeMembers = members.filter((m) => m.userId !== user._id);
+  const pendingInvitations = invitations.filter(
+    (inv) => inv.status === "pending" && inv.organisation === selectedOrg
+  );
 
   return (
     <div className="flex flex-col gap-8 max-w-4xl mx-auto">
       <div>
         <h1 className="font-bold text-3xl text-slate-900 dark:text-slate-100 mb-3">
-          Viewer Access
+          Member Access
         </h1>
         <p className="text-slate-600 dark:text-slate-400">
           Invite users to view or edit your organization's wellbeing data.
@@ -124,11 +136,11 @@ export default function ManageManagersPage() {
 
       {!isOwner && (
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 px-4 py-3 rounded-lg">
-          Only organization owners can manage viewer access.
+          Only organization owners can manage member access.
         </div>
       )}
 
-      {/* Add Manager Form */}
+      {/* Add Member Form */}
       {isOwner && (
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6">
           <h2 className="font-semibold text-xl text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
@@ -262,54 +274,39 @@ export default function ManageManagersPage() {
         </div>
       )}
 
-      {/* Active Managers */}
+      {/* Active Members */}
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6">
         <h2 className="font-semibold text-xl text-slate-900 dark:text-slate-100 mb-4">Active Users</h2>
-        {activeManagers.length === 0 ? (
+        {activeMembers.length === 0 ? (
           <p className="text-slate-500 dark:text-slate-400 text-center py-8">No additional users yet.</p>
         ) : (
           <div className="flex flex-col gap-3">
-            {activeManagers.map((manager) => (
+            {activeMembers.map((member) => (
               <div
-                key={manager._id}
+                key={member._id}
                 className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700"
               >
                 <div className="flex-1">
                   <p className="font-medium text-slate-900 dark:text-slate-100">
-                    {manager.name || manager.email}
+                    {member.name && member.surname ? `${member.name} ${member.surname}` : member.email}
                   </p>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">{manager.email}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">{member.email}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  {isOwner && manager.role !== "owner" ? (
+                  <span
+                    className={`text-sm font-medium px-3 py-1 rounded ${
+                      member.role === "owner"
+                        ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                        : member.role === "editor"
+                        ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+                        : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                    }`}
+                  >
+                    {member.role === "owner" ? "Owner" : member.role === "editor" ? "Editor" : "Viewer"}
+                  </span>
+                  {isOwner && member.role !== "owner" && (
                     <Button
-                      onClick={() => handleToggleRole(manager._id, manager.role as "viewer" | "editor")}
-                      variant="outline"
-                      size="sm"
-                      className={
-                        manager.role === "editor"
-                          ? "border-green-500 text-green-700 dark:text-green-400"
-                          : "border-blue-500 text-blue-700 dark:text-blue-400"
-                      }
-                    >
-                      {manager.role === "viewer" ? (
-                        <>
-                          <Eye className="size-4 mr-1" /> View Only
-                        </>
-                      ) : (
-                        <>
-                          <Edit2 className="size-4 mr-1" /> Can Edit
-                        </>
-                      )}
-                    </Button>
-                  ) : (
-                    <span className="text-sm font-medium text-slate-600 dark:text-slate-400 px-3 py-1 bg-slate-200 dark:bg-slate-700 rounded">
-                      Owner
-                    </span>
-                  )}
-                  {isOwner && manager.role !== "owner" && (
-                    <Button
-                      onClick={() => handleRemoveManager(manager._id)}
+                      onClick={() => handleRemoveMember(member._id)}
                       variant="ghost"
                       size="icon"
                       className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"

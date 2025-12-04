@@ -2,26 +2,33 @@ import { v } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
-// Query to get all employees for the manager's organization
+// Query to get all employees for an organization
 export const list = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    organisation: v.string(),
+  },
+  handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
       throw new Error("Not authenticated");
     }
 
-    const user = await ctx.db.get(userId);
-    const organisation = user?.organisation;
+    // Verify user has access to this organization
+    const membership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", userId).eq("organisation", args.organisation)
+      )
+      .first();
 
-    if (!organisation) {
-      return [];
+    if (!membership) {
+      throw new Error("You don't have access to this organization");
     }
 
     const employees = await ctx.db
       .query("employees")
       .withIndex("by_organisation", (q) =>
-        q.eq("organisation", organisation)
+        q.eq("organisation", args.organisation)
       )
       .order("desc")
       .collect();
@@ -36,6 +43,7 @@ export const add = mutation({
   args: {
     firstName: v.string(),
     email: v.string(),
+    organisation: v.string(),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -43,12 +51,19 @@ export const add = mutation({
       throw new Error("Not authenticated");
     }
 
-    const user = await ctx.db.get(userId);
-    if (!user?.organisation) {
-      throw new Error("User does not belong to an organization");
+    // Verify user has access to this organization
+    const membership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", userId).eq("organisation", args.organisation)
+      )
+      .first();
+
+    if (!membership || (membership.role !== "owner" && membership.role !== "editor")) {
+      throw new Error("You don't have permission to add employees");
     }
 
-    const organisation = user.organisation;
+    const organisation = args.organisation;
 
     // Check if an employee with the same email already exists in this organization
     const existingEmployees = await ctx.db
@@ -83,6 +98,7 @@ export const add = mutation({
 export const remove = mutation({
   args: {
     employeeId: v.id("employees"),
+    organisation: v.string(),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -90,15 +106,26 @@ export const remove = mutation({
       throw new Error("Not authenticated");
     }
 
-    const user = await ctx.db.get(userId);
+    // Verify user has access to this organization
+    const membership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", userId).eq("organisation", args.organisation)
+      )
+      .first();
+
+    if (!membership || (membership.role !== "owner" && membership.role !== "editor")) {
+      throw new Error("You don't have permission to remove employees");
+    }
+
     const employee = await ctx.db.get(args.employeeId);
 
     if (!employee) {
       throw new Error("Employee not found");
     }
 
-    // Verify the employee belongs to the same organization
-    if (employee.organisation !== user?.organisation) {
+    // Verify the employee belongs to this organization
+    if (employee.organisation !== args.organisation) {
       throw new Error("Not authorized to remove this employee");
     }
 

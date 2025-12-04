@@ -1,12 +1,11 @@
 "use client";
 
-import { useConvexAuth, useQuery, useMutation } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
   Sidebar,
@@ -22,7 +21,7 @@ import {
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Eye, Edit, LogOut, Users, UserCog } from "lucide-react";
+import { Eye, Edit, LogOut, Users, UserCog, Building2 } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 
 export default function ManagerLayout({
@@ -34,7 +33,23 @@ export default function ManagerLayout({
   const router = useRouter();
   const pathname = usePathname();
   const user = useQuery(api.users.getCurrentUser);
-  const migrateUserRole = useMutation(api.users.migrateUserRole);
+  const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
+  const [isLoadingOrg, setIsLoadingOrg] = useState(true);
+
+  // Get selected organization from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const org = localStorage.getItem("selectedOrganization");
+      setSelectedOrg(org);
+      setIsLoadingOrg(false);
+    }
+  }, []);
+
+  // Get user's role in selected organization
+  const userRole = useQuery(
+    api.users.getUserRoleInOrg,
+    selectedOrg ? { organisation: selectedOrg } : "skip"
+  );
 
   // Redirect to sign in if not authenticated
   useEffect(() => {
@@ -43,21 +58,12 @@ export default function ManagerLayout({
     }
   }, [isAuthenticated, isLoading, router]);
 
-  // Migrate legacy users who have organization but no role
+  // Redirect to organization selection if no org selected (only after loading org from localStorage)
   useEffect(() => {
-    const migrate = async () => {
-      if (user && user.needsMigration) {
-        console.log("Migrating user role...", user);
-        try {
-          const result = await migrateUserRole();
-          console.log("Migration result:", result);
-        } catch (error) {
-          console.error("Migration failed:", error);
-        }
-      }
-    };
-    void migrate();
-  }, [user, migrateUserRole]);
+    if (!isLoading && !isLoadingOrg && isAuthenticated && !selectedOrg) {
+      router.push("/select-organization");
+    }
+  }, [isLoading, isLoadingOrg, isAuthenticated, selectedOrg, router]);
 
   // Show loading while checking authentication
   if (isLoading) {
@@ -107,6 +113,7 @@ export default function ManagerLayout({
           <h1 className="font-semibold text-slate-800 dark:text-slate-200 px-2">
             R u OK today?
           </h1>
+          <OrganizationSwitcher />
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
@@ -121,7 +128,7 @@ export default function ManagerLayout({
                     <span>View Organization</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                <ManagerLayoutNav pathname={pathname} router={router} />
+                <ManagerLayoutNav pathname={pathname} router={router} userRole={userRole} />
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -156,13 +163,19 @@ function SidebarToggleButton() {
   );
 }
 
-function ManagerLayoutNav({ pathname, router }: { pathname: string; router: AppRouterInstance }) {
-  const user = useQuery(api.users.getCurrentUser);
+function ManagerLayoutNav({
+  pathname,
+  router,
+  userRole
+}: {
+  pathname: string;
+  router: AppRouterInstance;
+  userRole: "owner" | "editor" | "viewer" | null | undefined;
+}) {
+  if (!userRole) return null;
 
-  if (!user) return null;
-
-  const canEdit = user.role === "owner" || user.role === "editor";
-  const isOwner = user.role === "owner";
+  const canEdit = userRole === "owner" || userRole === "editor";
+  const isOwner = userRole === "owner";
 
   return (
     <>
@@ -201,6 +214,41 @@ function ManagerLayoutNav({ pathname, router }: { pathname: string; router: AppR
   );
 }
 
+function OrganizationSwitcher() {
+  const router = useRouter();
+  const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const org = localStorage.getItem("selectedOrganization");
+      setSelectedOrg(org);
+    }
+  }, []);
+
+  const displayName = selectedOrg || "No Organization";
+
+  return (
+    <div className="px-2 py-2">
+      <button
+        onClick={() => {
+          // Clear selected organization and go to selection page
+          localStorage.removeItem("selectedOrganization");
+          router.push("/select-organization");
+        }}
+        className="w-full flex items-center gap-2 px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-sm"
+      >
+        <Building2 className="size-4 text-slate-600 dark:text-slate-400" />
+        <div className="flex-1 text-left">
+          <div className="text-xs text-slate-500 dark:text-slate-400">Organization</div>
+          <div className="font-medium text-slate-800 dark:text-slate-200 truncate">
+            {displayName}
+          </div>
+        </div>
+      </button>
+    </div>
+  );
+}
+
 function SignOutButtonSidebar() {
   const { signOut } = useAuthActions();
   const router = useRouter();
@@ -210,6 +258,8 @@ function SignOutButtonSidebar() {
         <SidebarMenuButton
           onClick={() =>
             void signOut().then(() => {
+              // Clear organization selection from localStorage
+              localStorage.removeItem("selectedOrganization");
               router.push("/signin");
             })
           }

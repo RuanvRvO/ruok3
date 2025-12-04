@@ -13,8 +13,6 @@ export default function ManagerSignUp() {
   const token = searchParams.get("token");
 
   const invitation = useQuery(api.managerInvitations.getInvitationByToken, token ? { token } : "skip");
-  const createViewer = useMutation(api.viewers.createViewer);
-  const revokeInvitation = useMutation(api.managerInvitations.revokeInvitation);
 
   // Check if user with this email already exists
   const userExists = useQuery(
@@ -39,9 +37,14 @@ export default function ManagerSignUp() {
   }, [token, router]);
 
   // If user already exists, redirect to accept-invitation signin page
+  // If user doesn't exist, redirect to signup first
   useEffect(() => {
-    if (invitation && userExists === true && token) {
-      router.push(`/accept-invitation?token=${token}`);
+    if (invitation && token) {
+      if (userExists === true) {
+        router.push(`/accept-invitation?token=${token}`);
+      } else if (userExists === false) {
+        router.push(`/signin?flow=signup&returnTo=/accept-invitation?token=${token}`);
+      }
     }
   }, [invitation, userExists, token, router]);
 
@@ -107,23 +110,11 @@ export default function ManagerSignUp() {
     }
 
     try {
-      // Create the viewer account
-      await createViewer({
-        name: formData.name,
-        surname: formData.surname,
-        email: invitation.email,
-        password: formData.password,
-        organisation: invitation.organisation,
-        role: invitation.role,
-      });
-
-      // Mark the invitation as accepted by revoking it
-      await revokeInvitation({ invitationId: invitation._id });
-
-      // Redirect to signin page with success message
-      router.push("/signin?success=account_created");
+      // No longer create viewer - just redirect to signin then accept invitation
+      // The user will create their account through normal signup, then accept the invitation
+      router.push(`/signin?flow=signup&returnTo=/accept-invitation?token=${token}`);
     } catch (err: any) {
-      setError(err.message || "Failed to create account");
+      setError(err.message || "Failed to proceed");
       setLoading(false);
     }
   };

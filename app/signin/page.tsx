@@ -13,6 +13,7 @@ export default function SignIn() {
   const searchParams = useSearchParams();
   const initialFlow = searchParams.get("flow") === "signup" ? "signUp" : "signIn";
   const successMessage = searchParams.get("success") === "account_created";
+  const returnTo = searchParams.get("returnTo");
 
   const [flow, setFlow] = useState<"signIn" | "signUp">(initialFlow);
   const [error, setError] = useState<string | null>(null);
@@ -60,8 +61,8 @@ export default function SignIn() {
         </div>
         <p className="text-slate-600 dark:text-slate-400">
           {flow === "signIn"
-            ? "Sign in to access your organizations."
-            : "Create a new account to get started."}
+            ? "Sign in to your account"
+            : "Create a new account"}
         </p>
       </div>
 
@@ -107,30 +108,6 @@ export default function SignIn() {
               setLoading(false);
               return;
             }
-
-            // Check if organization name already exists
-            const organisation = formData.get("organisation") as string;
-            try {
-              const response = await fetch("/api/check-organization", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ organisation }),
-              });
-
-              if (response.ok) {
-                const data = await response.json();
-                if (data.exists) {
-                  setError("This organization name is already in use. Please choose a different name.");
-                  setLoading(false);
-                  return;
-                }
-              }
-            } catch (err) {
-              console.error("Organization check error:", err);
-              setError("Unable to verify organization name. Please try again.");
-              setLoading(false);
-              return;
-            }
           }
 
           formData.set("flow", flow);
@@ -153,8 +130,12 @@ export default function SignIn() {
               setLoading(false);
             })
             .then(() => {
-              // Redirect to organization selection page
-              router.push("/select-organization");
+              // Redirect to returnTo URL if present, otherwise to organization selection
+              if (returnTo) {
+                router.push(returnTo);
+              } else {
+                router.push("/select-organization");
+              }
             });
         }}
       >
@@ -173,15 +154,6 @@ export default function SignIn() {
             type="text"
             name="surname"
             placeholder="Surname"
-            required
-          />
-        )}
-        {flow === "signUp" && (
-          <input
-            className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
-            type="text"
-            name="organisation"
-            placeholder="Organisation"
             required
           />
         )}
@@ -224,8 +196,8 @@ export default function SignIn() {
           {loading
             ? "Loading..."
             : flow === "signIn"
-            ? "Sign in"
-            : "Create Organisation"}
+            ? "Sign In"
+            : "Sign Up"}
         </button>
         <div className="flex flex-row gap-2 text-sm justify-center">
           <span className="text-slate-600 dark:text-slate-400">

@@ -4,7 +4,13 @@
       "Bash(npm run dev:*)",
       "Bash(npx tsc:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(npx convex dev:*)"
+      "Bash(npx convex dev:*)",
+      "Bash(timeout 5 npx convex logs:*)",
+      "Bash(npx convex env:*)",
+      "Bash(npx convex deploy:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)"
     ],
     "deny": [],
     "ask": []

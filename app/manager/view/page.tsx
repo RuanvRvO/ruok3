@@ -7,6 +7,16 @@ import { Id } from "../../../convex/_generated/dataModel";
 
 export default function ViewOrganizationPage() {
   const user = useQuery(api.users.getCurrentUser);
+  const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
+
+  // Get selected organization from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const org = localStorage.getItem("selectedOrganization");
+      setSelectedOrg(org);
+    }
+  }, []);
+
   // Support both old users (with surname field) and new users (full name in name field)
   const viewer = user?.surname
     ? `${user.name} ${user.surname}`.trim()
@@ -17,7 +27,10 @@ export default function ViewOrganizationPage() {
   const [selectedGroupId, setSelectedGroupId] = useState<Id<"groups"> | null>(null);
   const [historicalMoodFilter, setHistoricalMoodFilter] = useState<"all" | "green" | "amber" | "red">("all");
 
-  const employees = useQuery(api.employees.list);
+  const employees = useQuery(
+    api.employees.list,
+    selectedOrg ? { organisation: selectedOrg } : "skip"
+  );
 
   // Calculate days based on time range (for organization)
   // For "overall", calculate days since organization creation
@@ -55,13 +68,22 @@ export default function ViewOrganizationPage() {
     groupDays = groupTimeRange === "1week" ? 7 : groupTimeRange === "1month" ? 30 : 365;
   }
 
-  const todayCheckins = useQuery(api.moodCheckins.getTodayCheckins);
-  const groups = useQuery(api.groups.list);
+  const todayCheckins = useQuery(
+    api.moodCheckins.getTodayCheckins,
+    selectedOrg ? { organisation: selectedOrg } : "skip"
+  );
+  const groups = useQuery(
+    api.groups.list,
+    selectedOrg ? { organisation: selectedOrg } : "skip"
+  );
   const groupCheckins = useQuery(
     api.moodCheckins.getGroupTodayCheckins,
-    selectedGroupId ? { groupId: selectedGroupId } : "skip"
+    selectedGroupId && selectedOrg ? { groupId: selectedGroupId, organisation: selectedOrg } : "skip"
   );
-  const historicalCheckins = useQuery(api.moodCheckins.getHistoricalCheckins, { days: 30 });
+  const historicalCheckins = useQuery(
+    api.moodCheckins.getHistoricalCheckins,
+    selectedOrg ? { days: 30, organisation: selectedOrg } : "skip"
+  );
 
   // Auto-select first group when groups load
   useEffect(() => {
@@ -257,7 +279,7 @@ export default function ViewOrganizationPage() {
             <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 text-center border-b-2 border-slate-300 dark:border-slate-600 pb-3">
               Organization Mood {(timeRange === "overall" || timeRange === "1year") && "(Monthly Average)"}
             </h2>
-            <OrganizationMoodGraph days={days} timeRange={timeRange} employees={employees} />
+            <OrganizationMoodGraph days={days} timeRange={timeRange} employees={employees} organisation={selectedOrg} />
           </div>
 
           <div className="h-px bg-slate-200 dark:bg-slate-700 my-4"></div>
@@ -350,7 +372,7 @@ export default function ViewOrganizationPage() {
                   <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 text-center border-b-2 border-slate-300 dark:border-slate-600 pb-3">
                     {groups.find(g => g._id === selectedGroupId)?.name} Mood {(groupTimeRange === "overall" || groupTimeRange === "1year") && "(Monthly Average)"}
                   </h2>
-                  <GroupMoodGraph key={`${selectedGroupId}-${groupDays}`} groupId={selectedGroupId} groupName={groups.find(g => g._id === selectedGroupId)?.name || ""} days={groupDays} timeRange={groupTimeRange} />
+                  <GroupMoodGraph key={`${selectedGroupId}-${groupDays}`} groupId={selectedGroupId} groupName={groups.find(g => g._id === selectedGroupId)?.name || ""} days={groupDays} timeRange={groupTimeRange} organisation={selectedOrg} />
                 </div>
               )}
             </div>
@@ -712,8 +734,8 @@ function MoodGraph({ trends, isMonthly = false }: { trends: any[]; isMonthly?: b
 }
 
 // Organization Mood Graph Component
-function OrganizationMoodGraph({ days, timeRange, employees }: { days: number; timeRange: "1week" | "1month" | "1year" | "overall"; employees: any[] | undefined }) {
-  const trends = useQuery(api.moodCheckins.getTrends, { days });
+function OrganizationMoodGraph({ days, timeRange, employees, organisation }: { days: number; timeRange: "1week" | "1month" | "1year" | "overall"; employees: any[] | undefined; organisation: string | null }) {
+  const trends = useQuery(api.moodCheckins.getTrends, organisation ? { days, organisation } : "skip");
 
   // Aggregate into monthly averages when viewing "overall" or "1year"
   const displayTrends = useMemo(() => {
@@ -819,8 +841,8 @@ function OrganizationMoodGraph({ days, timeRange, employees }: { days: number; t
 }
 
 // Group-Specific Mood Graph Component
-function GroupMoodGraph({ groupId, groupName, days, timeRange }: { groupId: Id<"groups">; groupName: string; days: number; timeRange: "1week" | "1month" | "1year" | "overall" }) {
-  const trends = useQuery(api.moodCheckins.getGroupTrends, { groupId, days });
+function GroupMoodGraph({ groupId, groupName, days, timeRange, organisation }: { groupId: Id<"groups">; groupName: string; days: number; timeRange: "1week" | "1month" | "1year" | "overall"; organisation: string | null }) {
+  const trends = useQuery(api.moodCheckins.getGroupTrends, organisation ? { groupId, days, organisation } : "skip");
   const members = useQuery(api.groups.getMembers, { groupId });
 
   // Aggregate into monthly averages when viewing "overall" or "1year"

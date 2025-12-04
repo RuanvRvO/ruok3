@@ -2,26 +2,33 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
-// Query to get all groups for the manager's organization
+// Query to get all groups for an organization
 export const list = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    organisation: v.string(),
+  },
+  handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
       throw new Error("Not authenticated");
     }
 
-    const user = await ctx.db.get(userId);
-    const organisation = user?.organisation;
+    // Verify user has access to this organization
+    const membership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", userId).eq("organisation", args.organisation)
+      )
+      .first();
 
-    if (!organisation) {
-      return [];
+    if (!membership) {
+      throw new Error("You don't have access to this organization");
     }
 
     const groups = await ctx.db
       .query("groups")
       .withIndex("by_organisation", (q) =>
-        q.eq("organisation", organisation)
+        q.eq("organisation", args.organisation)
       )
       .order("desc")
       .collect();
@@ -62,6 +69,7 @@ export const getMembers = query({
 export const add = mutation({
   args: {
     name: v.string(),
+    organisation: v.string(),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -69,17 +77,22 @@ export const add = mutation({
       throw new Error("Not authenticated");
     }
 
-    const user = await ctx.db.get(userId);
-    const organisation = user?.organisation;
+    // Verify user has access to this organization
+    const membership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", userId).eq("organisation", args.organisation)
+      )
+      .first();
 
-    if (!organisation) {
-      throw new Error("User does not belong to an organization");
+    if (!membership || (membership.role !== "owner" && membership.role !== "editor")) {
+      throw new Error("You don't have permission to add groups");
     }
 
     // Check if a group with the same name already exists in this organization
     const existingGroups = await ctx.db
       .query("groups")
-      .withIndex("by_organisation", (q) => q.eq("organisation", organisation))
+      .withIndex("by_organisation", (q) => q.eq("organisation", args.organisation))
       .collect();
 
     const duplicateGroup = existingGroups.find(
@@ -92,7 +105,7 @@ export const add = mutation({
 
     const groupId = await ctx.db.insert("groups", {
       name: args.name,
-      organisation: organisation,
+      organisation: args.organisation,
       createdAt: Date.now(),
     });
 
@@ -104,6 +117,7 @@ export const add = mutation({
 export const remove = mutation({
   args: {
     groupId: v.id("groups"),
+    organisation: v.string(),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -111,15 +125,26 @@ export const remove = mutation({
       throw new Error("Not authenticated");
     }
 
-    const user = await ctx.db.get(userId);
+    // Verify user has access to this organization
+    const membership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", userId).eq("organisation", args.organisation)
+      )
+      .first();
+
+    if (!membership || (membership.role !== "owner" && membership.role !== "editor")) {
+      throw new Error("You don't have permission to remove groups");
+    }
+
     const group = await ctx.db.get(args.groupId);
 
     if (!group) {
       throw new Error("Group not found");
     }
 
-    // Verify the group belongs to the same organization
-    if (group.organisation !== user?.organisation) {
+    // Verify the group belongs to this organization
+    if (group.organisation !== args.organisation) {
       throw new Error("Not authorized to remove this group");
     }
 
@@ -143,6 +168,7 @@ export const addMember = mutation({
   args: {
     groupId: v.id("groups"),
     employeeId: v.id("employees"),
+    organisation: v.string(),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -150,7 +176,18 @@ export const addMember = mutation({
       throw new Error("Not authenticated");
     }
 
-    const user = await ctx.db.get(userId);
+    // Verify user has access to this organization
+    const membership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", userId).eq("organisation", args.organisation)
+      )
+      .first();
+
+    if (!membership || (membership.role !== "owner" && membership.role !== "editor")) {
+      throw new Error("You don't have permission to add members to groups");
+    }
+
     const group = await ctx.db.get(args.groupId);
     const employee = await ctx.db.get(args.employeeId);
 
@@ -158,10 +195,10 @@ export const addMember = mutation({
       throw new Error("Group or employee not found");
     }
 
-    // Verify both belong to the same organization
+    // Verify both belong to the organization
     if (
-      group.organisation !== user?.organisation ||
-      employee.organisation !== user?.organisation
+      group.organisation !== args.organisation ||
+      employee.organisation !== args.organisation
     ) {
       throw new Error("Not authorized");
     }
@@ -194,6 +231,7 @@ export const addMember = mutation({
 export const removeMember = mutation({
   args: {
     membershipId: v.id("groupMembers"),
+    organisation: v.string(),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -201,17 +239,28 @@ export const removeMember = mutation({
       throw new Error("Not authenticated");
     }
 
-    const membership = await ctx.db.get(args.membershipId);
+    // Verify user has access to this organization
+    const membership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", userId).eq("organisation", args.organisation)
+      )
+      .first();
 
-    if (!membership) {
+    if (!membership || (membership.role !== "owner" && membership.role !== "editor")) {
+      throw new Error("You don't have permission to remove members from groups");
+    }
+
+    const groupMembership = await ctx.db.get(args.membershipId);
+
+    if (!groupMembership) {
       throw new Error("Membership not found");
     }
 
-    const group = await ctx.db.get(membership.groupId);
-    const user = await ctx.db.get(userId);
+    const group = await ctx.db.get(groupMembership.groupId);
 
-    // Verify the group belongs to the same organization
-    if (group?.organisation !== user?.organisation) {
+    // Verify the group belongs to the organization
+    if (group?.organisation !== args.organisation) {
       throw new Error("Not authorized");
     }
 

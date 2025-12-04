@@ -7,28 +7,24 @@ import { authTables } from "@convex-dev/auth/server";
 // The schema provides more precise TypeScript types.
 const schema = defineSchema({
   ...authTables,
-  // Extend users table with custom fields
+  // Users table - authentication only (no organization field)
   users: defineTable({
     name: v.optional(v.string()),
     surname: v.optional(v.string()),
-    organisation: v.optional(v.string()),
-    role: v.optional(v.union(v.literal("owner"), v.literal("editor"), v.literal("viewer"))),
     email: v.optional(v.string()),
     emailVerificationTime: v.optional(v.number()),
     isAnonymous: v.optional(v.boolean()),
   }).index("email", ["email"]),
-  // Separate table for viewer-only accounts
-  viewers: defineTable({
-    name: v.string(),
-    surname: v.string(),
-    email: v.string(),
-    password: v.string(), // Hashed password
+  // Organization memberships - links users to organizations with roles
+  organizationMemberships: defineTable({
+    userId: v.id("users"),
     organisation: v.string(),
-    role: v.union(v.literal("editor"), v.literal("viewer")),
+    role: v.union(v.literal("owner"), v.literal("editor"), v.literal("viewer")),
     createdAt: v.number(),
   })
-    .index("by_email", ["email"])
-    .index("by_organisation", ["organisation"]),
+    .index("by_user", ["userId"])
+    .index("by_organisation", ["organisation"])
+    .index("by_user_and_org", ["userId", "organisation"]),
   managerInvitations: defineTable({
     email: v.string(),
     organisation: v.string(),
