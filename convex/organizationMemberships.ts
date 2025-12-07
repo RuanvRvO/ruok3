@@ -45,6 +45,7 @@ export const getUserOrganizations = query({
       return [];
     }
 
+    // Query all memberships for this user using the index
     const memberships = await ctx.db
       .query("organizationMemberships")
       .withIndex("by_user", (q) => q.eq("userId", userId))
@@ -285,5 +286,129 @@ export const updateOrganizationName = mutation({
     }
 
     return { success: true };
+  },
+});
+
+// Query to find memberships by email (for diagnostics)
+export const findMembershipsByEmail = query({
+  args: {
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Find user by email
+    const user = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", args.email.toLowerCase().trim()))
+      .first();
+
+    if (!user) {
+      return { userId: null, memberships: [], message: "User not found" };
+    }
+
+    // Find all memberships for this user
+    const memberships = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+
+    // Also check all memberships to see if any have wrong userId but should belong to this user
+    const allMemberships = await ctx.db.query("organizationMemberships").collect();
+    const membershipsWithDetails = await Promise.all(
+      allMemberships.map(async (m) => {
+        const memUser = await ctx.db.get(m.userId);
+        return {
+          membership: m,
+          userEmail: memUser?.email || "no email",
+          userId: m.userId,
+        };
+      })
+    );
+
+    return {
+      userId: user._id,
+      userEmail: user.email,
+      correctMemberships: memberships,
+      allMembershipsWithDetails: membershipsWithDetails,
+      message: `Found ${memberships.length} memberships for user`,
+    };
+  },
+});
+
+// Emergency mutation to restore ownership by email - safer than by userId
+export const restoreOwnershipByEmail = mutation({
+  args: {
+    email: v.string(),
+    organisation: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Find user by email
+    const user = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", args.email.toLowerCase().trim()))
+      .first();
+
+    if (!user) {
+      throw new Error(`No user found with email: ${args.email}`);
+    }
+
+    // Check if membership already exists
+    const existingMembership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", user._id).eq("organisation", args.organisation)
+      )
+      .first();
+
+    if (existingMembership) {
+      // Update existing membership to owner
+      await ctx.db.patch(existingMembership._id, {
+        role: "owner",
+      });
+      return { success: true, message: "Updated existing membership to owner" };
+    } else {
+      // Create new owner membership
+      await ctx.db.insert("organizationMemberships", {
+        userId: user._id,
+        organisation: args.organisation,
+        role: "owner",
+        createdAt: Date.now(),
+      });
+      return { success: true, message: "Created new owner membership" };
+    }
+  },
+});
+
+// Emergency mutation to restore ownership - use with caution
+// This should only be used to fix data corruption issues
+export const restoreOwnership = mutation({
+  args: {
+    userId: v.id("users"),
+    organisation: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Check if membership already exists
+    const existingMembership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", args.userId).eq("organisation", args.organisation)
+      )
+      .first();
+
+    if (existingMembership) {
+      // Update existing membership to owner
+      await ctx.db.patch(existingMembership._id, {
+        role: "owner",
+      });
+      return { success: true, message: "Updated existing membership to owner" };
+    } else {
+      // Create new owner membership
+      await ctx.db.insert("organizationMemberships", {
+        userId: args.userId,
+        organisation: args.organisation,
+        role: "owner",
+        createdAt: Date.now(),
+      });
+      return { success: true, message: "Created new owner membership" };
+    }
   },
 });

@@ -6,11 +6,13 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useConvexAuth } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, LogOut } from "lucide-react";
 
 export default function SelectOrganization() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
+  const { signOut } = useAuthActions();
   const router = useRouter();
   const currentUser = useQuery(api.users.getCurrentUser);
   const organizations = useQuery(api.organizationMemberships.getUserOrganizations);
@@ -27,14 +29,31 @@ export default function SelectOrganization() {
     }
   }, [authLoading, isAuthenticated, router]);
 
-  // If user has only one organization, redirect directly
+  // If user has exactly one organization, redirect directly to dashboard
+  // (0 orgs = stay on page to create one, 1 org = redirect, 2+ orgs = stay to choose)
   useEffect(() => {
-    if (organizations && organizations.length === 1) {
-      const org = organizations[0];
-      localStorage.setItem("selectedOrganization", org.organisation);
-      router.push("/manager/view");
+    // Only run if we have loaded organizations (not undefined) and user is authenticated
+    if (authLoading || !isAuthenticated || organizations === undefined) {
+      return;
     }
-  }, [organizations, router]);
+    
+    // Only redirect if we have exactly 1 organization
+    if (organizations.length === 1) {
+      const org = organizations[0];
+      const currentSelected = localStorage.getItem("selectedOrganization");
+      
+      // Only redirect if the org isn't already selected (prevents loops)
+      if (currentSelected !== org.organisation) {
+        localStorage.setItem("selectedOrganization", org.organisation);
+        // Small delay to ensure localStorage is set
+        const timeoutId = setTimeout(() => {
+          router.push("/manager/view");
+        }, 50);
+        
+        return () => clearTimeout(timeoutId);
+      }
+    }
+  }, [organizations, router, authLoading, isAuthenticated]);
 
   if (authLoading || !currentUser || !organizations) {
     return (
@@ -192,6 +211,21 @@ export default function SelectOrganization() {
           </div>
         </form>
       )}
+
+      {/* Sign Out Button */}
+      <button
+        onClick={() =>
+          void signOut().then(() => {
+            // Clear organization selection from localStorage
+            localStorage.removeItem("selectedOrganization");
+            router.push("/signin");
+          })
+        }
+        className="flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mt-4"
+      >
+        <LogOut className="size-4" />
+        <span>Sign Out</span>
+      </button>
     </div>
   );
 }

@@ -8,12 +8,16 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Id } from "../../../convex/_generated/dataModel";
+import { useAuthActions } from "@convex-dev/auth/react";
+import { useRouter } from "next/navigation";
 
 export default function EditOrganizationPage() {
   const user = useQuery(api.users.getCurrentUser);
   const viewer = user?.name ?? user?.email ?? null;
-
+  const { signOut } = useAuthActions();
+  const router = useRouter();
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
+  const [accessError, setAccessError] = useState(false);
 
   // Get selected organization from localStorage
   useEffect(() => {
@@ -23,16 +27,39 @@ export default function EditOrganizationPage() {
     }
   }, []);
 
+  // Check if user has access to the selected organization
+  const userRole = useQuery(
+    api.users.getUserRoleInOrg,
+    selectedOrg ? { organisation: selectedOrg } : "skip"
+  );
+
+  // Handle access denial - if user doesn't have access to the org, sign them out
+  useEffect(() => {
+    // Only check if we have a selected org and the query has completed
+    if (selectedOrg && userRole !== undefined && userRole === null) {
+      console.log(`Access denied to organization: ${selectedOrg}. Signing out...`);
+      setAccessError(true);
+
+      // Clear the invalid organization from localStorage
+      localStorage.removeItem("selectedOrganization");
+
+      // Sign out and redirect to homepage
+      void signOut().then(() => {
+        router.push("/");
+      });
+    }
+  }, [selectedOrg, userRole, signOut, router]);
+
   const employees = useQuery(
     api.employees.list,
-    selectedOrg ? { organisation: selectedOrg } : "skip"
+    selectedOrg && userRole ? { organisation: selectedOrg } : "skip"
   );
   const addEmployee = useMutation(api.employees.add);
   const removeEmployee = useMutation(api.employees.remove);
 
   const groups = useQuery(
     api.groups.list,
-    selectedOrg ? { organisation: selectedOrg } : "skip"
+    selectedOrg && userRole ? { organisation: selectedOrg } : "skip"
   );
   const addGroup = useMutation(api.groups.add);
   const removeGroup = useMutation(api.groups.remove);

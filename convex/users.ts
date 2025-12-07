@@ -3,17 +3,40 @@ import { query, mutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 // Query to check if an email is already registered
+// Checks both users table and authAccounts table (Convex Auth stores accounts separately)
 export const checkEmailExists = query({
   args: {
     email: v.string(),
   },
   handler: async (ctx, args) => {
+    // Check users table first
     const existingUser = await ctx.db
       .query("users")
-      .withIndex("email", (q) => q.eq("email", args.email))
+      .withIndex("email", (q) => q.eq("email", args.email.toLowerCase().trim()))
       .first();
 
-    return existingUser !== undefined;
+    if (existingUser) {
+      return true;
+    }
+
+    // Also check authAccounts table (Convex Auth stores accounts here)
+    // The email is stored in the account data
+    const authAccounts = await ctx.db
+      .query("authAccounts")
+      .collect();
+
+    // Check if any auth account has this email
+    // Note: authAccounts structure may vary, but typically email is in account data
+    for (const account of authAccounts) {
+      // The account data structure depends on Convex Auth implementation
+      // Typically email might be in account.email or account.profile.email
+      const accountEmail = (account as any).email || (account as any).profile?.email;
+      if (accountEmail && accountEmail.toLowerCase().trim() === args.email.toLowerCase().trim()) {
+        return true;
+      }
+    }
+
+    return false;
   },
 });
 
@@ -41,6 +64,26 @@ export const getCurrentUserId = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     return userId;
+  },
+});
+
+// Query to get user by email (for fixing orphaned memberships)
+export const getUserByEmail = query({
+  args: {
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", args.email.toLowerCase().trim()))
+      .first();
+    
+    return user ? {
+      _id: user._id,
+      email: user.email,
+      name: user.name,
+      surname: user.surname,
+    } : null;
   },
 });
 

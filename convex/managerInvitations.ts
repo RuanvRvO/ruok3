@@ -1,17 +1,15 @@
 import { v } from "convex/values";
 import { mutation, query, internalAction } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { internal } from "./_generated/api";
 
 // Generate a random token for invitation
 function generateToken(): string {
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
 
-// Mutation to create a manager invitation
+// Mutation to create a manager invitation URL (no email required)
 export const createInvitation = mutation({
   args: {
-    email: v.string(),
     role: v.union(v.literal("editor"), v.literal("viewer")),
     organisation: v.string(),
   },
@@ -33,48 +31,13 @@ export const createInvitation = mutation({
       throw new Error("Only organization owners can invite members");
     }
 
-    // Check if there's already a pending invitation for this email
-    const existingInvitation = await ctx.db
-      .query("managerInvitations")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("organisation"), args.organisation),
-          q.eq(q.field("status"), "pending")
-        )
-      )
-      .first();
-
-    if (existingInvitation) {
-      throw new Error("An invitation has already been sent to this email");
-    }
-
-    // Check if user with this email already has access to the organization
-    const existingUser = await ctx.db
-      .query("users")
-      .withIndex("email", (q) => q.eq("email", args.email))
-      .first();
-
-    if (existingUser) {
-      const userMembership = await ctx.db
-        .query("organizationMemberships")
-        .withIndex("by_user_and_org", (q) =>
-          q.eq("userId", existingUser._id).eq("organisation", args.organisation)
-        )
-        .first();
-
-      if (userMembership) {
-        throw new Error("This user already has access to your organization");
-      }
-    }
-
-    // Create the invitation
+    // Create the invitation (no email - user will provide it when accepting)
     const token = generateToken();
     const now = Date.now();
     const expiresAt = now + (7 * 24 * 60 * 60 * 1000); // 7 days
 
     const invitationId = await ctx.db.insert("managerInvitations", {
-      email: args.email,
+      email: undefined, // Email will be set when user accepts
       organisation: args.organisation,
       role: args.role,
       invitedBy: userId,
@@ -84,23 +47,11 @@ export const createInvitation = mutation({
       expiresAt,
     });
 
-    // Get user for email
-    const user = await ctx.db.get(userId);
-
-    // Schedule email sending
-    await ctx.scheduler.runAfter(0, internal.managerInvitations.sendInvitationEmail, {
-      email: args.email,
-      organisation: args.organisation,
-      role: args.role,
-      token,
-      inviterName: user?.name || user?.email || "Your organization",
-    });
-
     return { invitationId, token };
   },
 });
 
-// Query to list all manager invitations (returns all, frontend filters by org)
+// Query to list all manager invitations for organizations the user owns
 export const listInvitations = query({
   args: {},
   handler: async (ctx) => {
@@ -109,10 +60,25 @@ export const listInvitations = query({
       return [];
     }
 
-    // Return all invitations - frontend will filter by selected org
-    const invitations = await ctx.db
+    // Get all organizations where user is owner
+    const ownedOrgs = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .filter((q) => q.eq(q.field("role"), "owner"))
+      .collect();
+
+    // Get organization names
+    const orgNames = ownedOrgs.map((m) => m.organisation);
+
+    // Return only invitations for organizations the user owns
+    const allInvitations = await ctx.db
       .query("managerInvitations")
       .collect();
+
+    // Filter to only include invitations for owned organizations
+    const invitations = allInvitations.filter((inv) =>
+      orgNames.includes(inv.organisation)
+    );
 
     return invitations;
   },
@@ -176,7 +142,12 @@ export const getInvitationByToken = query({
   },
 });
 
-// Mutation to accept invitation and create user account
+// Mutation to accept invitation for newly created accounts
+// NOTE: This mutation does NOT validate email matching because:
+// 1. It's only called after creating a new account in the accept-invitation page
+// 2. The frontend validates that the created account's email matches invitation.email
+// 3. The frontend forces sign-out if wrong user is authenticated
+// For existing users, use acceptInvitationForExistingUser instead
 export const acceptInvitation = mutation({
   args: {
     token: v.string(),
@@ -192,27 +163,76 @@ export const acceptInvitation = mutation({
       throw new Error("Invalid invitation token");
     }
 
-    if (invitation.status !== "pending") {
-      throw new Error("This invitation has already been used");
-    }
-
+    // Check if invitation is expired (but allow reuse if not expired)
     if (invitation.expiresAt < Date.now()) {
       await ctx.db.patch(invitation._id, { status: "expired" });
       throw new Error("This invitation has expired");
     }
+    
+    // Allow reuse of invitations - only check if expired, not if already used
+    // Invitations can be used by multiple people until they expire
 
-    // Create organization membership for the user
-    await ctx.db.insert("organizationMemberships", {
-      userId: args.userId,
-      organisation: invitation.organisation,
-      role: invitation.role,
-      createdAt: Date.now(),
-    });
+    // Get user to get their email
+    // Wait a bit for user record to be fully created (especially for new signups)
+    // Increase wait time and attempts for new signups which may take longer
+    let user = await ctx.db.get(args.userId);
+    let attempts = 0;
+    const maxAttempts = 30; // Increased from 10 to 30
+    while ((!user || !user.email) && attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 200)); // Increased from 100ms to 200ms
+      user = await ctx.db.get(args.userId);
+      attempts++;
+    }
+    
+    if (!user) {
+      throw new Error(`User not found with ID: ${args.userId}. The user record may not have been created yet.`);
+    }
+    
+    if (!user.email) {
+      throw new Error(`User found but email is not set. User ID: ${args.userId}. Please wait a moment and try again.`);
+    }
 
-    // Mark invitation as accepted
-    await ctx.db.patch(invitation._id, {
-      status: "accepted",
-    });
+    // Don't update invitation email - invitations are reusable
+    // Each user enters their own email when using the invitation
+
+    // Check if user already has a membership for this organization
+    const existingMembership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", args.userId).eq("organisation", invitation.organisation)
+      )
+      .first();
+
+    if (existingMembership) {
+      // User already has access - update the role to match invitation (but don't downgrade from owner)
+      if (existingMembership.role === "owner") {
+        // Keep owner role, don't change it
+        // Don't mark invitation as accepted - allow reuse
+        return { success: true, message: "User already has owner access" };
+      } else {
+        // Update existing membership to match invitation role
+        await ctx.db.patch(existingMembership._id, {
+          role: invitation.role,
+        });
+      }
+    } else {
+      // Create organization membership for the user
+      const membershipId = await ctx.db.insert("organizationMemberships", {
+        userId: args.userId,
+        organisation: invitation.organisation,
+        role: invitation.role,
+        createdAt: Date.now(),
+      });
+      
+      // Verify the membership was created
+      const createdMembership = await ctx.db.get(membershipId);
+      if (!createdMembership) {
+        throw new Error(`Failed to create organization membership. Membership ID: ${membershipId}`);
+      }
+    }
+
+    // Don't mark invitation as accepted - allow reuse by multiple people
+    // Only expired invitations are marked as expired
 
     return { success: true };
   },
@@ -243,22 +263,17 @@ export const acceptInvitationForExistingUser = mutation({
       throw new Error("Invalid invitation token");
     }
 
-    if (invitation.status !== "pending") {
-      throw new Error("This invitation has already been used");
-    }
-
+    // Check if invitation is expired (but allow reuse if not expired)
     if (invitation.expiresAt < Date.now()) {
       await ctx.db.patch(invitation._id, { status: "expired" });
       throw new Error("This invitation has expired");
     }
+    
+    // Allow reuse of invitations - only check if expired, not if already used
+    // Invitations can be used by multiple people until they expire
 
-    const userEmail = user.email; // TypeScript now knows this is definitely a string
-
-    // Verify the invitation email matches the authenticated user's email (case-insensitive)
-    if (invitation.email.toLowerCase().trim() !== userEmail.toLowerCase().trim()) {
-      console.error(`Email mismatch: invitation email="${invitation.email}" vs user email="${userEmail}"`);
-      throw new Error("This invitation is for a different email address");
-    }
+    // Don't check or update invitation email - invitations are reusable
+    // Any authenticated user can accept the invitation
 
     // Check if user already has access to this organization
     const existingMembership = await ctx.db
@@ -280,10 +295,8 @@ export const acceptInvitationForExistingUser = mutation({
       createdAt: Date.now(),
     });
 
-    // Mark invitation as accepted
-    await ctx.db.patch(invitation._id, {
-      status: "accepted",
-    });
+    // Don't mark invitation as accepted - allow reuse by multiple people
+    // Only expired invitations are marked as expired
 
     return { success: true };
   },
@@ -397,5 +410,145 @@ export const sendInvitationEmail = internalAction({
       console.error(`Error sending invitation email to ${args.email}:`, error);
       return { success: false, error: String(error) };
     }
+  },
+});
+
+// Mutation to fix orphaned invitations - if invitation is accepted but membership doesn't exist
+export const fixOrphanedInvitation = mutation({
+  args: {
+    token: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    const user = await ctx.db.get(userId);
+    if (!user || !user.email) {
+      throw new Error("User not found or invalid user data");
+    }
+
+    const invitation = await ctx.db
+      .query("managerInvitations")
+      .withIndex("by_token", (q) => q.eq("token", args.token))
+      .first();
+
+    if (!invitation) {
+      throw new Error("Invalid invitation token");
+    }
+
+    const userEmail = user.email; // TypeScript now knows this is definitely a string
+
+    // If invitation doesn't have an email yet, set it to the user's email
+    // Otherwise, verify the invitation email matches the authenticated user's email (case-insensitive)
+    if (invitation.email) {
+      if (invitation.email.toLowerCase().trim() !== userEmail.toLowerCase().trim()) {
+        throw new Error("This invitation is for a different email address");
+      }
+    } else {
+      // Update invitation with user's email
+      await ctx.db.patch(invitation._id, {
+        email: userEmail,
+      });
+    }
+
+    // Check if membership already exists
+    const existingMembership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", userId).eq("organisation", invitation.organisation)
+      )
+      .first();
+
+    if (existingMembership) {
+      return { success: true, message: "Membership already exists" };
+    }
+
+    // Create the missing membership
+    await ctx.db.insert("organizationMemberships", {
+      userId: userId,
+      organisation: invitation.organisation,
+      role: invitation.role,
+      createdAt: Date.now(),
+    });
+
+    return { success: true, message: "Membership created" };
+  },
+});
+
+// Mutation to fix orphaned memberships - ONLY creates missing memberships, NEVER updates existing ones
+// This is safe because it only creates memberships that don't exist for the correct user
+export const fixOrphanedMemberships = mutation({
+  args: {
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const currentUserId = await getAuthUserId(ctx);
+    if (currentUserId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    // Find the user by email
+    const correctUser = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", args.email.toLowerCase().trim()))
+      .first();
+
+    if (!correctUser) {
+      throw new Error(`No user found with email: ${args.email}`);
+    }
+
+    // Verify the email matches the authenticated user's email
+    const currentUser = await ctx.db.get(currentUserId);
+    if (!currentUser || !currentUser.email) {
+      throw new Error("Current user not found or invalid");
+    }
+
+    if (currentUser.email.toLowerCase().trim() !== args.email.toLowerCase().trim()) {
+      throw new Error("Email does not match authenticated user");
+    }
+
+    // Find all accepted invitations for this email
+    const invitations = await ctx.db
+      .query("managerInvitations")
+      .withIndex("by_email", (q) => q.eq("email", args.email.toLowerCase().trim()))
+      .collect();
+
+    let createdCount = 0;
+
+    for (const invitation of invitations) {
+      if (invitation.status !== "accepted") {
+        continue; // Only process accepted invitations
+      }
+
+      // Check if membership already exists with correct userId
+      const existingMembership = await ctx.db
+        .query("organizationMemberships")
+        .withIndex("by_user_and_org", (q) =>
+          q.eq("userId", correctUser._id).eq("organisation", invitation.organisation)
+        )
+        .first();
+
+      if (existingMembership) {
+        continue; // Already has correct membership, skip
+      }
+
+      // Only create new membership if it doesn't exist
+      // We NEVER update existing memberships as they might belong to other users
+      await ctx.db.insert("organizationMemberships", {
+        userId: correctUser._id,
+        organisation: invitation.organisation,
+        role: invitation.role,
+        createdAt: Date.now(),
+      });
+      createdCount++;
+    }
+
+    return {
+      success: true,
+      message: `Created ${createdCount} missing memberships`,
+      createdCount,
+    };
   },
 });

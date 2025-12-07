@@ -6,10 +6,15 @@ import { Id } from "../../../convex/_generated/dataModel";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Trash2, UserPlus, Mail, Eye, Edit2, Clock } from "lucide-react";
+import { useAuthActions } from "@convex-dev/auth/react";
+import { useRouter } from "next/navigation";
 
 export default function ManageManagersPage() {
   const user = useQuery(api.users.getCurrentUser);
+  const { signOut } = useAuthActions();
+  const router = useRouter();
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
+  const [accessError, setAccessError] = useState(false);
 
   // Get selected organization from localStorage
   useEffect(() => {
@@ -24,9 +29,26 @@ export default function ManageManagersPage() {
     selectedOrg ? { organisation: selectedOrg } : "skip"
   );
 
+  // Handle access denial - if user doesn't have access to the org, sign them out
+  useEffect(() => {
+    // Only check if we have a selected org and the query has completed
+    if (selectedOrg && userRole !== undefined && userRole === null) {
+      console.log(`Access denied to organization: ${selectedOrg}. Signing out...`);
+      setAccessError(true);
+
+      // Clear the invalid organization from localStorage
+      localStorage.removeItem("selectedOrganization");
+
+      // Sign out and redirect to homepage
+      void signOut().then(() => {
+        router.push("/");
+      });
+    }
+  }, [selectedOrg, userRole, signOut, router]);
+
   const members = useQuery(
     api.users.getOrganizationMembersWithDetails,
-    selectedOrg ? { organisation: selectedOrg } : "skip"
+    selectedOrg && userRole ? { organisation: selectedOrg } : "skip"
   );
 
   const invitations = useQuery(api.managerInvitations.listInvitations);
@@ -34,30 +56,38 @@ export default function ManageManagersPage() {
   const removeMember = useMutation(api.organizationMemberships.removeOrganizationMember);
   const revokeInvitation = useMutation(api.managerInvitations.revokeInvitation);
 
-  const [email, setEmail] = useState("");
   const [role, setRole] = useState<"viewer" | "editor">("viewer");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
 
-  const handleSendInvitation = async (e: React.FormEvent) => {
+  const handleGenerateInvitation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrg) return;
 
     setIsSubmitting(true);
     setError(null);
     setSuccess(null);
+    setGeneratedUrl(null);
 
     try {
-      await createInvitation({ email, role, organisation: selectedOrg });
-
-      setEmail("");
-      setRole("viewer");
-      setSuccess(`Invitation email sent successfully to ${email}! They'll receive a link to set up their account.`);
+      const result = await createInvitation({ role, organisation: selectedOrg });
+      const baseUrl = window.location.origin;
+      const inviteUrl = `${baseUrl}/invite?token=${encodeURIComponent(result.token)}`;
+      setGeneratedUrl(inviteUrl);
+      setSuccess("Invitation URL generated! Copy and share it with anyone you want to invite.");
     } catch (err: any) {
       setError(err.message || "Failed to create invitation");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const copyInviteUrl = () => {
+    if (generatedUrl) {
+      navigator.clipboard.writeText(generatedUrl);
+      setSuccess("Invitation URL copied to clipboard!");
     }
   };
 
@@ -89,7 +119,7 @@ export default function ManageManagersPage() {
 
   const copyInviteLink = (token: string) => {
     const baseUrl = window.location.origin;
-    const inviteLink = `${baseUrl}/manager-signup?token=${token}`;
+    const inviteLink = `${baseUrl}/invite?token=${encodeURIComponent(token)}`;
     navigator.clipboard.writeText(inviteLink);
     setSuccess("Invitation link copied to clipboard!");
   };
@@ -147,22 +177,7 @@ export default function ManageManagersPage() {
             <UserPlus className="size-5" />
             Invite New User
           </h2>
-          <form onSubmit={handleSendInvitation} className="flex flex-col gap-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                id="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
-                placeholder="user@example.com"
-                required
-              />
-            </div>
-
+          <form onSubmit={handleGenerateInvitation} className="flex flex-col gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 Access Level
@@ -217,9 +232,36 @@ export default function ManageManagersPage() {
               </div>
             )}
 
-            <Button type="submit" disabled={isSubmitting} className="bg-slate-700 hover:bg-slate-800 text-white">
-              {isSubmitting ? "Sending Email..." : "Send Invitation Email"}
-            </Button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 text-white font-semibold rounded-lg py-2 px-4 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? "Generating..." : "Generate Invitation URL"}
+            </button>
+
+            {generatedUrl && (
+              <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Invitation URL (copy and share):
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={generatedUrl}
+                    readOnly
+                    className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={copyInviteUrl}
+                    className="bg-slate-600 hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-semibold rounded-lg py-2 px-4 transition-colors"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+            )}
           </form>
         </div>
       )}
@@ -241,7 +283,9 @@ export default function ManageManagersPage() {
                 className="flex items-center justify-between p-4 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-200 dark:border-amber-800"
               >
                 <div className="flex-1">
-                  <p className="font-medium text-slate-900 dark:text-slate-100">{invitation.email}</p>
+                  <p className="font-medium text-slate-900 dark:text-slate-100">
+                    {invitation.email || "No email set yet"}
+                  </p>
                   <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mt-1">
                     <Clock className="size-3" />
                     <span>

@@ -23,8 +23,9 @@ import {
   SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Eye, Edit, LogOut, Users, UserCog, Building2 } from "lucide-react";
+import { Eye, Edit, LogOut, Users, UserCog, Building2, Plus } from "lucide-react";
 import { api } from "../../convex/_generated/api";
+import { useMutation } from "convex/react";
 
 export default function ManagerLayout({
   children,
@@ -38,12 +39,28 @@ export default function ManagerLayout({
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
   const [isLoadingOrg, setIsLoadingOrg] = useState(true);
 
-  // Get selected organization from localStorage
+  // Get selected organization from localStorage and listen for changes
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const org = localStorage.getItem("selectedOrganization");
-      setSelectedOrg(org);
-      setIsLoadingOrg(false);
+      const updateSelectedOrg = () => {
+        const org = localStorage.getItem("selectedOrganization");
+        setSelectedOrg(org);
+        setIsLoadingOrg(false);
+      };
+      
+      // Initial load
+      updateSelectedOrg();
+      
+      // Listen for storage changes (from other tabs/windows)
+      window.addEventListener("storage", updateSelectedOrg);
+      
+      // Listen for custom organizationChanged event
+      window.addEventListener("organizationChanged", updateSelectedOrg);
+      
+      return () => {
+        window.removeEventListener("storage", updateSelectedOrg);
+        window.removeEventListener("organizationChanged", updateSelectedOrg);
+      };
     }
   }, []);
 
@@ -55,6 +72,8 @@ export default function ManagerLayout({
 
   // Get all user organizations
   const userOrganizations = useQuery(api.organizationMemberships.getUserOrganizations);
+  const createOrganization = useMutation(api.organizationMemberships.createOrganization);
+  const fixOrphanedMemberships = useMutation(api.managerInvitations.fixOrphanedMemberships);
 
   // Redirect to sign in if not authenticated
   useEffect(() => {
@@ -63,12 +82,37 @@ export default function ManagerLayout({
     }
   }, [isAuthenticated, isLoading, router]);
 
-  // Redirect to organization selection if no org selected (only after loading org from localStorage)
+  // DISABLED: Auto-fix was too aggressive and caused issues
+  // If user has no orgs, they should manually fix via Convex dashboard or contact support
+  // useEffect(() => {
+  //   if (isLoading || !isAuthenticated || userOrganizations === undefined || !user) {
+  //     return;
+  //   }
+  //   
+  //   // If user has no organizations but has an email, try to fix orphaned memberships
+  //   if (userOrganizations.length === 0 && user.email) {
+  //     fixOrphanedMemberships({ email: user.email }).catch((err) => {
+  //       // Silently fail - this is just a background fix attempt
+  //       console.log("Could not fix orphaned memberships:", err);
+  //     });
+  //   }
+  // }, [isLoading, isAuthenticated, userOrganizations, user, fixOrphanedMemberships]);
+
+  // Auto-select first organization if none is selected and user has organizations
   useEffect(() => {
-    if (!isLoading && !isLoadingOrg && isAuthenticated && !selectedOrg) {
-      router.push("/select-organization");
+    // Only run if we're fully loaded and authenticated
+    if (isLoading || isLoadingOrg || !isAuthenticated || userOrganizations === undefined) {
+      return;
     }
-  }, [isLoading, isLoadingOrg, isAuthenticated, selectedOrg, router]);
+    
+    // If no org selected and user has at least one organization, auto-select the first one
+    if (!selectedOrg && userOrganizations.length > 0) {
+      const org = userOrganizations[0];
+      localStorage.setItem("selectedOrganization", org.organisation);
+      // Dispatch event to trigger state update via the storage listener
+      window.dispatchEvent(new Event("organizationChanged"));
+    }
+  }, [isLoading, isLoadingOrg, isAuthenticated, selectedOrg, userOrganizations]);
 
   // Show loading while checking authentication
   if (isLoading) {
@@ -152,9 +196,15 @@ export default function ManagerLayout({
             <SidebarGroupLabel className="text-lg font-bold text-slate-900 dark:text-slate-100 px-2 py-5 tracking-tight">Your organisations</SidebarGroupLabel>
             <SidebarGroupContent className="min-w-0 pt-1">
               <UserOrganizationsList 
-                organizations={userOrganizations} 
+                organizations={userOrganizations}
                 router={router}
                 selectedOrg={selectedOrg}
+                setSelectedOrg={setSelectedOrg}
+                pathname={pathname}
+              />
+              <CreateOrganizationButton 
+                router={router} 
+                createOrganization={createOrganization}
                 setSelectedOrg={setSelectedOrg}
               />
             </SidebarGroupContent>
@@ -249,11 +299,13 @@ function UserOrganizationsList({
   router,
   selectedOrg,
   setSelectedOrg,
+  pathname,
 }: {
   organizations: Array<{ _id: string; organisation: string; role: string }> | undefined;
   router: AppRouterInstance;
   selectedOrg: string | null;
   setSelectedOrg: (org: string | null) => void;
+  pathname: string;
 }) {
   if (!organizations || organizations.length === 0) {
     return null;
@@ -271,8 +323,14 @@ function UserOrganizationsList({
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("organizationChanged"));
     }
-    router.push("/manager/view");
-    router.refresh();
+    // Only redirect to view if we're on the root manager page
+    // Otherwise, stay on the current page (managers, edit, account, etc.)
+    if (pathname === "/manager" || pathname === "/manager/") {
+      router.push("/manager/view");
+    } else {
+      // Just refresh to update the page with new organization data
+      router.refresh();
+    }
   };
 
   return (
@@ -341,6 +399,98 @@ function UserOrganizationsList({
         </div>
       )}
     </div>
+  );
+}
+
+function CreateOrganizationButton({
+  router,
+  createOrganization,
+  setSelectedOrg,
+}: {
+  router: AppRouterInstance;
+  createOrganization: (args: { name: string }) => Promise<{ membershipId: string; organisation: string }>;
+  setSelectedOrg: (org: string | null) => void;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [orgName, setOrgName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+    setError(null);
+
+    try {
+      const result = await createOrganization({ name: orgName.trim() });
+      if (result?.organisation) {
+        localStorage.setItem("selectedOrganization", result.organisation);
+        setSelectedOrg(result.organisation);
+        setShowForm(false);
+        setOrgName("");
+        router.push("/manager/view");
+        router.refresh();
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to create organization");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  if (showForm) {
+    return (
+      <div className="mt-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700">
+        <form onSubmit={handleCreate} className="flex flex-col gap-2">
+          <input
+            type="text"
+            value={orgName}
+            onChange={(e) => setOrgName(e.target.value)}
+            placeholder="Organization Name"
+            className="w-full px-2 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+            required
+            autoFocus
+          />
+          {error && (
+            <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={creating || !orgName.trim()}
+              className="flex-1 px-2 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md disabled:opacity-50"
+            >
+              {creating ? "Creating..." : "Create"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowForm(false);
+                setOrgName("");
+                setError(null);
+              }}
+              className="px-2 py-1.5 text-xs bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-md"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  return (
+    <SidebarMenu className="mt-2">
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          onClick={() => setShowForm(true)}
+          className="w-full text-base text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+        >
+          <Plus className="size-4" />
+          <span>Create Organization</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
   );
 }
 

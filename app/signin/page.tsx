@@ -2,24 +2,31 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "convex/react";
+import { useConvexAuth } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
 export default function SignIn() {
   const { signIn } = useAuthActions();
+  const { isAuthenticated } = useConvexAuth();
   const searchParams = useSearchParams();
   const initialFlow = searchParams.get("flow") === "signup" ? "signUp" : "signIn";
   const successMessage = searchParams.get("success") === "account_created";
   const returnTo = searchParams.get("returnTo");
+  const invitationToken = searchParams.get("token");
+  const invitationEmail = searchParams.get("email");
+  const organizations = useQuery(api.organizationMemberships.getUserOrganizations);
 
   const [flow, setFlow] = useState<"signIn" | "signUp">(initialFlow);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState(invitationEmail || "");
   const router = useRouter();
+  const signInErrorRef = useRef(false); // Track if sign-in failed to prevent redirect
 
   // Show success message when redirected from signup
   useEffect(() => {
@@ -27,6 +34,15 @@ export default function SignIn() {
       setSuccess("Account created successfully! Please sign in.");
     }
   }, [successMessage]);
+
+  // If there's an invitation token, redirect to accept-invitation page
+  // The accept-invitation page handles the full invitation flow
+  useEffect(() => {
+    if (invitationToken) {
+      const emailParam = invitationEmail ? `&email=${encodeURIComponent(invitationEmail)}` : "";
+      router.push(`/accept-invitation?token=${encodeURIComponent(invitationToken)}${emailParam}`);
+    }
+  }, [invitationToken, invitationEmail, router]);
 
   return (
     <div className="flex flex-col gap-8 w-full max-w-lg mx-auto h-screen justify-center items-center px-4">
@@ -85,35 +101,25 @@ export default function SignIn() {
               return;
             }
 
-            // Check if email already exists before allowing signup
-            const email = formData.get("email") as string;
-            try {
-              const response = await fetch("/api/check-email", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email }),
-              });
-
-              if (response.ok) {
-                const data = await response.json();
-                if (data.exists) {
-                  setError("This email is already registered. Please sign in instead.");
-                  setLoading(false);
-                  return;
-                }
-              }
-            } catch (err) {
-              console.error("Email check error:", err);
-              setError("Unable to verify email. Please try again.");
+            // Validate password length
+            if (password.length < 8) {
+              setError("Password must be at least 8 characters");
               setLoading(false);
               return;
             }
+
+            // Don't pre-check email - let Convex Auth handle it
+            // It will throw an error if the email already exists
           }
 
           formData.set("flow", flow);
+          signInErrorRef.current = false; // Reset error flag
+          
           void signIn("password", formData)
             .catch((error) => {
               const errorMessage = error.message;
+              
+              signInErrorRef.current = true; // Set flag to prevent redirect
 
               if (errorMessage.includes("InvalidSecret") || errorMessage.includes("Invalid credentials")) {
                 setError("Incorrect email or password");
@@ -129,13 +135,40 @@ export default function SignIn() {
 
               setLoading(false);
             })
-            .then(() => {
-              // Redirect to returnTo URL if present, otherwise to organization selection
+            .then(async () => {
+              // Only redirect if sign-in was successful (no error occurred)
+              if (signInErrorRef.current) {
+                return; // Don't redirect if there was an error
+              }
+              
+              // Note: Invitation acceptance is handled by useEffect hook above
+              // which properly reacts to isAuthenticated and currentUserId changes
+              
+              // Redirect to returnTo URL if present
               if (returnTo) {
                 router.push(returnTo);
-              } else {
-                router.push("/select-organization");
+                return;
               }
+              
+              // Wait for authentication, then redirect to manager view
+              // All organizations will be shown in the sidebar
+              let isAuthReady = false;
+              for (let i = 0; i < 20; i++) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+                if (isAuthenticated) {
+                  isAuthReady = true;
+                  break;
+                }
+              }
+              
+              // If user has organizations, auto-select the first one
+              if (isAuthReady && organizations && organizations.length > 0) {
+                const org = organizations[0];
+                localStorage.setItem("selectedOrganization", org.organisation);
+              }
+              
+              // Always redirect to manager view (sidebar will show all orgs)
+              router.push("/manager/view");
             });
         }}
       >
@@ -161,6 +194,8 @@ export default function SignIn() {
           className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
           type="email"
           name="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           placeholder="Email"
           required
         />

@@ -26,7 +26,7 @@ const schema = defineSchema({
     .index("by_organisation", ["organisation"])
     .index("by_user_and_org", ["userId", "organisation"]),
   managerInvitations: defineTable({
-    email: v.string(),
+    email: v.optional(v.string()), // Email is optional - filled in when user accepts
     organisation: v.string(),
     role: v.union(v.literal("editor"), v.literal("viewer")),
     invitedBy: v.id("users"),
