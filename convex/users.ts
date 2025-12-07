@@ -35,6 +35,15 @@ export const getCurrentUser = query({
   },
 });
 
+// Query to get current user ID
+export const getCurrentUserId = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    return userId;
+  },
+});
+
 // Query to get user's role in current organization
 export const getUserRoleInOrg = query({
   args: {

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { useConvexAuth } from "convex/react";
 
 export default function AcceptInvitation() {
   const searchParams = useSearchParams();
@@ -14,13 +15,23 @@ export default function AcceptInvitation() {
   const token = searchParams.get("token");
   const { signIn } = useAuthActions();
 
+  const { isAuthenticated } = useConvexAuth();
   const invitation = useQuery(api.managerInvitations.getInvitationByToken, token ? { token } : "skip");
+  const emailExists = useQuery(
+    api.users.checkEmailExists,
+    invitation ? { email: invitation.email } : "skip"
+  );
   const acceptInvitationForExistingUser = useMutation(api.managerInvitations.acceptInvitationForExistingUser);
+  const acceptInvitation = useMutation(api.managerInvitations.acceptInvitation);
   const currentUser = useQuery(api.users.getCurrentUser);
+  const currentUserId = useQuery(api.users.getCurrentUserId);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [name, setName] = useState("");
+  const [isSignupMode, setIsSignupMode] = useState(true); // Default to signup
 
   // Redirect if no token
   useEffect(() => {
@@ -29,7 +40,7 @@ export default function AcceptInvitation() {
     }
   }, [token, router]);
 
-  if (!token || invitation === undefined) {
+  if (!token || invitation === undefined || emailExists === undefined) {
     return (
       <div className="flex flex-col gap-8 w-full max-w-lg mx-auto h-screen justify-center items-center px-4">
         <div className="flex items-center gap-2">
@@ -72,21 +83,73 @@ export default function AcceptInvitation() {
     setError(null);
 
     try {
-      // Sign in the user
       const formData = new FormData();
       formData.set("email", invitation.email);
       formData.set("password", password);
-      formData.set("flow", "signIn");
 
-      await signIn("password", formData);
-
-      // After successful signin, link the account to the organization
-      await acceptInvitationForExistingUser({ token });
+      if (isSignupMode) {
+        // Sign up mode
+        if (password !== confirmPassword) {
+          setError("Passwords do not match");
+          setLoading(false);
+          return;
+        }
+        formData.set("flow", "signUp");
+        if (name) {
+          formData.set("name", name);
+        }
+        await signIn("password", formData);
+        
+        // For new users, wait for authentication and get the user ID
+        // Poll for currentUserId to be available (it will update after signup)
+        let userId: string | null = null;
+        for (let i = 0; i < 30; i++) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+          // Check if user is authenticated and currentUserId is available
+          if (isAuthenticated && currentUserId) {
+            userId = currentUserId;
+            break;
+          }
+        }
+        
+        if (!userId) {
+          throw new Error("Failed to get user ID after signup. Please refresh the page and try again.");
+        }
+        
+        // Use acceptInvitation for new users (doesn't check email matching)
+        await acceptInvitation({ token, userId: userId as any });
+      } else {
+        // Sign in mode
+        formData.set("flow", "signIn");
+        try {
+          await signIn("password", formData);
+        } catch (signInError: any) {
+          // If sign in fails with InvalidAccountId, switch to signup
+          if (signInError.message?.includes("InvalidAccountId")) {
+            setIsSignupMode(true);
+            setError("No authentication account found. Please create an account using the form below.");
+            setLoading(false);
+            return;
+          } else {
+            throw signInError;
+          }
+        }
+        
+        // For existing users, use acceptInvitationForExistingUser (checks email matching)
+        await acceptInvitationForExistingUser({ token });
+      }
 
       // Redirect to organization selection
       router.push("/select-organization");
     } catch (err: any) {
-      setError(err.message || "Failed to sign in. Please check your password.");
+      const errorMessage = err.message || "";
+      if (errorMessage.includes("InvalidSecret") || errorMessage.includes("Invalid credentials")) {
+        setError("Incorrect password. Please try again.");
+      } else if (errorMessage.includes("InvalidAccountId")) {
+        setError("Account not found. Please use the signup form below.");
+      } else {
+        setError(err.message || (emailExists ? "Failed to sign in. Please check your password." : "Failed to create account. Please try again."));
+      }
       setLoading(false);
     }
   };
@@ -107,12 +170,20 @@ export default function AcceptInvitation() {
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Access Level: {invitation.role === "viewer" ? "View Only" : "Can Edit"}
           </p>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-3">
-            An account with email <span className="font-semibold">{invitation.email}</span> already exists.
-          </p>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-            Please sign in to accept this invitation and add access to your account.
-          </p>
+          {isSignupMode ? (
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-3">
+              Create an account with email <span className="font-semibold">{invitation.email}</span> to accept this invitation.
+            </p>
+          ) : (
+            <>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-3">
+                An account with email <span className="font-semibold">{invitation.email}</span> already exists.
+              </p>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                Please sign in to accept this invitation and add access to your account.
+              </p>
+            </>
+          )}
         </div>
       </div>
       <form
@@ -125,6 +196,15 @@ export default function AcceptInvitation() {
           value={invitation.email}
           disabled
         />
+        {isSignupMode && (
+          <input
+            className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Full Name (optional)"
+          />
+        )}
         <div className="flex flex-col gap-1">
           <input
             className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
@@ -136,13 +216,42 @@ export default function AcceptInvitation() {
             required
           />
         </div>
+        {isSignupMode && (
+          <div className="flex flex-col gap-1">
+            <input
+              className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm Password"
+              minLength={8}
+              required
+            />
+          </div>
+        )}
         <button
           className="bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 text-white font-semibold rounded-lg py-3 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           type="submit"
-          disabled={loading}
+          disabled={loading || invitation === undefined}
         >
-          {loading ? "Signing In..." : "Sign In & Accept Invitation"}
+          {loading 
+            ? (isSignupMode ? "Creating Account..." : "Signing In...") 
+            : (isSignupMode ? "Create Account & Accept Invitation" : "Sign In & Accept Invitation")}
         </button>
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={() => {
+              setIsSignupMode(!isSignupMode);
+              setError(null);
+              setPassword("");
+              setConfirmPassword("");
+            }}
+            className="text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 underline underline-offset-2"
+          >
+            {isSignupMode ? "Already have an account? Sign in" : "Don't have an account? Create one"}
+          </button>
+        </div>
         {error && (
           <div className="bg-rose-500/10 border border-rose-500/30 dark:border-rose-500/50 rounded-lg p-4">
             <p className="text-rose-700 dark:text-rose-300 font-medium text-sm break-words">Error: {error}</p>
