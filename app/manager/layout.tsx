@@ -13,12 +13,14 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
+  SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Eye, Edit, LogOut, Users, UserCog, Building2 } from "lucide-react";
@@ -50,6 +52,9 @@ export default function ManagerLayout({
     api.users.getUserRoleInOrg,
     selectedOrg ? { organisation: selectedOrg } : "skip"
   );
+
+  // Get all user organizations
+  const userOrganizations = useQuery(api.organizationMemberships.getUserOrganizations);
 
   // Redirect to sign in if not authenticated
   useEffect(() => {
@@ -99,30 +104,40 @@ export default function ManagerLayout({
     <SidebarProvider>
       <Sidebar>
         <SidebarHeader>
-          <div className="flex items-center gap-3 p-2">
-            <Image src="/smile.png" alt="Smile Logo" width={32} height={32} />
-            <div className="w-px h-8 bg-slate-300 dark:bg-slate-600"></div>
-            <Image
-              src="/sad.png"
-              alt="Sad Logo"
-              width={32}
-              height={32}
-              className="dark:hidden"
-            />
+          <div className="flex flex-col gap-2 p-2">
+            <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2">
+                <Image 
+                  src="/smile.png" 
+                  alt="Smile Logo" 
+                  width={28} 
+                  height={28}
+                  className="object-contain"
+                />
+                <div className="w-px h-6 bg-slate-300 dark:bg-slate-600"></div>
+                <Image
+                  src="/sad.png"
+                  alt="Sad Logo"
+                  width={28}
+                  height={28}
+                  className="object-contain dark:hidden"
+                />
+              </div>
+              <h1 className="text-base font-semibold text-slate-800 dark:text-slate-200 leading-tight">
+                R u OK today?
+              </h1>
+            </div>
           </div>
-          <h1 className="font-semibold text-slate-800 dark:text-slate-200 px-2">
-            R u OK today?
-          </h1>
-          <OrganizationSwitcher />
         </SidebarHeader>
-        <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
+        <SidebarContent className="gap-5 hide-scrollbar min-w-0 overflow-x-hidden">
+          <SidebarGroup className="p-1.5 min-w-0">
+            <SidebarGroupContent className="min-w-0">
+              <SidebarMenu className="gap-0.5 min-w-0">
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => router.push("/manager/view")}
                     isActive={pathname === "/manager/view"}
+                    className="text-base data-[active=true]:bg-slate-300 dark:data-[active=true]:bg-slate-700"
                   >
                     <Eye className="size-4" />
                     <span>View Organization</span>
@@ -132,8 +147,20 @@ export default function ManagerLayout({
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
+          <SidebarSeparator />
+          <SidebarGroup className="p-1.5 min-w-0">
+            <SidebarGroupLabel className="text-lg font-bold text-slate-900 dark:text-slate-100 px-2 py-5 tracking-tight">Your organisations</SidebarGroupLabel>
+            <SidebarGroupContent className="min-w-0 pt-1">
+              <UserOrganizationsList 
+                organizations={userOrganizations} 
+                router={router}
+                selectedOrg={selectedOrg}
+                setSelectedOrg={setSelectedOrg}
+              />
+            </SidebarGroupContent>
+          </SidebarGroup>
         </SidebarContent>
-        <SidebarFooter>
+        <SidebarFooter className="flex justify-end items-center p-3">
           <SignOutButtonSidebar />
         </SidebarFooter>
       </Sidebar>
@@ -184,6 +211,7 @@ function ManagerLayoutNav({
           <SidebarMenuButton
             onClick={() => router.push("/manager/edit")}
             isActive={pathname === "/manager/edit"}
+            className="text-base data-[active=true]:bg-slate-300 dark:data-[active=true]:bg-slate-700"
           >
             <Edit className="size-4" />
             <span>Edit Organization</span>
@@ -195,6 +223,7 @@ function ManagerLayoutNav({
           <SidebarMenuButton
             onClick={() => router.push("/manager/managers")}
             isActive={pathname === "/manager/managers"}
+            className="text-base data-[active=true]:bg-slate-300 dark:data-[active=true]:bg-slate-700"
           >
             <Users className="size-4" />
             <span>Viewer Access</span>
@@ -205,6 +234,7 @@ function ManagerLayoutNav({
         <SidebarMenuButton
           onClick={() => router.push("/manager/account")}
           isActive={pathname === "/manager/account"}
+          className="text-base data-[active=true]:bg-slate-300 dark:data-[active=true]:bg-slate-700"
         >
           <UserCog className="size-4" />
           <span>Account Settings</span>
@@ -214,37 +244,102 @@ function ManagerLayoutNav({
   );
 }
 
-function OrganizationSwitcher() {
-  const router = useRouter();
-  const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
+function UserOrganizationsList({
+  organizations,
+  router,
+  selectedOrg,
+  setSelectedOrg,
+}: {
+  organizations: Array<{ _id: string; organisation: string; role: string }> | undefined;
+  router: AppRouterInstance;
+  selectedOrg: string | null;
+  setSelectedOrg: (org: string | null) => void;
+}) {
+  if (!organizations || organizations.length === 0) {
+    return null;
+  }
 
-  useEffect(() => {
+  // Group organizations by role
+  const ownerOrgs = organizations.filter((org) => org.role === "owner");
+  const editorOrgs = organizations.filter((org) => org.role === "editor");
+  const viewerOrgs = organizations.filter((org) => org.role === "viewer");
+
+  const handleOrgClick = (orgName: string) => {
+    localStorage.setItem("selectedOrganization", orgName);
+    setSelectedOrg(orgName);
+    // Dispatch a custom event to notify other components
     if (typeof window !== "undefined") {
-      const org = localStorage.getItem("selectedOrganization");
-      setSelectedOrg(org);
+      window.dispatchEvent(new Event("organizationChanged"));
     }
-  }, []);
-
-  const displayName = selectedOrg || "No Organization";
+    router.push("/manager/view");
+    router.refresh();
+  };
 
   return (
-    <div className="px-2 py-2">
-      <button
-        onClick={() => {
-          // Clear selected organization and go to selection page
-          localStorage.removeItem("selectedOrganization");
-          router.push("/select-organization");
-        }}
-        className="w-full flex items-center gap-2 px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-sm"
-      >
-        <Building2 className="size-4 text-slate-600 dark:text-slate-400" />
-        <div className="flex-1 text-left">
-          <div className="text-xs text-slate-500 dark:text-slate-400">Organization</div>
-          <div className="font-medium text-slate-800 dark:text-slate-200 truncate">
-            {displayName}
+    <div className="flex flex-col gap-2">
+      {ownerOrgs.length > 0 && (
+        <div>
+          <div className="text-sm font-medium text-slate-600 dark:text-slate-400 px-2 py-1 uppercase tracking-wide">
+            Owner
           </div>
+          <SidebarMenu className="gap-0.5 min-w-0">
+            {ownerOrgs.map((org) => (
+              <SidebarMenuItem key={org._id} className="min-w-0">
+                <SidebarMenuButton
+                  onClick={() => handleOrgClick(org.organisation)}
+                  isActive={selectedOrg === org.organisation}
+                  className="w-full min-w-0 text-base data-[active=true]:bg-slate-300 dark:data-[active=true]:bg-slate-700"
+                >
+                  <Building2 className="size-4 shrink-0" />
+                  <span className="truncate min-w-0">{org.organisation}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
         </div>
-      </button>
+      )}
+      {editorOrgs.length > 0 && (
+        <div>
+          <div className="text-sm font-medium text-slate-600 dark:text-slate-400 px-2 py-1 uppercase tracking-wide">
+            Editor
+          </div>
+          <SidebarMenu className="gap-0.5">
+            {editorOrgs.map((org) => (
+              <SidebarMenuItem key={org._id}>
+                <SidebarMenuButton
+                  onClick={() => handleOrgClick(org.organisation)}
+                  isActive={selectedOrg === org.organisation}
+                  className="w-full text-base data-[active=true]:bg-slate-300 dark:data-[active=true]:bg-slate-700"
+                >
+                  <Building2 className="size-4" />
+                  <span className="truncate">{org.organisation}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </div>
+      )}
+      {viewerOrgs.length > 0 && (
+        <div>
+          <div className="text-sm font-medium text-slate-600 dark:text-slate-400 px-2 py-1 uppercase tracking-wide">
+            Viewer
+          </div>
+          <SidebarMenu className="gap-0.5">
+            {viewerOrgs.map((org) => (
+              <SidebarMenuItem key={org._id}>
+                <SidebarMenuButton
+                  onClick={() => handleOrgClick(org.organisation)}
+                  isActive={selectedOrg === org.organisation}
+                  className="w-full text-base data-[active=true]:bg-slate-300 dark:data-[active=true]:bg-slate-700"
+                >
+                  <Building2 className="size-4" />
+                  <span className="truncate">{org.organisation}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </div>
+      )}
     </div>
   );
 }
@@ -253,21 +348,18 @@ function SignOutButtonSidebar() {
   const { signOut } = useAuthActions();
   const router = useRouter();
   return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <SidebarMenuButton
-          onClick={() =>
-            void signOut().then(() => {
-              // Clear organization selection from localStorage
-              localStorage.removeItem("selectedOrganization");
-              router.push("/signin");
-            })
-          }
-        >
-          <LogOut className="size-4" />
-          <span>Sign Out</span>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-    </SidebarMenu>
+    <button
+      onClick={() =>
+        void signOut().then(() => {
+          // Clear organization selection from localStorage
+          localStorage.removeItem("selectedOrganization");
+          router.push("/signin");
+        })
+      }
+      className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+    >
+      <LogOut className="size-4" />
+      <span>Sign Out</span>
+    </button>
   );
 }

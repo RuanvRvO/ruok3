@@ -11,10 +11,24 @@ export default function ViewOrganizationPage() {
 
   // Get selected organization from localStorage
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const org = localStorage.getItem("selectedOrganization");
-      setSelectedOrg(org);
-    }
+    const updateSelectedOrg = () => {
+      if (typeof window !== "undefined") {
+        const org = localStorage.getItem("selectedOrganization");
+        setSelectedOrg(org);
+      }
+    };
+
+    // Initial load
+    updateSelectedOrg();
+
+    // Listen for organization changes
+    window.addEventListener("organizationChanged", updateSelectedOrg);
+    window.addEventListener("storage", updateSelectedOrg);
+
+    return () => {
+      window.removeEventListener("organizationChanged", updateSelectedOrg);
+      window.removeEventListener("storage", updateSelectedOrg);
+    };
   }, []);
 
   // Support both old users (with surname field) and new users (full name in name field)
