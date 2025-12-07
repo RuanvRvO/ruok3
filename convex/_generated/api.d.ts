@@ -17,6 +17,9 @@ import type * as http from "../http.js";
 import type * as managerInvitations from "../managerInvitations.js";
 import type * as moodCheckins from "../moodCheckins.js";
 import type * as organizationMemberships from "../organizationMemberships.js";
+import type * as passwordCrypto from "../passwordCrypto.js";
+import type * as passwordReset from "../passwordReset.js";
+import type * as passwordResetActions from "../passwordResetActions.js";
 import type * as users from "../users.js";
 
 import type {
@@ -35,6 +38,9 @@ declare const fullApi: ApiFromModules<{
   managerInvitations: typeof managerInvitations;
   moodCheckins: typeof moodCheckins;
   organizationMemberships: typeof organizationMemberships;
+  passwordCrypto: typeof passwordCrypto;
+  passwordReset: typeof passwordReset;
+  passwordResetActions: typeof passwordResetActions;
   users: typeof users;
 }>;
 

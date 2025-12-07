@@ -72,6 +72,17 @@ const schema = defineSchema({
     .index("by_organisation", ["organisation"])
     .index("by_date", ["date"])
     .index("by_organisation_and_date", ["organisation", "date"]),
+  passwordResets: defineTable({
+    email: v.string(),
+    token: v.string(),
+    userId: v.id("users"),
+    expiresAt: v.number(),
+    used: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_token", ["token"])
+    .index("by_email", ["email"])
+    .index("by_user", ["userId"]),
 });
 
 export default schema;

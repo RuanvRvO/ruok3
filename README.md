@@ -31,11 +31,8 @@ After the initial setup (<2 minutes) you'll have a working full-stack app using:
 -signup as viewer removes you from invite list and gives access to the org owners perspective and their details are being used
 -merge user tables to save all user data, each row should state email password and such, but also which org and type of role they have in the org from owner viewer or editor, then when someone logs in, if the same email is used that user can choose which org to access after logged in on the left sidebar as they are listed there
 
-##
-restructure: 
-  on home page, a user should only be able to sign it or sign up with email and password (add email authentication and forgot password)
-  then when logged in, if the user has no org, there is a button to create or and all orgs you have access to will be listed to click between
-  then when someone sends you an invite link, then you get take to a page where you accept that you want your account to have access to that orgs info, but if the user doesnt have an account, they are redirected to signup page first, after which they can accept the view only accesss
+
+- when creating account and having no orgs, show something other than loading bubble
   
     
 ## idea
@@ -46,3 +43,16 @@ restructure:
 
 ## investigate
 - when a user changes org name - how does it effect other managers given access to that org? (make user tied to org id not name)
+
+## Features
+
+### Password Reset
+Password reset functionality is implemented using bcryptjs for consistent password hashing.
+
+**How it works:**
+- Users can request a password reset link via email
+- The system sends a secure token via Resend
+- Users can set a new password using the reset link
+- All new accounts use bcryptjs for password hashing
+
+**Note:** Accounts created before the bcryptjs implementation may need to be recreated if password reset is needed.

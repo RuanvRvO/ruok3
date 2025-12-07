@@ -179,7 +179,15 @@ export default function ViewOrganizationPage() {
     );
   }
 
-  if (user === undefined || isLoading) {
+  // Check if user has any organization memberships (to determine if truly new)
+  const userOrgs = useQuery(api.organizationMemberships.getUserOrganizations);
+  
+  // Check if this is a new user with no employees
+  const isNewUser = employees && employees.length === 0;
+  const isFirstTimeUser = userOrgs !== undefined && userOrgs.length === 0;
+
+  // Show loading state only if we don't have user data yet
+  if (user === undefined) {
     return (
       <div className="mx-auto">
         <div className="flex items-center gap-2">
@@ -198,8 +206,77 @@ export default function ViewOrganizationPage() {
     );
   }
 
-  // Check if this is a new user with no employees
-  const isNewUser = employees && employees.length === 0;
+  // Show welcome page for first-time users (users with no organization memberships)
+  // Don't wait for employees to load - if they have no orgs, show welcome page
+  if (userOrgs !== undefined && isFirstTimeUser && !accessError) {
+    return (
+      <div className="flex flex-col gap-10 px-4 md:px-8 py-8 mx-auto w-full max-w-4xl">
+        <div className="text-center">
+          <div className="text-6xl mb-6">🎉</div>
+          <h1 className="font-bold text-4xl text-slate-900 dark:text-slate-100 mb-4">
+            Welcome, {viewer ?? "there"}!
+          </h1>
+          <p className="text-xl text-slate-600 dark:text-slate-400 mb-8">
+            You've successfully created your account. Let's get you started!
+          </p>
+        </div>
+        
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900 dark:to-indigo-900 rounded-2xl border-2 border-blue-200 dark:border-blue-700 p-8">
+          <div className="text-center max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6">
+              What's Next?
+            </h2>
+            <div className="flex flex-col gap-6 items-start text-left">
+              <div className="flex items-start gap-4 w-full">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-500 text-white font-bold text-lg flex-shrink-0">
+                  1
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200 mb-2">
+                    Join or Create an Organization
+                  </h3>
+                  <p className="text-slate-600 dark:text-slate-400">
+                    You can join an organization by accepting an invitation link, or create your own organization from the sidebar.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4 w-full">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-500 text-white font-bold text-lg flex-shrink-0">
+                  2
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200 mb-2">
+                    Add Employees
+                  </h3>
+                  <p className="text-slate-600 dark:text-slate-400">
+                    Once you have an organization, add employees who will receive daily wellbeing check-ins.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4 w-full">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-500 text-white font-bold text-lg flex-shrink-0">
+                  3
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200 mb-2">
+                    Track Wellbeing
+                  </h3>
+                  <p className="text-slate-600 dark:text-slate-400">
+                    Monitor your team's wellbeing trends and respond to those who need support.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="mt-8 pt-6 border-t border-blue-200 dark:border-blue-700">
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Use the sidebar to navigate and get started!
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-10 px-4 md:px-8 py-8 mx-auto w-full max-w-full md:max-w-[90%] lg:max-w-[80%] min-w-[777px]">
@@ -347,7 +424,7 @@ export default function ViewOrganizationPage() {
           <div className="h-px bg-slate-200 dark:bg-slate-700 my-4"></div>
 
           {/* Group Filter and Graph */}
-          {groups.length > 0 && (
+          {groups && groups.length > 0 && (
             <div className="flex flex-col gap-6">
               {/* Group Filter Tabs */}
               <div className="flex flex-col gap-3">

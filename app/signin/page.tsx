@@ -123,6 +123,7 @@ export default function SignIn() {
 
               if (errorMessage.includes("InvalidSecret") || errorMessage.includes("Invalid credentials")) {
                 setError("Incorrect email or password");
+                // Show forgot password option
               } else if (errorMessage.includes("InvalidAccountId")) {
                 setError("Account not found");
               } else if (errorMessage.includes("TooManyFailedAttempts")) {
@@ -257,6 +258,14 @@ export default function SignIn() {
             <p className="text-rose-700 dark:text-rose-300 font-medium text-sm break-words">
               Error: {error}
             </p>
+            {error.includes("Incorrect email or password") && (
+              <Link
+                href="/forgot-password"
+                className="text-blue-600 dark:text-blue-400 hover:underline text-sm mt-2 block"
+              >
+                Forgot password?
+              </Link>
+            )}
           </div>
         )}
       </form>
