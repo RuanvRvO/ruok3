@@ -227,6 +227,121 @@ export default function AcceptInvitation() {
     };
   }, []);
 
+  // Automatic continuation when authentication is ready (for both new signups AND existing user sign-ins)
+  useEffect(() => {
+    if (!waitingForAuth || !pendingTokenRef.current || !token) {
+      return;
+    }
+
+    if (currentUserId && isAuthenticated) {
+      setWaitingForAuth(false);
+      const tokenToUse = pendingTokenRef.current;
+      pendingTokenRef.current = null;
+
+      const continueInvitation = async () => {
+        try {
+          // Check if this is for a new user (signup) or existing user (signin)
+          // If user already exists and has email, use acceptInvitationForExistingUser
+          // Otherwise use acceptInvitation for new users
+          const isExistingUser = currentUser?.email !== undefined;
+          
+          if (isExistingUser) {
+            setLoadingMessage("Adding you to the organization...");
+            const result = await acceptInvitationForExistingUser({ token: tokenToUse });
+            
+            // Check if user already has access
+            if (result?.alreadyHasAccess) {
+              const roleDisplayName = result.existingRole === "owner" ? "Owner" : 
+                                     result.existingRole === "editor" ? "Editor" : "Viewer";
+              setLoadingMessage(null);
+              setLoading(false);
+              setWaitingForAuth(false);
+              setError(`You already have ${roleDisplayName} access to this organization.`);
+              return;
+            }
+            
+            // For existing users, wait for organizations query to update
+            setLoadingMessage("Finalizing access...");
+            let orgs: Array<{ organisation: string }> | undefined = undefined;
+            const initialCount = userOrganizations?.length || 0;
+            
+            // Poll until organizations have updated
+            for (let i = 0; i < 100; i++) { // 100 * 200ms = 20 seconds max
+              await new Promise(resolve => setTimeout(resolve, 200));
+              if (userOrganizations) {
+                const currentCount = userOrganizations.length;
+                if (currentCount > initialCount || currentCount >= 1) {
+                  orgs = userOrganizations;
+                  break;
+                }
+              }
+            }
+            
+            // If still no orgs, use current query result
+            if (!orgs && userOrganizations) {
+              orgs = userOrganizations;
+            }
+            
+            // Auto-select first organization if available
+            if (orgs && orgs.length > 0) {
+              const org = orgs[0];
+              localStorage.setItem("selectedOrganization", org.organisation);
+            }
+            
+            // Always redirect to manager view
+            setLoadingMessage(null);
+            router.push("/manager/view");
+          } else {
+            // New user signup flow
+            setLoadingMessage("Completing setup...");
+            await acceptInvitation({ token: tokenToUse, userId: currentUserId as Id<"users"> });
+            
+            // Wait for organizations query to update
+            setLoadingMessage("Finalizing access...");
+            let orgs: Array<{ organisation: string }> | undefined = undefined;
+            const initialCount = userOrganizations?.length || 0;
+            
+            for (let i = 0; i < 40; i++) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+              if (userOrganizations) {
+                const currentCount = userOrganizations.length;
+                if (currentCount > initialCount || currentCount >= 1) {
+                  orgs = userOrganizations;
+                  break;
+                }
+              }
+            }
+            
+            if (!orgs && userOrganizations) {
+              orgs = userOrganizations;
+            }
+            
+            if (!orgs || orgs.length === 0) {
+              console.log("Organization membership created but query hasn't updated yet. Redirecting anyway.");
+              isSigningUpRef.current = false;
+              setLoadingMessage(null);
+              router.push("/manager/view");
+              return;
+            }
+            
+            const org = orgs[0];
+            localStorage.setItem("selectedOrganization", org.organisation);
+            isSigningUpRef.current = false;
+            setLoadingMessage(null);
+            router.push("/manager/view");
+          }
+        } catch (err: unknown) {
+          console.error("Failed to accept invitation automatically:", err);
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          setError(errorMessage || "Failed to complete setup. Please try refreshing the page.");
+          setLoading(false);
+          setLoadingMessage(null);
+        }
+      };
+      continueInvitation();
+    }
+  }, [currentUserId, isAuthenticated, waitingForAuth, token, currentUser, acceptInvitationForExistingUser, acceptInvitation, userOrganizations, router]);
+
   if (!token || invitation === undefined || emailExists === undefined) {
     return (
       <div className="flex flex-col gap-8 w-full max-w-lg mx-auto h-screen justify-center items-center px-4">
@@ -457,19 +572,37 @@ export default function AcceptInvitation() {
             
             // Wait for authentication to be fully established before calling mutation
             // The mutation requires authentication, so we need to ensure it's ready
-            // IMPORTANT: React query values are captured in closure, so wait fixed time
-            await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds for auth to initialize
+            // IMPORTANT: React query values are captured in closure, so wait fixed time initially
+            setLoadingMessage("Verifying access...");
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds initially
             
-            // Check if auth is ready (values from closure, but should be updated after wait)
-            if (!isAuthenticated || !currentUserId) {
-              setError("Authentication is still initializing. Please wait a moment and try again.");
-              setLoading(false);
-              return;
+            let userId: string | null = currentUserId || null;
+
+            if (!userId) {
+              // Auth not ready yet - set flags and let useEffect automatically continue when ready
+              setWaitingForAuth(true);
+              pendingTokenRef.current = token;
+              // Keep loading state active - don't clear loading or loadingMessage
+              // The useEffect will automatically continue when currentUserId becomes available
+              return; // Exit early - useEffect will handle continuation automatically
             }
+            
+            // Auth is ready, continue with invitation acceptance
+            setLoadingMessage("Adding you to the organization...");
             
             try {
               // For existing users, use acceptInvitationForExistingUser (checks email matching)
-              await acceptInvitationForExistingUser({ token });
+              const result = await acceptInvitationForExistingUser({ token });
+              
+              // Check if user already has access
+              if (result?.alreadyHasAccess) {
+                const roleDisplayName = result.existingRole === "owner" ? "Owner" : 
+                                       result.existingRole === "editor" ? "Editor" : "Viewer";
+                setLoadingMessage(null);
+                setError(`You already have ${roleDisplayName} access to this organization.`);
+                setLoading(false);
+                return;
+              }
               
               // After accepting invitation, wait for organizations query to update
               // Poll until we get the updated organization list

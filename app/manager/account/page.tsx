@@ -235,16 +235,6 @@ export default function AccountSettingsPage() {
           )}
         </form>
       </div>
-
-      {/* Password Change Section */}
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6">
-        <h2 className="font-semibold text-xl text-slate-900 dark:text-slate-100 mb-2">
-          Password
-        </h2>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-          Password changes are not currently supported. Contact support if you need to reset your password.
-        </p>
-      </div>
     </div>
   );
 }

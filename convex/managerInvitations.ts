@@ -204,17 +204,33 @@ export const acceptInvitation = mutation({
       .first();
 
     if (existingMembership) {
-      // User already has access - update the role to match invitation (but don't downgrade from owner)
-      if (existingMembership.role === "owner") {
-        // Keep owner role, don't change it
-        // Don't mark invitation as accepted - allow reuse
-        return { success: true, message: "User already has owner access" };
-      } else {
-        // Update existing membership to match invitation role
-        await ctx.db.patch(existingMembership._id, {
-          role: invitation.role,
-        });
+      // Define role hierarchy for comparison
+      const roleHierarchy: Record<string, number> = {
+        "owner": 3,
+        "editor": 2,
+        "viewer": 1
+      };
+      
+      const existingRoleLevel = roleHierarchy[existingMembership.role] || 0;
+      const invitationRoleLevel = roleHierarchy[invitation.role] || 0;
+      
+      // Check if user already has equal or higher access
+      if (existingRoleLevel >= invitationRoleLevel) {
+        // Return success but with a message indicating they already have access
+        // Don't throw an error - just return gracefully
+        return { 
+          success: true, 
+          alreadyHasAccess: true,
+          existingRole: existingMembership.role 
+        };
       }
+      
+      // User has lower access, upgrade their role
+      await ctx.db.patch(existingMembership._id, {
+        role: invitation.role,
+      });
+      
+      return { success: true, upgraded: true };
     } else {
       // Create organization membership for the user
       const membershipId = await ctx.db.insert("organizationMemberships", {
@@ -284,7 +300,33 @@ export const acceptInvitationForExistingUser = mutation({
       .first();
 
     if (existingMembership) {
-      throw new Error("You already have access to this organization");
+      // Define role hierarchy for comparison
+      const roleHierarchy: Record<string, number> = {
+        "owner": 3,
+        "editor": 2,
+        "viewer": 1
+      };
+      
+      const existingRoleLevel = roleHierarchy[existingMembership.role] || 0;
+      const invitationRoleLevel = roleHierarchy[invitation.role] || 0;
+      
+      // Check if user already has equal or higher access
+      if (existingRoleLevel >= invitationRoleLevel) {
+        // Return success but with a message indicating they already have access
+        // Don't throw an error - just return gracefully
+        return { 
+          success: true, 
+          alreadyHasAccess: true,
+          existingRole: existingMembership.role 
+        };
+      }
+      
+      // User has lower access, upgrade their role
+      await ctx.db.patch(existingMembership._id, {
+        role: invitation.role,
+      });
+      
+      return { success: true, upgraded: true };
     }
 
     // Create organization membership for this user

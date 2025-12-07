@@ -310,7 +310,7 @@ export default function EditOrganizationPage() {
         </div>
       )}
 
-      <div>
+      <div className="text-center">
         <h2 className="font-bold text-2xl text-slate-800 dark:text-slate-200">
           Organization Management - {viewer ?? "Anonymous"}
         </h2>
@@ -319,8 +319,8 @@ export default function EditOrganizationPage() {
         </p>
       </div>
 
-      {/* Three Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Two Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* LEFT COLUMN - Employee Management */}
         <div className="flex flex-col gap-6">
@@ -485,58 +485,8 @@ export default function EditOrganizationPage() {
         </div>
         {/* END MIDDLE COLUMN */}
 
-        {/* RIGHT COLUMN - Features Coming Soon */}
-        <div className="flex flex-col gap-6">
-          <div className="text-center pb-2 border-b-2 border-slate-200 dark:border-slate-700">
-            <h3 className="font-bold text-xl text-slate-800 dark:text-slate-200">
-              Features Coming Soon
-            </h3>
-          </div>
-
-          <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-8">
-            <div className="flex flex-col gap-4">
-              <div className="bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-4">
-                <h4 className="font-semibold text-slate-800 dark:text-slate-200 mb-2 flex items-center gap-2">
-                  <span className="text-2xl">👥</span>
-                  Super Users
-                </h4>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  Assign elevated permissions to specific users within your organization.
-                </p>
-              </div>
-
-              <div className="bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-4">
-                <h4 className="font-semibold text-slate-800 dark:text-slate-200 mb-2 flex items-center gap-2">
-                  <span className="text-2xl">👁️</span>
-                  View-Only Managers
-                </h4>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  Grant read-only access to managers who need to view but not edit data.
-                </p>
-              </div>
-
-              <div className="bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-4">
-                <h4 className="font-semibold text-slate-800 dark:text-slate-200 mb-2 flex items-center gap-2">
-                  <span className="text-2xl">🏢</span>
-                  Multiple Organizations
-                </h4>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  Manage multiple organizations from a single account with easy switching.
-                </p>
-              </div>
-
-              <div className="mt-4 text-center">
-                <p className="text-xs text-slate-500 dark:text-slate-400 italic">
-                  These features are in development and will be available soon!
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-        {/* END RIGHT COLUMN */}
-
       </div>
-      {/* END THREE COLUMN LAYOUT */}
+      {/* END TWO COLUMN LAYOUT */}
     </div>
   );
 }

@@ -24,9 +24,11 @@ export default function SignIn() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
   const [email, setEmail] = useState(invitationEmail || "");
   const router = useRouter();
   const signInErrorRef = useRef(false); // Track if sign-in failed to prevent redirect
+  const [waitingForAuth, setWaitingForAuth] = useState(false);
 
   // Show success message when redirected from signup
   useEffect(() => {
@@ -43,6 +45,36 @@ export default function SignIn() {
       router.push(`/accept-invitation?token=${encodeURIComponent(invitationToken)}${emailParam}`);
     }
   }, [invitationToken, invitationEmail, router]);
+
+  // Automatic continuation when authentication is ready
+  useEffect(() => {
+    if (!waitingForAuth || !loading) {
+      return;
+    }
+
+    if (isAuthenticated) {
+      setWaitingForAuth(false);
+      setLoadingMessage(null);
+
+      const continueSignIn = async () => {
+        try {
+          // If user has organizations, auto-select the first one
+          if (organizations && organizations.length > 0) {
+            const org = organizations[0];
+            localStorage.setItem("selectedOrganization", org.organisation);
+          }
+
+          // Always redirect to manager view (sidebar will show all orgs)
+          router.push("/manager/view");
+        } catch (err) {
+          console.error("Failed to complete sign-in:", err);
+          setError("An error occurred. Please try refreshing the page.");
+          setLoading(false);
+        }
+      };
+      continueSignIn();
+    }
+  }, [isAuthenticated, waitingForAuth, loading, organizations, router]);
 
   return (
     <div className="flex flex-col gap-8 w-full max-w-lg mx-auto h-screen justify-center items-center px-4">
@@ -151,19 +183,23 @@ export default function SignIn() {
                 return;
               }
               
-              // Wait for authentication, then redirect to manager view
-              // All organizations will be shown in the sidebar
-              let isAuthReady = false;
-              for (let i = 0; i < 20; i++) {
-                await new Promise(resolve => setTimeout(resolve, 200));
-                if (isAuthenticated) {
-                  isAuthReady = true;
-                  break;
-                }
+              // Show loading message while waiting for authentication
+              setLoadingMessage("Getting your dashboard ready...");
+              
+              // Wait a bit initially for authentication to initialize
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              
+              // If not authenticated yet, set flag to wait for it
+              if (!isAuthenticated) {
+                setWaitingForAuth(true);
+                return; // useEffect will handle the continuation
               }
               
+              // If authenticated, proceed immediately
+              setLoadingMessage(null);
+              
               // If user has organizations, auto-select the first one
-              if (isAuthReady && organizations && organizations.length > 0) {
+              if (organizations && organizations.length > 0) {
                 const org = organizations[0];
                 localStorage.setItem("selectedOrganization", org.organisation);
               }
@@ -230,11 +266,23 @@ export default function SignIn() {
           disabled={loading}
         >
           {loading
-            ? "Loading..."
+            ? (loadingMessage || "Loading...")
             : flow === "signIn"
             ? "Sign In"
             : "Sign Up"}
         </button>
+        
+        {/* Loading indicator with message */}
+        {loading && loadingMessage && (
+          <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
+              <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
+              <div className="w-2 h-2 bg-slate-600 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+            </div>
+            <p className="text-slate-600 dark:text-slate-400 text-sm">{loadingMessage}</p>
+          </div>
+        )}
         <div className="flex flex-row gap-2 text-sm justify-center">
           <span className="text-slate-600 dark:text-slate-400">
             {flow === "signIn"
