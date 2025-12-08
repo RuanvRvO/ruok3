@@ -295,6 +295,14 @@ export default function SignIn() {
             ? "Sign In"
             : "Sign Up"}
         </button>
+        {flow === "signIn" && (
+          <Link
+            href="/forgot-password"
+            className="text-blue-600 dark:text-blue-400 hover:underline text-sm mt-1 text-center"
+          >
+            Forgot password?
+          </Link>
+        )}
         
         {/* Loading indicator with message */}
         {loading && loadingMessage && (
@@ -330,14 +338,6 @@ export default function SignIn() {
             <p className="text-rose-700 dark:text-rose-300 font-medium text-sm break-words">
               Error: {error}
             </p>
-            {error.includes("Incorrect email or password") && (
-              <Link
-                href="/forgot-password"
-                className="text-blue-600 dark:text-blue-400 hover:underline text-sm mt-2 block"
-              >
-                Forgot password?
-              </Link>
-            )}
           </div>
         )}
       </form>
