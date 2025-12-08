@@ -281,11 +281,6 @@ export default function ViewOrganizationPage() {
   return (
     <div className="flex flex-col gap-10 px-4 md:px-8 py-8 mx-auto w-full max-w-full md:max-w-[90%] lg:max-w-[80%] min-w-[777px]">
       <div className="text-center">
-        {user?.organisation && (
-          <h2 className="text-lg font-semibold text-slate-600 dark:text-slate-400 mb-2">
-            {user.organisation}
-          </h2>
-        )}
         <h1 className="font-bold text-3xl text-slate-900 dark:text-slate-100 mb-3">
           Welcome {viewer ?? "Anonymous"}!
         </h1>
