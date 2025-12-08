@@ -19,6 +19,10 @@ export default function SignIn() {
   const invitationToken = searchParams.get("token");
   const invitationEmail = searchParams.get("email");
   const organizations = useQuery(api.organizationMemberships.getUserOrganizations);
+  const emailExists = useQuery(
+    api.users.checkEmailExists,
+    email && email.trim().length > 0 ? { email: email.trim() } : "skip"
+  );
 
   const [flow, setFlow] = useState<"signIn" | "signUp">(initialFlow);
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +129,13 @@ export default function SignIn() {
 
           // Check if passwords match during sign up
           if (flow === "signUp") {
+            if (emailExists === true) {
+              setError("An account with this email already exists. Please sign in instead.");
+              setLoading(false);
+              setFlow("signIn");
+              return;
+            }
+
             const password = formData.get("password") as string;
             const confirmPassword = formData.get("confirmPassword") as string;
             if (password !== confirmPassword) {
@@ -147,21 +158,34 @@ export default function SignIn() {
           formData.set("flow", flow);
           signInErrorRef.current = false; // Reset error flag
           
+          // If signing up and we already have an account (or haven't loaded the check yet), do not proceed.
+          if (flow === "signUp" && emailExists !== false) {
+            setError("An account with this email already exists. Please sign in instead.");
+            setLoading(false);
+            setFlow("signIn");
+            return;
+          }
+
           void signIn("password", formData)
             .catch((error) => {
-              const errorMessage = error.message;
-              
+              const errorMessage = error?.message ?? "";
+
               signInErrorRef.current = true; // Set flag to prevent redirect
 
-              if (errorMessage.includes("InvalidSecret") || errorMessage.includes("Invalid credentials")) {
-                setError("Incorrect email or password");
-                // Show forgot password option
-              } else if (errorMessage.includes("InvalidAccountId")) {
-                setError("Account not found");
+              if (
+                errorMessage.includes("InvalidSecret") ||
+                errorMessage.includes("Invalid credentials") ||
+                errorMessage.includes("InvalidAccountId")
+              ) {
+                setError("Account / password incorrect or doesn't exist");
               } else if (errorMessage.includes("TooManyFailedAttempts")) {
                 setError("Too many failed attempts. Please try again later");
-              } else if (errorMessage.includes("Account with this email already exists") || errorMessage.includes("already exists")) {
+              } else if (
+                errorMessage.includes("Account with this email already exists") ||
+                errorMessage.includes("already exists")
+              ) {
                 setError("An account with this email already exists. Please sign in instead.");
+                setFlow("signIn");
               } else {
                 setError("An error occurred. Please try again");
               }
