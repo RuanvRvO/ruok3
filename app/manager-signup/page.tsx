@@ -17,7 +17,9 @@ export default function ManagerSignUp() {
   // Check if user with this email already exists
   const userExists = useQuery(
     api.users.checkEmailExists,
-    invitation && !invitation.isExpired ? { email: invitation.email } : "skip"
+    invitation && !invitation.isExpired && typeof invitation.email === "string"
+      ? { email: invitation.email }
+      : "skip"
   );
 
   const [error, setError] = useState<string | null>(null);
