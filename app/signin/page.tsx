@@ -19,17 +19,16 @@ export default function SignIn() {
   const invitationToken = searchParams.get("token");
   const invitationEmail = searchParams.get("email");
   const organizations = useQuery(api.organizationMemberships.getUserOrganizations);
-  const emailExists = useQuery(
-    api.users.checkEmailExists,
-    email && email.trim().length > 0 ? { email: email.trim() } : "skip"
-  );
-
   const [flow, setFlow] = useState<"signIn" | "signUp">(initialFlow);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
   const [email, setEmail] = useState(invitationEmail || "");
+  const emailExists = useQuery(
+    api.users.checkEmailExists,
+    email && email.trim().length > 0 ? { email: email.trim() } : "skip"
+  );
   const router = useRouter();
   const signInErrorRef = useRef(false); // Track if sign-in failed to prevent redirect
   const [waitingForAuth, setWaitingForAuth] = useState(false);
@@ -72,7 +71,10 @@ export default function SignIn() {
           router.push("/manager/view");
         } catch (err) {
           console.error("Failed to complete sign-in:", err);
-          setError("An error occurred. Please try refreshing the page.");
+          const message =
+            (err as Error)?.message?.toString().trim() ||
+            "Failed to complete sign-in. Please refresh and try again.";
+          setError(message);
           setLoading(false);
         }
       };
@@ -187,7 +189,13 @@ export default function SignIn() {
                 setError("An account with this email already exists. Please sign in instead.");
                 setFlow("signIn");
               } else {
-                setError("An error occurred. Please try again");
+                const isNetwork =
+                  errorMessage.toLowerCase().includes("network") ||
+                  errorMessage.toLowerCase().includes("fetch");
+                const fallback = isNetwork
+                  ? "Network error. Please check your connection and try again."
+                  : `Unexpected error: ${errorMessage || "Please try again or contact support."}`;
+                setError(fallback);
               }
 
               setLoading(false);

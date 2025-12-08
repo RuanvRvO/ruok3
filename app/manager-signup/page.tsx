@@ -116,7 +116,14 @@ export default function ManagerSignUp() {
       // The user will create their account through normal signup, then accept the invitation
       router.push(`/signin?flow=signup&returnTo=/accept-invitation?token=${token}`);
     } catch (err: any) {
-      setError(err.message || "Failed to proceed");
+      const msg = err?.message?.toString() || "";
+      const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
+      setError(
+        msg ||
+          (isNetwork
+            ? "Network error while redirecting. Please check your connection and try again."
+            : "Could not continue signup. Please try again.")
+      );
       setLoading(false);
     }
   };

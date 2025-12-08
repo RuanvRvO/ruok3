@@ -99,11 +99,18 @@ export default function EditOrganizationPage() {
         setFirstName("");
         setEmail("");
       } else {
-        setErrorMessage(result.error || "Failed to add employee. Please try again.");
+        setErrorMessage(result.error || "Could not add employee. Please verify details and try again.");
       }
     } catch (error: any) {
       // Handle unexpected errors
-      setErrorMessage("Failed to add employee. Please try again.");
+      const msg = error?.message?.toString() || "";
+      const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
+      setErrorMessage(
+        msg ||
+          (isNetwork
+            ? "Network error while adding employee. Check your connection and try again."
+            : "Could not add employee due to an unexpected error. Please try again.")
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -118,9 +125,13 @@ export default function EditOrganizationPage() {
         organisation: selectedOrg
       });
       setEmployeeToDelete(null);
-    } catch (error) {
+    } catch (error: any) {
       setEmployeeToDelete(null);
-      setErrorMessage("Failed to remove employee. Please try again.");
+      const msg = error?.message?.toString() || "";
+      setErrorMessage(
+        msg ||
+          "Could not remove employee. Please refresh and try again. If the issue persists, verify your permissions."
+      );
     }
   };
 
@@ -141,11 +152,18 @@ export default function EditOrganizationPage() {
       if (result.success) {
         setGroupName("");
       } else {
-        setErrorMessage(result.error || "Failed to add group. Please try again.");
+        setErrorMessage(result.error || "Could not add group. Please verify the name and try again.");
       }
     } catch (error: any) {
       // Handle unexpected errors
-      setErrorMessage("Failed to add group. Please try again.");
+      const msg = error?.message?.toString() || "";
+      const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
+      setErrorMessage(
+        msg ||
+          (isNetwork
+            ? "Network error while adding group. Check your connection and try again."
+            : "Could not add group due to an unexpected error. Please try again.")
+      );
     } finally {
       setIsAddingGroup(false);
     }
@@ -160,9 +178,13 @@ export default function EditOrganizationPage() {
         organisation: selectedOrg
       });
       setGroupToDelete(null);
-    } catch (error) {
+    } catch (error: any) {
       setGroupToDelete(null);
-      setErrorMessage("Failed to remove group. Please try again.");
+      const msg = error?.message?.toString() || "";
+      setErrorMessage(
+        msg ||
+          "Could not remove group. Please refresh and try again. If the issue persists, verify your permissions."
+      );
     }
   };
 
@@ -177,7 +199,8 @@ export default function EditOrganizationPage() {
       });
     } catch (error: any) {
       console.error("Failed to add member:", error);
-      alert(error?.message || "Failed to add member. Please try again.");
+      const msg = error?.message?.toString() || "";
+      alert(msg || "Could not add member. Please verify the employee and try again.");
     }
   };
 
@@ -189,9 +212,10 @@ export default function EditOrganizationPage() {
         membershipId,
         organisation: selectedOrg
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to remove member:", error);
-      alert("Failed to remove member. Please try again.");
+      const msg = error?.message?.toString() || "";
+      alert(msg || "Could not remove member. Please refresh and try again.");
     }
   };
 

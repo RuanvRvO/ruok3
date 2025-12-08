@@ -79,7 +79,8 @@ export default function InvitePage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to check email");
+        const text = await response.text();
+        throw new Error(text || "Failed to check email (server response not OK)");
       }
 
       const data = await response.json();
@@ -90,7 +91,14 @@ export default function InvitePage() {
       router.push(`/accept-invitation?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`);
     } catch (err: any) {
       console.error("Error checking email:", err);
-      setError(err.message || "Failed to check email. Please try again.");
+      const msg = err?.message?.toString() || "";
+      const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
+      setError(
+        msg ||
+          (isNetwork
+            ? "Network error while checking the email. Please check your connection and try again."
+            : "Failed to check the email address. Please try again or contact support.")
+      );
       setLoading(false);
     }
   };

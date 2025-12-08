@@ -333,7 +333,14 @@ export default function AcceptInvitation() {
         } catch (err: unknown) {
           console.error("Failed to accept invitation automatically:", err);
           const errorMessage = err instanceof Error ? err.message : String(err);
-          setError(errorMessage || "Failed to complete setup. Please try refreshing the page.");
+          const lower = errorMessage.toLowerCase();
+          const isNetwork = lower.includes("network") || lower.includes("fetch");
+          setError(
+            errorMessage ||
+              (isNetwork
+                ? "Network error while completing setup. Please check your connection and try again."
+                : "Failed to complete setup. Please try again or sign in manually, then accept the invitation.")
+          );
           setLoading(false);
           setLoadingMessage(null);
         }
@@ -557,9 +564,15 @@ export default function AcceptInvitation() {
                   setIsSignupMode(true);
                   setError("No authentication account found. Please create an account using the form below.");
                 } else if (errorString.includes("invalidsecret") || errorString.includes("invalid credentials")) {
-                  setError("Incorrect password. Please try again.");
+                  setError("Incorrect password. Please try again or reset it.");
                 } else {
-                  setError(errorMessage || "Failed to sign in. Please try again.");
+                  const isNetwork = errorString.includes("network") || errorString.includes("fetch");
+                  setError(
+                    errorMessage ||
+                      (isNetwork
+                        ? "Network error during sign in. Please check your connection and try again."
+                        : "Failed to sign in. Please try again or reset your password.")
+                  );
                 }
                 setLoading(false);
               }, 0);
@@ -637,7 +650,14 @@ export default function AcceptInvitation() {
               router.push("/manager/view");
             } catch (err: unknown) {
               const errorMessage = err instanceof Error ? err.message : String(err);
-              setError(errorMessage || "Failed to accept invitation. Please try again.");
+              const lower = errorMessage.toLowerCase();
+              const isNetwork = lower.includes("network") || lower.includes("fetch");
+              setError(
+                errorMessage ||
+                  (isNetwork
+                    ? "Network error while accepting the invitation. Please retry."
+                    : "Failed to accept invitation. Please try again or contact support.")
+              );
               setLoading(false);
             }
           });
@@ -650,9 +670,15 @@ export default function AcceptInvitation() {
           
           setTimeout(() => {
             if (errorString.includes("invalidsecret") || errorString.includes("invalid credentials")) {
-              setError("Incorrect password. Please try again.");
+              setError("Incorrect password. Please try again or reset it.");
             } else {
-              setError(errorMessage || "Failed to sign in. Please try again.");
+              const isNetwork = errorString.includes("network") || errorString.includes("fetch");
+              setError(
+                errorMessage ||
+                  (isNetwork
+                    ? "Network error during sign in. Please check your connection and try again."
+                    : "Failed to sign in. Please try again or reset your password.")
+              );
             }
             setLoading(false);
           }, 0);
@@ -720,11 +746,16 @@ export default function AcceptInvitation() {
       const errorString = errorMessage.toLowerCase();
 
       if (errorString.includes("invalidsecret") || errorString.includes("invalid credentials")) {
-        setError("Incorrect password. Please try again.");
+        setError("Incorrect password. Please try again or reset it.");
       } else if (errorString.includes("invalidaccountid")) {
         setError("Account not found. Please use the signup form below.");
       } else {
-        setError(errorMessage || (emailExists ? "Failed to sign in. Please check your password." : "Failed to create account. Please try again."));
+        setError(
+          errorMessage ||
+            (emailExists
+              ? "Failed to sign in. Please check your password or reset it."
+              : "Failed to create account. Please retry or use a different email.")
+        );
       }
       setLoading(false);
     }

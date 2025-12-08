@@ -49,13 +49,20 @@ export default function MoodResponsePage() {
           mood: mood,
         });
         setAutoSaved(true);
-      } catch (err: any) {
-        if (err?.message?.includes("ALREADY_SUBMITTED_TODAY")) {
-          setError("ALREADY_SUBMITTED");
-        } else {
-          setError("Failed to save your response. Please try again.");
-        }
-        console.error(err);
+        } catch (err: any) {
+          if (err?.message?.includes("ALREADY_SUBMITTED_TODAY")) {
+            setError("ALREADY_SUBMITTED");
+          } else {
+            const msg = err?.message?.toString() || "";
+            const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
+            setError(
+              msg ||
+                (isNetwork
+                  ? "Network error while saving your response. Please check your connection and retry."
+                  : "Could not save your response. Please retry in a moment.")
+            );
+          }
+          console.error(err);
       }
     };
 
@@ -76,7 +83,14 @@ export default function MoodResponsePage() {
       // Close the tab after successful submission
       window.close();
     } catch (err: any) {
-      setError("Failed to submit your details. Please try again.");
+      const msg = err?.message?.toString() || "";
+      const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
+      setError(
+        msg ||
+          (isNetwork
+            ? "Network error while submitting your details. Please check your connection and retry."
+            : "Could not submit your details. Please retry in a moment.")
+      );
       console.error(err);
       setIsSubmitting(false);
     }

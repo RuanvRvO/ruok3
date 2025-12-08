@@ -29,7 +29,14 @@ export default function ForgotPassword() {
       const result = await requestPasswordReset({ email: email.toLowerCase().trim() });
       setSuccess(result.message || "If an account with this email exists, a password reset link has been sent.");
     } catch (err: any) {
-      setError(err.message || "An error occurred. Please try again.");
+      const msg = err?.message?.toString() || "";
+      const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
+      setError(
+        msg ||
+          (isNetwork
+            ? "Network error while requesting a reset link. Check your connection and try again."
+            : "Could not request a reset link. Please try again shortly.")
+      );
     } finally {
       setLoading(false);
     }

@@ -64,7 +64,14 @@ export default function ResetPassword() {
         router.push("/signin");
       }, 2000);
     } catch (err: any) {
-      setError(err.message || "An error occurred. Please try again.");
+      const msg = err?.message?.toString() || "";
+      const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
+      setError(
+        msg ||
+          (isNetwork
+            ? "Network error while resetting password. Check your connection and try again."
+            : "Password reset failed. Please retry or request a new reset link.")
+      );
     } finally {
       setLoading(false);
     }
