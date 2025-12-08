@@ -39,7 +39,7 @@ After the initial setup (<2 minutes) you'll have a working full-stack app using:
 -should responses be captured 4pm-4pm instead of that days hours, cause what if i only respond tomorrow about how yesterday was?
     -maybe make the question state "how was your monday?"
 
--consider to filter per person ?
+-consider to filter per person ? code
 
 ## investigate
 - when a user changes org name - how does it effect other managers given access to that org? (make user tied to org id not name)
