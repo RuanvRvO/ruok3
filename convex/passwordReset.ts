@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { store } from "./auth";
 
 // Generate a random token for password reset
 function generateToken(): string {
@@ -139,7 +138,6 @@ export const sendPasswordResetEmail = internalAction({
       });
 
       if (response.ok) {
-        console.log(`Password reset email sent successfully to ${args.email}`);
         return { success: true };
       } else {
         const errorText = await response.text();
@@ -218,24 +216,11 @@ export const updateAuthAccountPassword = internalMutation({
     if (!account) {
       throw new Error("Auth account not found");
     }
-    
-    // Log the account before update for debugging
-    console.log("Account before update:", JSON.stringify({
-      _id: account._id,
-      provider: (account as any).provider,
-      hasSecret: !!(account as any).secret,
-      secretLength: (account as any).secret?.length,
-    }, null, 2));
-    
+
     // Convex Auth Password provider stores the password hash in account.secret
-    // Update the secret field with the new password hash
     await ctx.db.patch(args.accountId, {
       secret: args.passwordHash,
     } as any);
-    
-    // Verify the update
-    const updated = await ctx.db.get(args.accountId);
-    console.log("Account after update - secret matches:", (updated as any).secret === args.passwordHash);
   },
 });
 

@@ -35,7 +35,6 @@ export default function ManagerLayout({
   const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const user = useQuery(api.users.getCurrentUser);
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
   const [isLoadingOrg, setIsLoadingOrg] = useState(true);
 
@@ -73,7 +72,6 @@ export default function ManagerLayout({
   // Get all user organizations
   const userOrganizations = useQuery(api.organizationMemberships.getUserOrganizations);
   const createOrganization = useMutation(api.organizationMemberships.createOrganization);
-  const fixOrphanedMemberships = useMutation(api.managerInvitations.fixOrphanedMemberships);
 
   // Redirect to sign in if not authenticated
   useEffect(() => {
@@ -81,22 +79,6 @@ export default function ManagerLayout({
       router.push("/signin");
     }
   }, [isAuthenticated, isLoading, router]);
-
-  // DISABLED: Auto-fix was too aggressive and caused issues
-  // If user has no orgs, they should manually fix via Convex dashboard or contact support
-  // useEffect(() => {
-  //   if (isLoading || !isAuthenticated || userOrganizations === undefined || !user) {
-  //     return;
-  //   }
-  //   
-  //   // If user has no organizations but has an email, try to fix orphaned memberships
-  //   if (userOrganizations.length === 0 && user.email) {
-  //     fixOrphanedMemberships({ email: user.email }).catch((err) => {
-  //       // Silently fail - this is just a background fix attempt
-  //       console.log("Could not fix orphaned memberships:", err);
-  //     });
-  //   }
-  // }, [isLoading, isAuthenticated, userOrganizations, user, fixOrphanedMemberships]);
 
   // Auto-select first organization if none is selected and user has organizations
   useEffect(() => {

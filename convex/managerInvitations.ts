@@ -441,7 +441,6 @@ export const sendInvitationEmail = internalAction({
       });
 
       if (response.ok) {
-        console.log(`Invitation email sent successfully to ${args.email}`);
         return { success: true };
       } else {
         const errorText = await response.text();
@@ -516,81 +515,5 @@ export const fixOrphanedInvitation = mutation({
     });
 
     return { success: true, message: "Membership created" };
-  },
-});
-
-// Mutation to fix orphaned memberships - ONLY creates missing memberships, NEVER updates existing ones
-// This is safe because it only creates memberships that don't exist for the correct user
-export const fixOrphanedMemberships = mutation({
-  args: {
-    email: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const currentUserId = await getAuthUserId(ctx);
-    if (currentUserId === null) {
-      throw new Error("Not authenticated");
-    }
-
-    // Find the user by email
-    const correctUser = await ctx.db
-      .query("users")
-      .withIndex("email", (q) => q.eq("email", args.email.toLowerCase().trim()))
-      .first();
-
-    if (!correctUser) {
-      throw new Error(`No user found with email: ${args.email}`);
-    }
-
-    // Verify the email matches the authenticated user's email
-    const currentUser = await ctx.db.get(currentUserId);
-    if (!currentUser || !currentUser.email) {
-      throw new Error("Current user not found or invalid");
-    }
-
-    if (currentUser.email.toLowerCase().trim() !== args.email.toLowerCase().trim()) {
-      throw new Error("Email does not match authenticated user");
-    }
-
-    // Find all accepted invitations for this email
-    const invitations = await ctx.db
-      .query("managerInvitations")
-      .withIndex("by_email", (q) => q.eq("email", args.email.toLowerCase().trim()))
-      .collect();
-
-    let createdCount = 0;
-
-    for (const invitation of invitations) {
-      if (invitation.status !== "accepted") {
-        continue; // Only process accepted invitations
-      }
-
-      // Check if membership already exists with correct userId
-      const existingMembership = await ctx.db
-        .query("organizationMemberships")
-        .withIndex("by_user_and_org", (q) =>
-          q.eq("userId", correctUser._id).eq("organisation", invitation.organisation)
-        )
-        .first();
-
-      if (existingMembership) {
-        continue; // Already has correct membership, skip
-      }
-
-      // Only create new membership if it doesn't exist
-      // We NEVER update existing memberships as they might belong to other users
-      await ctx.db.insert("organizationMemberships", {
-        userId: correctUser._id,
-        organisation: invitation.organisation,
-        role: invitation.role,
-        createdAt: Date.now(),
-      });
-      createdCount++;
-    }
-
-    return {
-      success: true,
-      message: `Created ${createdCount} missing memberships`,
-      createdCount,
-    };
   },
 });

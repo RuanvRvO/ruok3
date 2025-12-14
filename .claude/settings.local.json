@@ -10,7 +10,9 @@
       "Bash(npx convex deploy:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm run lint)"
     ],
     "deny": [],
     "ask": []
