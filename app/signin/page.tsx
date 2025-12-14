@@ -180,11 +180,12 @@ export default function SignIn() {
               if (
                 errorMessage.includes("InvalidSecret") ||
                 errorMessage.includes("Invalid credentials") ||
-                errorMessage.includes("InvalidAccountId")
+                errorMessage.includes("InvalidAccountId") ||
+                errorMessage.includes("Server Error")
               ) {
-                setError("Account / password incorrect or doesn't exist");
+                setError("Incorrect email or password. Please try again.");
               } else if (errorMessage.includes("TooManyFailedAttempts")) {
-                setError("Too many failed attempts. Please try again later");
+                setError("Too many failed attempts. Please try again later.");
               } else if (
                 errorMessage.includes("Account with this email already exists") ||
                 errorMessage.includes("already exists")
@@ -197,7 +198,7 @@ export default function SignIn() {
                   errorMessage.toLowerCase().includes("fetch");
                 const fallback = isNetwork
                   ? "Network error. Please check your connection and try again."
-                  : `Unexpected error: ${errorMessage || "Please try again or contact support."}`;
+                  : "Sign in failed. Please check your credentials and try again.";
                 setError(fallback);
               }
 

@@ -185,14 +185,14 @@ export default function AcceptInvitation() {
       const errorString = errorMessage.toLowerCase();
       
       // Only handle if it's a sign-in related error and we're on this page
-      if (errorString.includes("invalidsecret") || errorString.includes("invalid credentials") || errorString.includes("invalidaccountid")) {
+      if (errorString.includes("invalidsecret") || errorString.includes("invalid credentials") || errorString.includes("invalidaccountid") || errorString.includes("server error")) {
         event.preventDefault(); // Prevent default error handling and page refresh
         event.stopPropagation(); // Stop event from bubbling
         signInErrorRef.current = true;
-        
+
         // Use setTimeout to ensure state updates happen
         setTimeout(() => {
-          if (errorString.includes("invalidsecret") || errorString.includes("invalid credentials")) {
+          if (errorString.includes("invalidsecret") || errorString.includes("invalid credentials") || errorString.includes("server error")) {
             setError("Incorrect password. Please try again.");
           } else if (errorString.includes("invalidaccountid")) {
             setIsSignupMode(true);
@@ -208,11 +208,11 @@ export default function AcceptInvitation() {
       const errorString = errorMessage.toLowerCase();
       
       // Check for sign-in errors in the error message
-      if (errorString.includes("invalidsecret") || errorString.includes("invalid credentials")) {
+      if (errorString.includes("invalidsecret") || errorString.includes("invalid credentials") || errorString.includes("server error")) {
         event.preventDefault();
         event.stopPropagation();
         signInErrorRef.current = true;
-        
+
         setTimeout(() => {
           setError("Incorrect password. Please try again.");
           setLoading(false);
@@ -554,15 +554,14 @@ export default function AcceptInvitation() {
                 if (errorString.includes("invalidaccountid")) {
                   setIsSignupMode(true);
                   setError("No authentication account found. Please create an account using the form below.");
-                } else if (errorString.includes("invalidsecret") || errorString.includes("invalid credentials")) {
-                  setError("Incorrect password. Please try again or reset it.");
+                } else if (errorString.includes("invalidsecret") || errorString.includes("invalid credentials") || errorString.includes("server error")) {
+                  setError("Incorrect password. Please try again.");
                 } else {
                   const isNetwork = errorString.includes("network") || errorString.includes("fetch");
                   setError(
-                    errorMessage ||
-                      (isNetwork
-                        ? "Network error during sign in. Please check your connection and try again."
-                        : "Failed to sign in. Please try again or reset your password.")
+                    isNetwork
+                      ? "Network error during sign in. Please check your connection and try again."
+                      : "Sign in failed. Please check your password and try again."
                   );
                 }
                 setLoading(false);
@@ -660,15 +659,14 @@ export default function AcceptInvitation() {
           signInErrorRef.current = true;
           
           setTimeout(() => {
-            if (errorString.includes("invalidsecret") || errorString.includes("invalid credentials")) {
-              setError("Incorrect password. Please try again or reset it.");
+            if (errorString.includes("invalidsecret") || errorString.includes("invalid credentials") || errorString.includes("server error")) {
+              setError("Incorrect password. Please try again.");
             } else {
               const isNetwork = errorString.includes("network") || errorString.includes("fetch");
               setError(
-                errorMessage ||
-                  (isNetwork
-                    ? "Network error during sign in. Please check your connection and try again."
-                    : "Failed to sign in. Please try again or reset your password.")
+                isNetwork
+                  ? "Network error during sign in. Please check your connection and try again."
+                  : "Sign in failed. Please check your password and try again."
               );
             }
             setLoading(false);
@@ -736,16 +734,15 @@ export default function AcceptInvitation() {
       const errorMessage = err instanceof Error ? err.message : String(err);
       const errorString = errorMessage.toLowerCase();
 
-      if (errorString.includes("invalidsecret") || errorString.includes("invalid credentials")) {
-        setError("Incorrect password. Please try again or reset it.");
+      if (errorString.includes("invalidsecret") || errorString.includes("invalid credentials") || errorString.includes("server error")) {
+        setError("Incorrect password. Please try again.");
       } else if (errorString.includes("invalidaccountid")) {
         setError("Account not found. Please use the signup form below.");
       } else {
         setError(
-          errorMessage ||
-            (emailExists
-              ? "Failed to sign in. Please check your password or reset it."
-              : "Failed to create account. Please retry or use a different email.")
+          emailExists
+            ? "Sign in failed. Please check your password and try again."
+            : "Account creation failed. Please try again."
         );
       }
       setLoading(false);
