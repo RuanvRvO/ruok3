@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import Image from "next/image";
@@ -11,7 +11,18 @@ export default function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const requestPasswordReset = useMutation(api.passwordReset.requestPasswordReset);
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (cooldownSeconds > 0) {
+      const timer = setTimeout(() => {
+        setCooldownSeconds(cooldownSeconds - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldownSeconds]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +39,8 @@ export default function ForgotPassword() {
     try {
       const result = await requestPasswordReset({ email: email.toLowerCase().trim() });
       setSuccess(result.message || "If an account with this email exists, a password reset link has been sent.");
+      // Start 60 second cooldown
+      setCooldownSeconds(60);
     } catch (err: any) {
       const msg = err?.message?.toString() || "";
       const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
@@ -97,9 +110,13 @@ export default function ForgotPassword() {
         <button
           className="bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 text-white font-semibold rounded-lg py-3 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           type="submit"
-          disabled={loading}
+          disabled={loading || cooldownSeconds > 0}
         >
-          {loading ? "Sending..." : "Send Reset Link"}
+          {loading
+            ? "Sending..."
+            : cooldownSeconds > 0
+              ? `Resend available in ${cooldownSeconds}s`
+              : "Send Reset Link"}
         </button>
         <Link
           href="/signin"

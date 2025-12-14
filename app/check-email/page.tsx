@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useSearchParams } from "next/navigation";
@@ -13,9 +13,20 @@ export default function CheckEmail() {
   const [resending, setResending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
   const currentUserId = useQuery(api.users.getCurrentUserId);
   const sendVerificationEmail = useMutation(api.emailVerification.sendVerificationEmail);
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (cooldownSeconds > 0) {
+      const timer = setTimeout(() => {
+        setCooldownSeconds(cooldownSeconds - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldownSeconds]);
 
   const handleResend = async () => {
     if (!currentUserId) {
@@ -30,6 +41,8 @@ export default function CheckEmail() {
     try {
       const result = await sendVerificationEmail({ userId: currentUserId });
       setMessage(result.message || "Verification email sent!");
+      // Start 60 second cooldown
+      setCooldownSeconds(60);
     } catch (err: any) {
       setError(err?.message?.toString() || "Failed to send verification email. Please try again.");
     } finally {
@@ -86,10 +99,14 @@ export default function CheckEmail() {
           </ul>
           <button
             onClick={handleResend}
-            disabled={resending}
+            disabled={resending || cooldownSeconds > 0}
             className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium underline underline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {resending ? "Sending..." : "Resend verification email"}
+            {resending
+              ? "Sending..."
+              : cooldownSeconds > 0
+                ? `Resend available in ${cooldownSeconds}s`
+                : "Resend verification email"}
           </button>
         </div>
 
