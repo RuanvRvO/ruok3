@@ -16,22 +16,25 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const verifyToken = useQuery(
     api.passwordReset.verifyPasswordResetToken,
-    token ? { token } : "skip"
+    token && !isSubmitting ? { token } : "skip"
   );
   const resetPassword = useMutation(api.passwordReset.resetPassword);
 
   useEffect(() => {
-    if (token && verifyToken && !verifyToken.valid) {
+    // Only show verification errors if we haven't started submitting the form
+    if (token && verifyToken && !verifyToken.valid && !isSubmitting && !success) {
       setError(verifyToken.message || "Invalid or expired reset token");
     }
-  }, [token, verifyToken]);
+  }, [token, verifyToken, isSubmitting, success]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setIsSubmitting(true);
     setError(null);
     setSuccess(null);
 

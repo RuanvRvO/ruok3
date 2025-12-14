@@ -11,6 +11,7 @@
 import type * as auth from "../auth.js";
 import type * as crons from "../crons.js";
 import type * as diagnostics from "../diagnostics.js";
+import type * as emailVerification from "../emailVerification.js";
 import type * as employees from "../employees.js";
 import type * as groups from "../groups.js";
 import type * as http from "../http.js";
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   crons: typeof crons;
   diagnostics: typeof diagnostics;
+  emailVerification: typeof emailVerification;
   employees: typeof employees;
   groups: typeof groups;
   http: typeof http;

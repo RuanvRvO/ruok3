@@ -1,0 +1,192 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
+
+export default function VerifyEmail() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const token = searchParams.get("token");
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const verifyToken = useQuery(
+    api.emailVerification.verifyToken,
+    token ? { token } : "skip"
+  );
+  const verifyEmail = useMutation(api.emailVerification.verifyEmail);
+
+  useEffect(() => {
+    if (token && verifyToken && !verifyToken.valid && !verifying && !success) {
+      setError(verifyToken.message || "Invalid or expired verification token");
+    }
+  }, [token, verifyToken, verifying, success]);
+
+  const handleVerify = async () => {
+    if (!token) {
+      setError("No verification token provided");
+      return;
+    }
+
+    setVerifying(true);
+    setError(null);
+
+    try {
+      const result = await verifyEmail({ token });
+      setSuccess(result.message || "Email verified successfully!");
+
+      // Redirect to sign in after 2 seconds
+      setTimeout(() => {
+        router.push("/signin");
+      }, 2000);
+    } catch (err: any) {
+      setError(err?.message?.toString() || "Failed to verify email. Please try again or request a new verification link.");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  if (!token) {
+    return (
+      <div className="flex flex-col gap-8 w-full max-w-lg mx-auto h-screen justify-center items-center px-4">
+        <div className="bg-rose-500/10 border border-rose-500/30 dark:border-rose-500/50 rounded-lg p-4">
+          <p className="text-rose-700 dark:text-rose-300 font-medium text-sm">
+            No verification token provided. Please use the link from your email.
+          </p>
+        </div>
+        <Link
+          href="/signin"
+          className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-sm transition-colors underline underline-offset-2"
+        >
+          ← Back to Sign In
+        </Link>
+      </div>
+    );
+  }
+
+  if (verifyToken === undefined) {
+    return (
+      <div className="flex flex-col gap-8 w-full max-w-lg mx-auto h-screen justify-center items-center px-4">
+        <p className="text-slate-600 dark:text-slate-400">Verifying token...</p>
+      </div>
+    );
+  }
+
+  if (success) {
+    return (
+      <div className="flex flex-col gap-8 w-full max-w-lg mx-auto h-screen justify-center items-center px-4">
+        <div className="text-center flex flex-col items-center gap-4">
+          <div className="flex items-center gap-6">
+            <Image src="/smile.png" alt="Smile Logo" width={95} height={95} />
+            <div className="w-px h-20 bg-slate-300 dark:bg-slate-600"></div>
+            <Image src="/sad.png" alt="Sad Logo" width={90} height={90} />
+          </div>
+          <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">
+            Email Verified!
+          </h1>
+        </div>
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg">
+          {success}
+          <p className="text-sm mt-2">Redirecting to sign in...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (verifyToken && !verifyToken.valid) {
+    return (
+      <div className="flex flex-col gap-8 w-full max-w-lg mx-auto h-screen justify-center items-center px-4">
+        <div className="text-center flex flex-col items-center gap-4">
+          <div className="flex items-center gap-6">
+            <Image src="/smile.png" alt="Smile Logo" width={95} height={95} />
+            <div className="w-px h-20 bg-slate-300 dark:bg-slate-600"></div>
+            <Image src="/sad.png" alt="Sad Logo" width={90} height={90} />
+          </div>
+          <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">
+            Verification Failed
+          </h1>
+        </div>
+        <div className="bg-rose-500/10 border border-rose-500/30 dark:border-rose-500/50 rounded-lg p-4">
+          <p className="text-rose-700 dark:text-rose-300 font-medium text-sm">
+            {verifyToken.message || "Invalid or expired verification token"}
+          </p>
+        </div>
+        <Link
+          href="/signin"
+          className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-sm transition-colors underline underline-offset-2"
+        >
+          ← Back to Sign In
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-8 w-full max-w-lg mx-auto h-screen justify-center items-center px-4">
+      <div className="text-center flex flex-col items-center gap-4">
+        <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">
+          R u OK Website
+        </h1>
+        <div className="flex items-center gap-6">
+          <Image
+            src="/smile.png"
+            alt="Smile Logo"
+            width={95}
+            height={95}
+          />
+
+          <div className="w-px h-20 bg-slate-300 dark:bg-slate-600"></div>
+
+          <Image
+            src="/sad.png"
+            alt="Sad Logo"
+            width={90}
+            height={90}
+          />
+        </div>
+        <p className="text-slate-600 dark:text-slate-400">
+          Verify your email address
+        </p>
+        {verifyToken.email && (
+          <p className="text-slate-500 dark:text-slate-500 text-sm">
+            Verifying email for: {verifyToken.email}
+          </p>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-4 w-full bg-slate-100 dark:bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-300 dark:border-slate-600">
+        <button
+          className="bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 text-white font-semibold rounded-lg py-3 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+          onClick={handleVerify}
+          disabled={verifying}
+        >
+          {verifying ? "Verifying..." : "Verify Email Address"}
+        </button>
+        <Link
+          href="/signin"
+          className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-sm text-center transition-colors underline underline-offset-2"
+        >
+          ← Back to Sign In
+        </Link>
+        {error && (
+          <div className="bg-rose-500/10 border border-rose-500/30 dark:border-rose-500/50 rounded-lg p-4">
+            <p className="text-rose-700 dark:text-rose-300 font-medium text-sm break-words">
+              {error}
+            </p>
+          </div>
+        )}
+      </div>
+      <Link
+        href="/"
+        className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-sm transition-colors underline underline-offset-2"
+      >
+        ← Back to Homepage
+      </Link>
+    </div>
+  );
+}

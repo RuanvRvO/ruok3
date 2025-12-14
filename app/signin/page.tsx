@@ -5,12 +5,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { useConvexAuth } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
 
 export default function SignIn() {
-  const { signIn } = useAuthActions();
+  const { signIn, signOut } = useAuthActions();
   const { isAuthenticated } = useConvexAuth();
   const searchParams = useSearchParams();
   const initialFlow = searchParams.get("flow") === "signup" ? "signUp" : "signIn";
@@ -19,6 +20,8 @@ export default function SignIn() {
   const invitationToken = searchParams.get("token");
   const invitationEmail = searchParams.get("email");
   const organizations = useQuery(api.organizationMemberships.getUserOrganizations);
+  const currentUserId = useQuery(api.users.getCurrentUserId);
+  const sendVerificationEmail = useMutation(api.emailVerification.sendVerificationEmail);
   const [flow, setFlow] = useState<"signIn" | "signUp">(initialFlow);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -205,37 +208,83 @@ export default function SignIn() {
               if (signInErrorRef.current) {
                 return; // Don't redirect if there was an error
               }
-              
+
+              // Handle signup flow - send verification email
+              if (flow === "signUp") {
+                try {
+                  // Wait for account creation to complete
+                  setLoadingMessage("Creating your account...");
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+
+                  // Get userId by temporarily staying signed in
+                  let userId = currentUserId;
+
+                  // Wait for userId to be available
+                  if (!userId) {
+                    for (let i = 0; i < 10; i++) {
+                      await new Promise(resolve => setTimeout(resolve, 500));
+                      if (currentUserId) {
+                        userId = currentUserId;
+                        break;
+                      }
+                    }
+                  }
+
+                  // Send verification email
+                  if (userId) {
+                    setLoadingMessage("Sending verification email...");
+                    await sendVerificationEmail({ userId: userId as Id<"users"> });
+                  }
+
+                  // Sign out the user
+                  setLoadingMessage("Finalizing...");
+                  await signOut();
+
+                  // Redirect to check-email page
+                  setLoading(false);
+                  setLoadingMessage(null);
+                  router.push(`/check-email?email=${encodeURIComponent(formData.get("email") as string)}`);
+                  return;
+                } catch (err) {
+                  console.error("Error during signup flow:", err);
+                  setError("Account created but verification email failed. Please sign in and request a new verification email.");
+                  setLoading(false);
+                  setLoadingMessage(null);
+                  return;
+                }
+              }
+
+              // Normal sign-in flow continues here
               // Note: Invitation acceptance is handled by useEffect hook above
               // which properly reacts to isAuthenticated and currentUserId changes
-              
+
               // Redirect to returnTo URL if present
               if (returnTo) {
                 router.push(returnTo);
                 return;
               }
-              
+
               // Show loading message while waiting for authentication
               setLoadingMessage("Getting your dashboard ready...");
-              
+
               // Wait a bit initially for authentication to initialize
               await new Promise(resolve => setTimeout(resolve, 2000));
-              
+
               // If not authenticated yet, set flag to wait for it
               if (!isAuthenticated) {
                 setWaitingForAuth(true);
                 return; // useEffect will handle the continuation
               }
-              
+
               // If authenticated, proceed immediately
               setLoadingMessage(null);
-              
+
               // If user has organizations, auto-select the first one
               if (organizations && organizations.length > 0) {
                 const org = organizations[0];
                 localStorage.setItem("selectedOrganization", org.organisation);
               }
-              
+
               // Always redirect to manager view (sidebar will show all orgs)
               router.push("/manager/view");
             });

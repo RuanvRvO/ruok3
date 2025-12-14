@@ -7,6 +7,8 @@ import {
 const isSignInPage = createRouteMatcher(["/signin"]);
 const isManagerSignupPage = createRouteMatcher(["/manager-signup"]);
 const isAcceptInvitationPage = createRouteMatcher(["/accept-invitation"]);
+const isVerificationPage = createRouteMatcher(["/verify-email", "/check-email", "/verify-required"]);
+const isForgotPasswordPage = createRouteMatcher(["/forgot-password", "/reset-password"]);
 const isProtectedRoute = createRouteMatcher(["/manager(.*)"]);
 
 
@@ -20,6 +22,14 @@ export default convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
   }
   // Allow access to accept-invitation page without authentication
   if (isAcceptInvitationPage(request)) {
+    return;
+  }
+  // Allow access to verification pages
+  if (isVerificationPage(request)) {
+    return;
+  }
+  // Allow access to password reset pages
+  if (isForgotPasswordPage(request)) {
     return;
   }
   if (isProtectedRoute(request) && !(await convexAuth.isAuthenticated())) {

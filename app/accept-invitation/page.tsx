@@ -28,6 +28,7 @@ export default function AcceptInvitation() {
   );
   const acceptInvitationForExistingUser = useMutation(api.managerInvitations.acceptInvitationForExistingUser);
   const acceptInvitation = useMutation(api.managerInvitations.acceptInvitation);
+  const sendVerificationEmail = useMutation(api.emailVerification.sendVerificationEmail);
   const currentUserId = useQuery(api.users.getCurrentUserId);
   const currentUser = useQuery(api.users.getCurrentUser);
   const userOrganizations = useQuery(api.organizationMemberships.getUserOrganizations);
@@ -464,13 +465,32 @@ export default function AcceptInvitation() {
         isSigningUpRef.current = true;
 
         // Now create the account - only after all validations pass
+        let newUserId: string | null = null;
         try {
           await signIn("password", formData);
+
+          // Wait for account to be created and get userId
+          setLoadingMessage("Creating your account...");
+          await new Promise(resolve => setTimeout(resolve, 2000));
+
+          // Temporarily sign in to get the user ID for sending verification email
+          const signInFormData = new FormData();
+          signInFormData.set("email", emailToUse);
+          signInFormData.set("password", password);
+          signInFormData.set("flow", "signIn");
+
+          try {
+            await signIn("password", signInFormData);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            newUserId = currentUserId;
+          } catch (signInError) {
+            console.log("Could not auto sign-in to send verification:", signInError);
+          }
         } catch (signUpError: unknown) {
           // Handle case where account already exists
           const errorMessage = signUpError instanceof Error ? signUpError.message : String(signUpError);
           const errorLower = errorMessage.toLowerCase();
-          
+
           if (errorLower.includes("already exists") || errorLower.includes("account with this email")) {
             setError("An account with this email already exists. Please sign in instead.");
             setIsSignupMode(false);
@@ -482,66 +502,35 @@ export default function AcceptInvitation() {
           throw signUpError;
         }
 
-        // For new users, automatically sign in after account creation to ensure session is established
-        // Show "Getting things setup" message while waiting
-        setLoadingMessage("Getting things setup...");
-        setError(null);
-        
-        // Wait 2 seconds for account to be fully created, then automatically sign in
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Automatically sign in with the credentials to establish the session
-        setLoadingMessage("Signing you in...");
-        const signInFormData = new FormData();
-        signInFormData.set("email", emailToUse);
-        signInFormData.set("password", password);
-        signInFormData.set("flow", "signIn");
-        
+        // Send verification email if we have userId
+        if (newUserId) {
+          try {
+            setLoadingMessage("Sending verification email...");
+            await sendVerificationEmail({
+              userId: newUserId as Id<"users">,
+            });
+          } catch (emailError) {
+            console.error("Failed to send verification email:", emailError);
+            // Continue anyway - user can request it again
+          }
+        }
+
+        // Sign out the user - they need to verify email first
+        setLoadingMessage("Finalizing account creation...");
         try {
-          await signIn("password", signInFormData);
-        } catch (signInError: unknown) {
-          // If sign in fails, continue anyway - the account was created
-          console.log("Auto sign-in after account creation:", signInError);
-        }
-        
-        // Wait a bit for authentication to initialize after sign in
-        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds for auth to initialize
-        
-        // Now check if we have userId
-        let userId: string | null = currentUserId || null;
-        
-        // If we have userId, continue immediately with the normal flow
-        if (userId) {
-          setLoadingMessage("Completing setup...");
-          // Continue with invitation acceptance below
-        } else {
-          // Auth not ready yet - set flags and let useEffect automatically continue when ready
-          setWaitingForAuth(true);
-          pendingTokenRef.current = token;
-          // Keep loading state active - don't clear loading or loadingMessage
-          // The useEffect will automatically continue when currentUserId becomes available
-          // Don't proceed with invitation acceptance here - useEffect will handle it
-          return; // Exit early - useEffect will handle continuation automatically
+          await signOut();
+        } catch (signOutError) {
+          console.log("Sign out error:", signOutError);
         }
 
-        // Note: We don't validate email here because:
-        // 1. The mutation will get the email from the database (more reliable)
-        // 2. The email was set in the formData, so it should match
-        // 3. The mutation has its own validation and error handling
+        // Reset signup flag
+        isSigningUpRef.current = false;
+        setLoading(false);
+        setLoadingMessage(null);
 
-
-        // Use acceptInvitation for new users (doesn't check email matching)
-        // The email from the form (invitation.email) is what was used to sign up
-        // If this fails, the account was already created, but at least we validated the invitation first
-        try {
-          await acceptInvitation({ token, userId: userId as Id<"users"> });
-          // Wait a moment for the database to update after accepting invitation
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        } catch (invitationError: unknown) {
-          const errorMessage = invitationError instanceof Error ? invitationError.message : String(invitationError);
-          console.error("Failed to accept invitation:", invitationError);
-          throw new Error(`Failed to accept invitation: ${errorMessage}. Please try again or contact support.`);
-        }
+        // Redirect to check-email page
+        router.push(`/check-email?email=${encodeURIComponent(emailToUse)}`);
+        return; // Exit early - user needs to verify email before accepting invitation
       } else {
         // Sign in mode
         formData.set("flow", "signIn");
@@ -762,14 +751,43 @@ export default function AcceptInvitation() {
   };
 
   return (
-    <div className="flex flex-col gap-8 w-full max-w-lg mx-auto h-screen justify-center items-center px-4">
-      <div className="text-center flex flex-col items-center gap-4">
-        <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">Accept Invitation</h1>
-        <div className="flex items-center gap-6">
-          <Image src="/smile.png" alt="Smile Logo" width={95} height={95} />
-          <div className="w-px h-20 bg-slate-300 dark:bg-slate-600"></div>
-          <Image src="/sad.png" alt="Sad Logo" width={90} height={90} />
+    <>
+      {/* Full-screen loading overlay */}
+      {loadingMessage && (
+        <div className="fixed inset-0 bg-slate-900/80 dark:bg-slate-950/90 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 shadow-2xl border border-slate-200 dark:border-slate-700 max-w-md mx-4">
+            <div className="flex flex-col items-center gap-6">
+              <div className="flex items-center gap-6">
+                <Image src="/smile.png" alt="Smile Logo" width={60} height={60} />
+                <div className="w-px h-16 bg-slate-300 dark:bg-slate-600"></div>
+                <Image src="/sad.png" alt="Sad Logo" width={55} height={55} />
+              </div>
+              <div className="flex flex-col items-center gap-4 w-full">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-blue-400 rounded-full animate-bounce"></div>
+                  <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0.15s" }}></div>
+                  <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: "0.3s" }}></div>
+                </div>
+                <p className="text-slate-800 dark:text-slate-200 font-semibold text-lg text-center">
+                  {loadingMessage}
+                </p>
+                <p className="text-slate-500 dark:text-slate-400 text-sm text-center">
+                  This may take a moment...
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
+      )}
+
+      <div className="flex flex-col gap-8 w-full max-w-lg mx-auto h-screen justify-center items-center px-4">
+        <div className="text-center flex flex-col items-center gap-4">
+          <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">Accept Invitation</h1>
+          <div className="flex items-center gap-6">
+            <Image src="/smile.png" alt="Smile Logo" width={95} height={95} />
+            <div className="w-px h-20 bg-slate-300 dark:bg-slate-600"></div>
+            <Image src="/sad.png" alt="Sad Logo" width={90} height={90} />
+          </div>
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
           <p className="text-slate-600 dark:text-slate-400">
             You&apos;ve been invited to <span className="font-semibold text-slate-800 dark:text-slate-200">{invitation.organisation}</span>
@@ -847,18 +865,6 @@ export default function AcceptInvitation() {
             />
           </div>
         )}
-        {loadingMessage && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
-                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
-              </div>
-              <p className="text-blue-700 dark:text-blue-300 font-medium text-sm">{loadingMessage}</p>
-            </div>
-          </div>
-        )}
         {error && (
           <div className="bg-rose-500/10 border border-rose-500/30 dark:border-rose-500/50 rounded-lg p-4">
             <p className="text-rose-700 dark:text-rose-300 font-medium text-sm break-words">{error}</p>
@@ -903,5 +909,6 @@ export default function AcceptInvitation() {
         ← Back to Sign In
       </Link>
     </div>
+    </>
   );
 }

@@ -26,6 +26,7 @@ import {
 import { Eye, Edit, LogOut, Users, UserCog, Building2, Plus } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { useMutation } from "convex/react";
+import { VerificationGuard } from "@/components/VerificationGuard";
 
 export default function ManagerLayout({
   children,
@@ -198,7 +199,9 @@ export default function ManagerLayout({
       </Sidebar>
       <SidebarInset>
         <SidebarToggleButton />
-        <main className="p-8 flex flex-col gap-8">{children}</main>
+        <VerificationGuard>
+          <main className="p-8 flex flex-col gap-8">{children}</main>
+        </VerificationGuard>
       </SidebarInset>
     </SidebarProvider>
   );
