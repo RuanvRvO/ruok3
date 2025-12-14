@@ -465,7 +465,7 @@ export default function AcceptInvitation() {
         isSigningUpRef.current = true;
 
         // Now create the account - only after all validations pass
-        let newUserId: string | null = null;
+        let newUserId: Id<"users"> | null = null;
         try {
           await signIn("password", formData);
 
@@ -482,7 +482,9 @@ export default function AcceptInvitation() {
           try {
             await signIn("password", signInFormData);
             await new Promise(resolve => setTimeout(resolve, 1000));
-            newUserId = currentUserId;
+            if (currentUserId) {
+              newUserId = currentUserId;
+            }
           } catch (signInError) {
             console.log("Could not auto sign-in to send verification:", signInError);
           }
@@ -690,7 +692,7 @@ export default function AcceptInvitation() {
         await new Promise(resolve => setTimeout(resolve, 500));
         // Check if organizations have updated (count increased or we have at least 1)
         if (userOrganizations) {
-          const currentCount = userOrganizations.length;
+          const currentCount = userOrganizations!.length;
           // If count increased or we now have at least 1 org, use it
           if (currentCount > initialCount || currentCount >= 1) {
             orgs = userOrganizations;
@@ -707,7 +709,7 @@ export default function AcceptInvitation() {
       // If still no orgs after waiting, the membership was created but query hasn't updated yet
       // In this case, just redirect - the membership exists in the database
       // The user will see their organization when they get to the manager page
-      if (!orgs || orgs.length === 0) {
+      if (!orgs || orgs!.length === 0) {
         console.log("Organization membership created but query hasn't updated yet. Redirecting anyway - membership exists in database.");
         // Don't throw error - just redirect and let the manager page handle it
         // The membership is in the database, the query just needs more time
@@ -716,9 +718,9 @@ export default function AcceptInvitation() {
         router.push("/manager/view");
         return;
       }
-      
+
       // Auto-select first organization if available, then redirect to manager view
-      const org = orgs[0];
+      const org = orgs![0];
       localStorage.setItem("selectedOrganization", org.organisation);
 
       // Reset signup flag before redirecting
