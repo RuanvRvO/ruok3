@@ -23,7 +23,7 @@ import {
   SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Eye, Edit, LogOut, Users, UserCog, Building2, Plus } from "lucide-react";
+import { Eye, Edit, LogOut, Users, UserCog, Building2, Plus, Menu } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { useMutation } from "convex/react";
 import { VerificationGuard } from "@/components/VerificationGuard";
@@ -199,6 +199,7 @@ export default function ManagerLayout({
       </Sidebar>
       <SidebarInset>
         <SidebarToggleButton />
+        <MobileSidebarTrigger />
         <VerificationGuard>
           <main className="p-4 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8">{children}</main>
         </VerificationGuard>
@@ -208,7 +209,10 @@ export default function ManagerLayout({
 }
 
 function SidebarToggleButton() {
-  const { open, toggleSidebar } = useSidebar();
+  const { open, toggleSidebar, isMobile } = useSidebar();
+
+  // Hide on mobile - mobile uses the MobileSidebarTrigger instead
+  if (isMobile) return null;
 
   return (
     <div
@@ -222,6 +226,23 @@ function SidebarToggleButton() {
         className="data-[state=checked]:bg-blue-300 data-[state=unchecked]:bg-slate-300 dark:data-[state=unchecked]:bg-slate-600"
       />
     </div>
+  );
+}
+
+function MobileSidebarTrigger() {
+  const { toggleSidebar, isMobile } = useSidebar();
+
+  // Only show on mobile
+  if (!isMobile) return null;
+
+  return (
+    <button
+      onClick={toggleSidebar}
+      className="fixed top-4 left-4 z-50 flex items-center justify-center w-10 h-10 bg-sidebar border border-sidebar-border rounded-md shadow-sm hover:bg-sidebar-accent transition-colors"
+      aria-label="Toggle sidebar"
+    >
+      <Menu className="w-5 h-5 text-sidebar-foreground" />
+    </button>
   );
 }
 
