@@ -57,11 +57,11 @@ export default function SelectOrganization() {
 
   if (authLoading || !currentUser || !organizations) {
     return (
-      <div className="flex flex-col gap-8 w-full h-screen justify-center items-center px-4">
-        <div className="flex items-center gap-6">
-          <Image src="/smile.png" alt="Smile Logo" width={90} height={90} />
-          <div className="w-px h-20 bg-slate-300 dark:bg-slate-600"></div>
-          <Image src="/sad.png" alt="Sad Logo" width={90} height={90} />
+      <div className="flex flex-col gap-4 sm:gap-6 md:gap-8 w-full min-h-screen justify-center items-center px-4 py-6 sm:py-8">
+        <div className="flex items-center gap-3 sm:gap-4 md:gap-6">
+          <Image src="/smile.png" alt="Smile Logo" width={90} height={90} className="w-16 h-16 sm:w-18 sm:h-18 md:w-[90px] md:h-[90px]" />
+          <div className="w-px h-12 sm:h-16 md:h-20 bg-slate-300 dark:bg-slate-600"></div>
+          <Image src="/sad.png" alt="Sad Logo" width={90} height={90} className="w-14 h-14 sm:w-16 sm:h-16 md:w-[90px] md:h-[90px]" />
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
@@ -104,17 +104,17 @@ export default function SelectOrganization() {
   };
 
   return (
-    <div className="flex flex-col gap-8 w-full max-w-2xl mx-auto h-screen justify-center items-center px-4">
-      <div className="text-center flex flex-col items-center gap-4">
-        <div className="flex items-center gap-6">
-          <Image src="/smile.png" alt="Smile Logo" width={95} height={95} />
-          <div className="w-px h-20 bg-slate-300 dark:bg-slate-600"></div>
-          <Image src="/sad.png" alt="Sad Logo" width={90} height={90} />
+    <div className="flex flex-col gap-4 sm:gap-6 md:gap-8 w-full max-w-2xl mx-auto min-h-screen justify-center items-center px-4 py-6 sm:py-8">
+      <div className="text-center flex flex-col items-center gap-2 sm:gap-3 md:gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 md:gap-6">
+          <Image src="/smile.png" alt="Smile Logo" width={95} height={95} className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24" />
+          <div className="w-px h-12 sm:h-16 md:h-20 bg-slate-300 dark:bg-slate-600"></div>
+          <Image src="/sad.png" alt="Sad Logo" width={90} height={90} className="w-14 h-14 sm:w-18 sm:h-18 md:w-[90px] md:h-[90px]" />
         </div>
-        <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-slate-200">
           {organizations.length === 0 ? "Welcome!" : "Select Organization"}
         </h1>
-        <p className="text-slate-600 dark:text-slate-400">
+        <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
           {organizations.length === 0
             ? "Create an organization to get started"
             : "Choose an organization to access"}

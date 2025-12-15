@@ -124,7 +124,7 @@ export default function MoodResponsePage() {
   if (error === "ALREADY_SUBMITTED") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl p-12 max-w-md text-center shadow-2xl">
+        <div className="bg-white rounded-2xl p-6 sm:p-10 md:p-12 max-w-md text-center shadow-2xl">
           <div className="text-6xl mb-6">📝</div>
           <h1 className="text-3xl font-bold text-slate-800 mb-4">Already Submitted</h1>
           <p className="text-lg text-slate-600 mb-6">
@@ -141,7 +141,7 @@ export default function MoodResponsePage() {
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl p-12 max-w-md text-center shadow-2xl">
+        <div className="bg-white rounded-2xl p-6 sm:p-10 md:p-12 max-w-md text-center shadow-2xl">
           <div className="text-6xl mb-6">⚠️</div>
           <h1 className="text-3xl font-bold text-slate-800 mb-4">Oops!</h1>
           <p className="text-lg text-slate-600">{error}</p>
@@ -154,7 +154,7 @@ export default function MoodResponsePage() {
   if (autoSaved) {
     return (
       <div className={`min-h-screen bg-gradient-to-br ${getMoodColor()} flex items-center justify-center p-4`}>
-        <div className="bg-white rounded-2xl p-12 max-w-md w-full shadow-2xl">
+        <div className="bg-white rounded-2xl p-6 sm:p-10 md:p-12 max-w-md w-full shadow-2xl">
           <div className="text-center mb-8">
             <div className="text-6xl mb-4">{getMoodEmoji()}</div>
             <h1 className="text-2xl font-bold text-slate-800 mb-2">Would you like to provide more details?</h1>
@@ -219,7 +219,7 @@ export default function MoodResponsePage() {
   // Loading state while saving
   return (
     <div className={`min-h-screen bg-gradient-to-br ${getMoodColor()} flex items-center justify-center p-4`}>
-      <div className="bg-white rounded-2xl p-12 max-w-md text-center shadow-2xl">
+      <div className="bg-white rounded-2xl p-6 sm:p-10 md:p-12 max-w-md text-center shadow-2xl">
         <div className="text-6xl mb-6">{getMoodEmoji()}</div>
         <h1 className="text-3xl font-bold text-slate-800 mb-4">Recording your response...</h1>
         <div className="flex items-center justify-center gap-2">

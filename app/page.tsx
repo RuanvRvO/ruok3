@@ -20,11 +20,11 @@ export default function LandingPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-8 w-full h-screen justify-center items-center px-4">
-        <div className="flex items-center gap-6">
-          <Image src="/smile.png" alt="Smile Logo" width={90} height={90} />
-          <div className="w-px h-20 bg-slate-300 dark:bg-slate-600"></div>
-          <Image src="/sad.png" alt="Sad Logo" width={90} height={90} />
+      <div className="flex flex-col gap-4 sm:gap-6 md:gap-8 w-full min-h-screen justify-center items-center px-4 py-6 sm:py-8">
+        <div className="flex items-center gap-3 sm:gap-4 md:gap-6">
+          <Image src="/smile.png" alt="Smile Logo" width={90} height={90} className="w-16 h-16 sm:w-18 sm:h-18 md:w-[90px] md:h-[90px]" />
+          <div className="w-px h-12 sm:h-16 md:h-20 bg-slate-300 dark:bg-slate-600"></div>
+          <Image src="/sad.png" alt="Sad Logo" width={90} height={90} className="w-14 h-14 sm:w-16 sm:h-16 md:w-[90px] md:h-[90px]" />
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
