@@ -32,6 +32,7 @@ const schema = defineSchema({
     invitedBy: v.id("users"),
     token: v.string(),
     status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("expired")),
+    invitationType: v.optional(v.union(v.literal("email"), v.literal("link"))), // Distinguish single-use email invites from reusable link invites
     createdAt: v.number(),
     expiresAt: v.number(),
   })

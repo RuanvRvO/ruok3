@@ -36,6 +36,7 @@ export default function AcceptInvitation() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
@@ -289,8 +290,11 @@ export default function AcceptInvitation() {
               localStorage.setItem("selectedOrganization", org.organisation);
             }
             
-            // Always redirect to manager view
+            // Show success message before redirecting
             setLoadingMessage(null);
+            setSuccessMessage(`Successfully joined ${invitation.organisation}!`);
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            setSuccessMessage(null);
             router.push("/manager/view");
           } else {
             // New user signup flow
@@ -636,7 +640,11 @@ export default function AcceptInvitation() {
                 const org = orgs[0];
                 localStorage.setItem("selectedOrganization", org.organisation);
               }
-              // Always redirect to manager view (sidebar will show all orgs)
+              // Show success message before redirecting
+              setLoadingMessage(null);
+              setSuccessMessage(`Successfully joined ${invitation.organisation}!`);
+              await new Promise(resolve => setTimeout(resolve, 1500));
+              setSuccessMessage(null);
               router.push("/manager/view");
             } catch (err: unknown) {
               const errorMessage = err instanceof Error ? err.message : String(err);
@@ -772,6 +780,32 @@ export default function AcceptInvitation() {
                 </p>
                 <p className="text-slate-500 dark:text-slate-400 text-sm text-center">
                   This may take a moment...
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success overlay */}
+      {successMessage && (
+        <div className="fixed inset-0 bg-slate-900/80 dark:bg-slate-950/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl border border-green-200 dark:border-green-700 max-w-md w-full mx-4">
+            <div className="flex flex-col items-center gap-4 sm:gap-6">
+              <div className="flex items-center gap-4 sm:gap-6">
+                <Image src="/smile.png" alt="Success" width={80} height={80} className="w-16 h-16 sm:w-18 sm:h-18 md:w-20 md:h-20" />
+              </div>
+              <div className="flex flex-col items-center gap-3 w-full">
+                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <p className="text-slate-800 dark:text-slate-200 font-semibold text-lg text-center">
+                  {successMessage}
+                </p>
+                <p className="text-slate-500 dark:text-slate-400 text-sm text-center">
+                  Redirecting to dashboard...
                 </p>
               </div>
             </div>

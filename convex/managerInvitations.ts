@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalAction } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 // Generate a random token for invitation
@@ -7,11 +8,12 @@ function generateToken(): string {
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
 
-// Mutation to create a manager invitation URL (no email required)
+// Mutation to create a manager invitation URL (with optional email for direct invites)
 export const createInvitation = mutation({
   args: {
     role: v.union(v.literal("editor"), v.literal("viewer")),
     organisation: v.string(),
+    email: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -31,23 +33,106 @@ export const createInvitation = mutation({
       throw new Error("Only organization owners can invite members");
     }
 
-    // Create the invitation (no email - user will provide it when accepting)
     const token = generateToken();
     const now = Date.now();
     const expiresAt = now + (7 * 24 * 60 * 60 * 1000); // 7 days
 
+    // Determine invitation type based on email presence
+    const hasEmail = args.email && args.email.trim().length > 0;
+    const invitationType = hasEmail ? "email" : "link";
+
+    // Validate email if provided
+    if (hasEmail) {
+      const emailLower = args.email!.toLowerCase().trim();
+
+      // Email format validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailLower)) {
+        throw new Error("Invalid email format");
+      }
+
+      // Check for existing pending invitation to same email for same org
+      const existingInvitation = await ctx.db
+        .query("managerInvitations")
+        .withIndex("by_email", (q) => q.eq("email", emailLower))
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("organisation"), args.organisation),
+            q.eq(q.field("status"), "pending"),
+            q.gt(q.field("expiresAt"), now)
+          )
+        )
+        .first();
+
+      if (existingInvitation) {
+        throw new Error("An invitation has already been sent to this email address for this organization");
+      }
+
+      // Check if user already has access
+      const existingUser = await ctx.db
+        .query("users")
+        .withIndex("email", (q) => q.eq("email", emailLower))
+        .first();
+
+      if (existingUser) {
+        const existingMembership = await ctx.db
+          .query("organizationMemberships")
+          .withIndex("by_user_and_org", (q) =>
+            q.eq("userId", existingUser._id).eq("organisation", args.organisation)
+          )
+          .first();
+
+        if (existingMembership) {
+          throw new Error("This user already has access to the organization");
+        }
+      }
+    }
+
+    // Create the invitation
     const invitationId = await ctx.db.insert("managerInvitations", {
-      email: undefined, // Email will be set when user accepts
+      email: hasEmail ? args.email!.toLowerCase().trim() : undefined,
       organisation: args.organisation,
       role: args.role,
       invitedBy: userId,
       token,
       status: "pending",
+      invitationType,
       createdAt: now,
       expiresAt,
     });
 
-    return { invitationId, token };
+    // If email provided, send email
+    if (hasEmail) {
+      // Get inviter name for email
+      const inviter = await ctx.db.get(userId);
+      const inviterName = inviter?.name && inviter?.surname
+        ? `${inviter.name} ${inviter.surname}`
+        : inviter?.email || "Someone";
+
+      // Schedule email send
+      await ctx.scheduler.runAfter(0, internal.managerInvitations.sendInvitationEmail, {
+        email: args.email!.toLowerCase().trim(),
+        organisation: args.organisation,
+        role: args.role,
+        token,
+        inviterName,
+      });
+
+      return {
+        success: true,
+        invitationId,
+        mode: "email" as const,
+        message: `Invitation email sent to ${args.email}`
+      };
+    }
+
+    // Return token for link-based invitations
+    return {
+      success: true,
+      invitationId,
+      token,
+      mode: "link" as const
+    };
   },
 });
 
@@ -192,8 +277,23 @@ export const acceptInvitation = mutation({
       throw new Error(`User found but email is not set. User ID: ${args.userId}. Please wait a moment and try again.`);
     }
 
-    // Don't update invitation email - invitations are reusable
-    // Each user enters their own email when using the invitation
+    // Enforce single-use for email-based invitations
+    if (invitation.invitationType === "email") {
+      const userEmail = user.email.toLowerCase().trim();
+      const invitationEmail = invitation.email?.toLowerCase().trim();
+
+      if (!invitationEmail) {
+        throw new Error("Invalid invitation: missing email");
+      }
+
+      if (userEmail !== invitationEmail) {
+        throw new Error("This invitation is for a different email address");
+      }
+
+      if (invitation.status === "accepted") {
+        throw new Error("This invitation has already been used");
+      }
+    }
 
     // Check if user already has a membership for this organization
     const existingMembership = await ctx.db
@@ -247,8 +347,11 @@ export const acceptInvitation = mutation({
       }
     }
 
-    // Don't mark invitation as accepted - allow reuse by multiple people
-    // Only expired invitations are marked as expired
+    // Mark email invitations as accepted (single-use)
+    // Link invitations remain reusable
+    if (invitation.invitationType === "email") {
+      await ctx.db.patch(invitation._id, { status: "accepted" });
+    }
 
     return { success: true };
   },
@@ -284,12 +387,24 @@ export const acceptInvitationForExistingUser = mutation({
       await ctx.db.patch(invitation._id, { status: "expired" });
       throw new Error("This invitation has expired");
     }
-    
-    // Allow reuse of invitations - only check if expired, not if already used
-    // Invitations can be used by multiple people until they expire
 
-    // Don't check or update invitation email - invitations are reusable
-    // Any authenticated user can accept the invitation
+    // Enforce single-use for email-based invitations
+    if (invitation.invitationType === "email") {
+      const userEmail = user.email.toLowerCase().trim();
+      const invitationEmail = invitation.email?.toLowerCase().trim();
+
+      if (!invitationEmail) {
+        throw new Error("Invalid invitation: missing email");
+      }
+
+      if (userEmail !== invitationEmail) {
+        throw new Error("This invitation is for a different email address");
+      }
+
+      if (invitation.status === "accepted") {
+        throw new Error("This invitation has already been used");
+      }
+    }
 
     // Check if user already has access to this organization
     const existingMembership = await ctx.db
@@ -337,8 +452,11 @@ export const acceptInvitationForExistingUser = mutation({
       createdAt: Date.now(),
     });
 
-    // Don't mark invitation as accepted - allow reuse by multiple people
-    // Only expired invitations are marked as expired
+    // Mark email invitations as accepted (single-use)
+    // Link invitations remain reusable
+    if (invitation.invitationType === "email") {
+      await ctx.db.patch(invitation._id, { status: "accepted" });
+    }
 
     return { success: true };
   },

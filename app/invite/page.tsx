@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import Image from "next/image";
@@ -15,6 +15,13 @@ export default function InvitePage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Pre-fill email if invitation has one (email-based invitations)
+  useEffect(() => {
+    if (invitation?.email && !email) {
+      setEmail(invitation.email);
+    }
+  }, [invitation, email]);
 
   if (!token) {
     return (
@@ -153,8 +160,14 @@ export default function InvitePage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="your.email@example.com"
               required
-              className="w-full bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all"
+              readOnly={!!invitation?.email}
+              className={`w-full bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all ${invitation?.email ? 'cursor-not-allowed opacity-75' : ''}`}
             />
+            {invitation?.email && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                This invitation was sent to this specific email address
+              </p>
+            )}
           </div>
 
           {error && (

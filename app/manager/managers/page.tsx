@@ -57,6 +57,7 @@ export default function ManageManagersPage() {
   const revokeInvitation = useMutation(api.managerInvitations.revokeInvitation);
 
   const [role, setRole] = useState<"viewer" | "editor">("viewer");
+  const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -72,11 +73,24 @@ export default function ManageManagersPage() {
     setGeneratedUrl(null);
 
     try {
-      const result = await createInvitation({ role, organisation: selectedOrg });
-      const baseUrl = window.location.origin;
-      const inviteUrl = `${baseUrl}/invite?token=${encodeURIComponent(result.token)}`;
-      setGeneratedUrl(inviteUrl);
-      setSuccess("Invitation URL generated! Copy and share it with anyone you want to invite.");
+      // Send optional email parameter
+      const result = await createInvitation({
+        role,
+        organisation: selectedOrg,
+        email: email.trim() || undefined
+      });
+
+      if (result.mode === "email") {
+        // Email invitation sent
+        setSuccess(`Invitation email sent to ${email}! They'll receive instructions to join.`);
+        setEmail(""); // Clear email field
+      } else {
+        // Link-based invitation
+        const baseUrl = window.location.origin;
+        const inviteUrl = `${baseUrl}/invite?token=${encodeURIComponent(result.token)}`;
+        setGeneratedUrl(inviteUrl);
+        setSuccess("Invitation URL generated! Copy and share it with anyone you want to invite.");
+      }
     } catch (err: any) {
       setError(err.message || "Failed to create invitation");
     } finally {
@@ -153,8 +167,14 @@ export default function ManageManagersPage() {
     (inv) => inv.status === "pending" && inv.organisation === selectedOrg
   );
 
+  // Email validation helper
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email.trim());
+  };
+
   return (
-    <div className="flex flex-col gap-8 max-w-4xl mx-auto">
+    <div className="flex flex-col gap-8 max-w-6xl mx-auto px-4">
       <div>
         <h1 className="font-bold text-3xl text-slate-900 dark:text-slate-100 mb-3">
           Member Access
@@ -170,78 +190,221 @@ export default function ManageManagersPage() {
         </div>
       )}
 
-      {/* Add Member Form */}
+      {/* Email Invitation Section */}
       {isOwner && (
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6">
-          <h2 className="font-semibold text-xl text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-8">
+          <h2 className="font-semibold text-xl text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2">
             <UserPlus className="size-5" />
             Invite New User
           </h2>
-          <form onSubmit={handleGenerateInvitation} className="flex flex-col gap-4">
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+            Type email of user that you want to invite
+          </p>
+
+          {error && error.includes("email") && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg mb-4">
+              {error}
+            </div>
+          )}
+
+          {success && success.includes("email sent") && (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg mb-4 break-all">
+              {success}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="colleague@company.com"
+                className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-base"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
                 Access Level
               </label>
-              <div className="flex gap-3">
-                <label className="flex items-center gap-2 cursor-pointer">
+              <div className="flex gap-4">
+                <label className="flex items-start gap-3 cursor-pointer flex-1 p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
                   <input
                     type="radio"
                     name="role"
                     value="viewer"
                     checked={role === "viewer"}
                     onChange={(e) => setRole(e.target.value as "viewer")}
-                    className="w-4 h-4"
+                    className="w-4 h-4 mt-1"
                   />
-                  <div>
-                    <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
                       <Eye className="size-4" />
-                      <span className="font-medium">View Only</span>
+                      <span className="font-medium text-slate-900 dark:text-slate-100">View Only</span>
                     </div>
-                    <span className="text-xs text-slate-500">Can view dashboard only</span>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">Can view dashboard only</span>
                   </div>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-start gap-3 cursor-pointer flex-1 p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
                   <input
                     type="radio"
                     name="role"
                     value="editor"
                     checked={role === "editor"}
                     onChange={(e) => setRole(e.target.value as "editor")}
-                    className="w-4 h-4"
+                    className="w-4 h-4 mt-1"
                   />
-                  <div>
-                    <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
                       <Edit2 className="size-4" />
-                      <span className="font-medium">Can Edit</span>
+                      <span className="font-medium text-slate-900 dark:text-slate-100">Can Edit</span>
                     </div>
-                    <span className="text-xs text-slate-500">Can view and edit organization</span>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">Can view and edit organization</span>
                   </div>
                 </label>
               </div>
             </div>
 
-            {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
-                {error}
-              </div>
-            )}
+            <button
+              onClick={async () => {
+                if (!selectedOrg || !email.trim()) return;
 
-            {success && (
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg break-all">
-                {success}
+                setIsSubmitting(true);
+                setError(null);
+                setSuccess(null);
+                setGeneratedUrl(null);
+
+                try {
+                  const result = await createInvitation({
+                    role,
+                    organisation: selectedOrg,
+                    email: email.trim()
+                  });
+
+                  if (result.mode === "email") {
+                    setSuccess(`Invitation email sent to ${email}! They'll receive instructions to join.`);
+                    setEmail("");
+                  }
+                } catch (err: any) {
+                  setError(err.message || "Failed to send invitation");
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }}
+              disabled={isSubmitting || !isValidEmail(email)}
+              className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold rounded-lg py-3 px-6 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? "Sending Email..." : "Send Email Invitation"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Generate Invite Link Section */}
+      {isOwner && (
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-8">
+          <h2 className="font-semibold text-xl text-slate-900 dark:text-slate-100 mb-2">
+            Generate Invite Code
+          </h2>
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 px-4 py-3 rounded-lg mb-6 text-sm">
+            ⚠️ This code is less secure and needs to be kept private. Anyone with this link can join your organization.
+          </div>
+
+          {error && !error.includes("email") && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg mb-4">
+              {error}
+            </div>
+          )}
+
+          {success && !success.includes("email sent") && (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg mb-4 break-all">
+              {success}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+                Access Level for Link
+              </label>
+              <div className="flex gap-4">
+                <label className="flex items-start gap-3 cursor-pointer flex-1 p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
+                  <input
+                    type="radio"
+                    name="role-link"
+                    value="viewer"
+                    checked={role === "viewer"}
+                    onChange={(e) => setRole(e.target.value as "viewer")}
+                    className="w-4 h-4 mt-1"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Eye className="size-4" />
+                      <span className="font-medium text-slate-900 dark:text-slate-100">View Only</span>
+                    </div>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">Can view dashboard only</span>
+                  </div>
+                </label>
+                <label className="flex items-start gap-3 cursor-pointer flex-1 p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
+                  <input
+                    type="radio"
+                    name="role-link"
+                    value="editor"
+                    checked={role === "editor"}
+                    onChange={(e) => setRole(e.target.value as "editor")}
+                    className="w-4 h-4 mt-1"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Edit2 className="size-4" />
+                      <span className="font-medium text-slate-900 dark:text-slate-100">Can Edit</span>
+                    </div>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">Can view and edit organization</span>
+                  </div>
+                </label>
               </div>
-            )}
+            </div>
 
             <button
-              type="submit"
+              onClick={async () => {
+                if (!selectedOrg) return;
+
+                setIsSubmitting(true);
+                setError(null);
+                setSuccess(null);
+                setGeneratedUrl(null);
+
+                try {
+                  const result = await createInvitation({
+                    role,
+                    organisation: selectedOrg,
+                    email: undefined
+                  });
+
+                  if (result.mode === "link") {
+                    const baseUrl = window.location.origin;
+                    const inviteUrl = `${baseUrl}/invite?token=${encodeURIComponent(result.token)}`;
+                    setGeneratedUrl(inviteUrl);
+                    setSuccess("Invitation URL generated! Copy and share it with anyone you want to invite.");
+                  }
+                } catch (err: any) {
+                  setError(err.message || "Failed to generate invitation");
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }}
               disabled={isSubmitting}
-              className="bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 text-white font-semibold rounded-lg py-2 px-4 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 text-white font-semibold rounded-lg py-3 px-6 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Generating..." : "Generate Invitation URL"}
+              {isSubmitting ? "Generating..." : "Generate Shareable Link"}
             </button>
 
             {generatedUrl && (
-              <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
+              <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                   Invitation URL (copy and share):
                 </label>
@@ -262,7 +425,7 @@ export default function ManageManagersPage() {
                 </div>
               </div>
             )}
-          </form>
+          </div>
         </div>
       )}
 
@@ -284,13 +447,16 @@ export default function ManageManagersPage() {
               >
                 <div className="flex-1">
                   <p className="font-medium text-slate-900 dark:text-slate-100">
-                    {invitation.email || "No email set yet"}
+                    {invitation.invitationType === "email"
+                      ? invitation.email
+                      : "Shareable Link (no specific email)"}
                   </p>
                   <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mt-1">
                     <Clock className="size-3" />
                     <span>
-                      {invitation.role === "viewer" ? "View Only" : "Can Edit"} • Expires{" "}
-                      {new Date(invitation.expiresAt).toLocaleDateString()}
+                      {invitation.role === "viewer" ? "View Only" : "Can Edit"} •
+                      {invitation.invitationType === "email" ? " Single-use • " : " Reusable • "}
+                      Expires {new Date(invitation.expiresAt).toLocaleDateString()}
                     </span>
                   </div>
                 </div>
