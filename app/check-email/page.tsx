@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -15,8 +15,7 @@ export default function CheckEmail() {
   const [error, setError] = useState<string | null>(null);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
-  const currentUserId = useQuery(api.users.getCurrentUserId);
-  const sendVerificationEmail = useMutation(api.emailVerification.sendVerificationEmail);
+  const resendVerificationEmail = useMutation(api.emailVerification.resendVerificationEmail);
 
   // Countdown timer effect
   useEffect(() => {
@@ -29,8 +28,8 @@ export default function CheckEmail() {
   }, [cooldownSeconds]);
 
   const handleResend = async () => {
-    if (!currentUserId) {
-      setError("You must be signed in to resend verification email");
+    if (!email) {
+      setError("Email address is required");
       return;
     }
 
@@ -39,7 +38,7 @@ export default function CheckEmail() {
     setMessage(null);
 
     try {
-      const result = await sendVerificationEmail({ userId: currentUserId });
+      const result = await resendVerificationEmail({ email });
       setMessage(result.message || "Verification email sent!");
       // Start 60 second cooldown
       setCooldownSeconds(60);

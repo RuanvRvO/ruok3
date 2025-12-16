@@ -28,7 +28,7 @@ export default function AcceptInvitation() {
   );
   const acceptInvitationForExistingUser = useMutation(api.managerInvitations.acceptInvitationForExistingUser);
   const acceptInvitation = useMutation(api.managerInvitations.acceptInvitation);
-  const sendVerificationEmail = useMutation(api.emailVerification.sendVerificationEmail);
+  const resendVerificationEmail = useMutation(api.emailVerification.resendVerificationEmail);
   const currentUserId = useQuery(api.users.getCurrentUserId);
   const currentUser = useQuery(api.users.getCurrentUser);
   const userOrganizations = useQuery(api.organizationMemberships.getUserOrganizations);
@@ -469,29 +469,12 @@ export default function AcceptInvitation() {
         isSigningUpRef.current = true;
 
         // Now create the account - only after all validations pass
-        let newUserId: Id<"users"> | null = null;
         try {
+          setLoadingMessage("Creating your account...");
           await signIn("password", formData);
 
-          // Wait for account to be created and get userId
-          setLoadingMessage("Creating your account...");
+          // Wait for account to be created
           await new Promise(resolve => setTimeout(resolve, 2000));
-
-          // Temporarily sign in to get the user ID for sending verification email
-          const signInFormData = new FormData();
-          signInFormData.set("email", emailToUse);
-          signInFormData.set("password", password);
-          signInFormData.set("flow", "signIn");
-
-          try {
-            await signIn("password", signInFormData);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            if (currentUserId) {
-              newUserId = currentUserId;
-            }
-          } catch (signInError) {
-            console.log("Could not auto sign-in to send verification:", signInError);
-          }
         } catch (signUpError: unknown) {
           // Handle case where account already exists
           const errorMessage = signUpError instanceof Error ? signUpError.message : String(signUpError);
@@ -508,25 +491,13 @@ export default function AcceptInvitation() {
           throw signUpError;
         }
 
-        // Send verification email if we have userId
-        if (newUserId) {
-          try {
-            setLoadingMessage("Sending verification email...");
-            await sendVerificationEmail({
-              userId: newUserId as Id<"users">,
-            });
-          } catch (emailError) {
-            console.error("Failed to send verification email:", emailError);
-            // Continue anyway - user can request it again
-          }
-        }
-
-        // Sign out the user - they need to verify email first
-        setLoadingMessage("Finalizing account creation...");
+        // Send verification email using public mutation (doesn't require auth)
         try {
-          await signOut();
-        } catch (signOutError) {
-          console.log("Sign out error:", signOutError);
+          setLoadingMessage("Sending verification email...");
+          await resendVerificationEmail({ email: emailToUse });
+        } catch (emailError) {
+          console.error("Failed to send verification email:", emailError);
+          // Continue anyway - user can request it again on check-email page
         }
 
         // Reset signup flag
@@ -582,8 +553,8 @@ export default function AcceptInvitation() {
             // IMPORTANT: React query values are captured in closure, so wait fixed time initially
             setLoadingMessage("Verifying access...");
             await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds initially
-            
-            let userId: string | null = currentUserId || null;
+
+            const userId: string | null = currentUserId || null;
 
             if (!userId) {
               // Auth not ready yet - set flags and let useEffect automatically continue when ready

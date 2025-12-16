@@ -251,3 +251,68 @@ export const markVerificationAsUsed = internalMutation({
     await ctx.db.patch(args.verificationId, { used: true });
   },
 });
+
+// Public mutation to resend verification email (doesn't require auth)
+export const resendVerificationEmail = mutation({
+  args: {
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const emailLower = args.email.toLowerCase().trim();
+
+    // Find user by email
+    const user = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", emailLower))
+      .first();
+
+    if (!user) {
+      // Don't reveal if user exists or not for security
+      return { success: true, message: "If an account exists with this email, a verification email will be sent." };
+    }
+
+    // Check if user is already verified
+    if (user.emailVerificationTime) {
+      return { success: true, message: "Email already verified" };
+    }
+
+    // Check if there's a recent verification email (within last 2 minutes)
+    const recentVerification = await ctx.db
+      .query("emailVerifications")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("used"), false),
+          q.gt(q.field("createdAt"), Date.now() - (2 * 60 * 1000)) // Within last 2 minutes
+        )
+      )
+      .first();
+
+    if (recentVerification) {
+      return { success: true, message: "A verification email was recently sent. Please check your inbox and spam folder." };
+    }
+
+    // Generate new token
+    const token = generateToken();
+    const expiresAt = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
+
+    // Create email verification record
+    await ctx.db.insert("emailVerifications", {
+      email: emailLower,
+      token,
+      userId: user._id,
+      expiresAt,
+      used: false,
+      createdAt: Date.now(),
+    });
+
+    // Send verification email
+    await ctx.scheduler.runAfter(0, internal.emailVerification.sendVerificationEmailAction, {
+      email: emailLower,
+      token,
+      userName: user.name || "there",
+    });
+
+    return { success: true, message: "Verification email sent. Please check your inbox and spam folder." };
+  },
+});
