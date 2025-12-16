@@ -292,7 +292,7 @@ export default function AcceptInvitation() {
             
             // Show success message before redirecting
             setLoadingMessage(null);
-            setSuccessMessage(`Successfully joined ${invitation.organisation}!`);
+            setSuccessMessage(`Successfully joined ${invitation?.organisation || 'the organization'}!`);
             await new Promise(resolve => setTimeout(resolve, 1500));
             setSuccessMessage(null);
             router.push("/manager/view");
@@ -642,7 +642,7 @@ export default function AcceptInvitation() {
               }
               // Show success message before redirecting
               setLoadingMessage(null);
-              setSuccessMessage(`Successfully joined ${invitation.organisation}!`);
+              setSuccessMessage(`Successfully joined ${invitation?.organisation || 'the organization'}!`);
               await new Promise(resolve => setTimeout(resolve, 1500));
               setSuccessMessage(null);
               router.push("/manager/view");
