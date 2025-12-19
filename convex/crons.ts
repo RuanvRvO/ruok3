@@ -3,10 +3,10 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-// Send daily mood check-in emails at 4pm SAST (10am UTC)
-crons.daily(
+// Send mood check-in emails at 3pm SAST (1pm UTC) on weekdays only
+crons.cron(
   "send daily mood emails",
-  { hourUTC: 14, minuteUTC: 0 }, 
+  "0 13 * * 1-5", // At 1pm UTC (3pm SAST) Monday-Friday
   internal.moodCheckins.sendDailyEmails
 );
 
