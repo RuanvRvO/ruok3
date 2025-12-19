@@ -185,28 +185,8 @@ export default function ViewOrganizationPage() {
   const isNewOrganization = employees !== undefined && employees.length === 0;
   const isFirstTimeUser = userOrgs !== undefined && userOrgs.length === 0;
 
-  // Show loading state only if we don't have essential data yet
-  if (user === undefined || employees === undefined) {
-    return (
-      <div className="mx-auto">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-          <div
-            className="w-2 h-2 bg-slate-500 rounded-full animate-bounce"
-            style={{ animationDelay: "0.1s" }}
-          ></div>
-          <div
-            className="w-2 h-2 bg-slate-600 rounded-full animate-bounce"
-            style={{ animationDelay: "0.2s" }}
-          ></div>
-          <p className="ml-2 text-slate-600 dark:text-slate-400">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
   // Show welcome page for first-time users (users with no organization memberships)
-  // Don't wait for employees to load - if they have no orgs, show welcome page
+  // Check this BEFORE showing loading screen, since first-time users won't have selectedOrg
   if (userOrgs !== undefined && isFirstTimeUser && !accessError) {
     return (
       <div className="flex flex-col gap-10 px-4 md:px-8 py-8 mx-auto w-full max-w-4xl">
@@ -272,6 +252,26 @@ export default function ViewOrganizationPage() {
               </p>
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state if we're waiting for essential data (for users with organizations)
+  if (user === undefined || employees === undefined) {
+    return (
+      <div className="mx-auto">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
+          <div
+            className="w-2 h-2 bg-slate-500 rounded-full animate-bounce"
+            style={{ animationDelay: "0.1s" }}
+          ></div>
+          <div
+            className="w-2 h-2 bg-slate-600 rounded-full animate-bounce"
+            style={{ animationDelay: "0.2s" }}
+          ></div>
+          <p className="ml-2 text-slate-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     );
