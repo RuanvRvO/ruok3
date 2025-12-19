@@ -78,33 +78,18 @@ export default function InvitePage() {
     }
 
     try {
-      // Check if email exists in users table
-      const response = await fetch("/api/check-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || "Failed to check email (server response not OK)");
-      }
-
-      const data = await response.json();
-      const emailExists = data.exists;
-
       // Always redirect to accept-invitation page - it will handle signup/signin flow
       // Pass email as query param so accept-invitation can use it if invitation doesn't have email set
       router.push(`/accept-invitation?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`);
-    } catch (err: any) {
-      console.error("Error checking email:", err);
-      const msg = err?.message?.toString() || "";
+    } catch (err: unknown) {
+      console.error("Error during redirect:", err);
+      const msg = err instanceof Error ? err.message : String(err);
       const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
       setError(
         msg ||
           (isNetwork
-            ? "Network error while checking the email. Please check your connection and try again."
-            : "Failed to check the email address. Please try again or contact support.")
+            ? "Network error. Please check your connection and try again."
+            : "Failed to proceed. Please try again or contact support.")
       );
       setLoading(false);
     }

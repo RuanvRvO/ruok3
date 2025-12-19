@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
 export default function ManagerSignUp() {
@@ -13,14 +13,6 @@ export default function ManagerSignUp() {
   const token = searchParams.get("token");
 
   const invitation = useQuery(api.managerInvitations.getInvitationByToken, token ? { token } : "skip");
-
-  // Check if user with this email already exists
-  const userExists = useQuery(
-    api.users.checkEmailExists,
-    invitation && !invitation.isExpired && typeof invitation.email === "string"
-      ? { email: invitation.email }
-      : "skip"
-  );
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -38,17 +30,13 @@ export default function ManagerSignUp() {
     }
   }, [token, router]);
 
-  // If user already exists, redirect to accept-invitation signin page
-  // If user doesn't exist, redirect to signup first
+  // Always redirect to accept-invitation page
+  // The accept-invitation page handles both signup and signin flows
   useEffect(() => {
     if (invitation && token) {
-      if (userExists === true) {
-        router.push(`/accept-invitation?token=${token}`);
-      } else if (userExists === false) {
-        router.push(`/signin?flow=signup&returnTo=/accept-invitation?token=${token}`);
-      }
+      router.push(`/accept-invitation?token=${token}`);
     }
-  }, [invitation, userExists, token, router]);
+  }, [invitation, token, router]);
 
   if (!token || invitation === undefined) {
     return (

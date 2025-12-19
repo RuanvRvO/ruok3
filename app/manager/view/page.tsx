@@ -127,14 +127,16 @@ export default function ViewOrganizationPage() {
     selectedOrg && userRole ? { days: 30, organisation: selectedOrg } : "skip"
   );
 
+  // Check if user has any organization memberships (to determine if truly new)
+  // MUST be called before any conditional returns (React Hooks rules)
+  const userOrgs = useQuery(api.organizationMemberships.getUserOrganizations);
+
   // Auto-select first group when groups load
   useEffect(() => {
     if (groups && groups.length > 0 && selectedGroupId === null) {
       setSelectedGroupId(groups[0]._id);
     }
   }, [groups, selectedGroupId]);
-
-  const isLoading = todayCheckins === undefined || groups === undefined || employees === undefined;
 
   // Sort check-ins by most recent first and filter only those with notes
   const sortedCheckins = useMemo(() => {
@@ -179,15 +181,12 @@ export default function ViewOrganizationPage() {
     );
   }
 
-  // Check if user has any organization memberships (to determine if truly new)
-  const userOrgs = useQuery(api.organizationMemberships.getUserOrganizations);
-  
-  // Check if this is a new user with no employees
-  const isNewUser = employees && employees.length === 0;
+  // Check if this is a new user with no employees - only when data is loaded
+  const isNewOrganization = employees !== undefined && employees.length === 0;
   const isFirstTimeUser = userOrgs !== undefined && userOrgs.length === 0;
 
-  // Show loading state only if we don't have user data yet
-  if (user === undefined) {
+  // Show loading state only if we don't have essential data yet
+  if (user === undefined || employees === undefined) {
     return (
       <div className="mx-auto">
         <div className="flex items-center gap-2">
@@ -319,8 +318,8 @@ export default function ViewOrganizationPage() {
         </div>
       </div>
 
-      {/* Empty State for New Users */}
-      {isNewUser && (
+      {/* Empty State for New Organizations */}
+      {isNewOrganization && (
         <div className="flex flex-col items-center justify-center py-16 px-8 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600">
           <div className="text-center max-w-2xl">
             <div className="text-6xl mb-6">🚀</div>
@@ -355,7 +354,7 @@ export default function ViewOrganizationPage() {
       )}
 
       {/* Two Column Layout */}
-      {!isNewUser && (
+      {!isNewOrganization && (
       <div className="grid grid-cols-1 2xl:grid-cols-4 gap-12 2xl:gap-32">
         {/* LEFT COLUMN - Graphs (3/4 width) */}
         <div className="2xl:col-span-3 flex flex-col gap-8">

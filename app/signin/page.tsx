@@ -8,7 +8,6 @@ import Link from "next/link";
 import { useQuery, useMutation } from "convex/react";
 import { useConvexAuth } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import type { Id } from "../../convex/_generated/dataModel";
 
 export default function SignIn() {
   const { signIn, signOut } = useAuthActions();
@@ -20,8 +19,7 @@ export default function SignIn() {
   const invitationToken = searchParams.get("token");
   const invitationEmail = searchParams.get("email");
   const organizations = useQuery(api.organizationMemberships.getUserOrganizations);
-  const currentUserId = useQuery(api.users.getCurrentUserId);
-  const sendVerificationEmail = useMutation(api.emailVerification.sendVerificationEmail);
+  const resendVerificationEmailMutation = useMutation(api.emailVerification.resendVerificationEmail);
   const [flow, setFlow] = useState<"signIn" | "signUp">(initialFlow);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -217,27 +215,12 @@ export default function SignIn() {
                 try {
                   // Wait for account creation to complete
                   setLoadingMessage("Creating your account...");
-                  await new Promise(resolve => setTimeout(resolve, 2000));
+                  await new Promise(resolve => setTimeout(resolve, 1500));
 
-                  // Get userId by temporarily staying signed in
-                  let userId = currentUserId;
-
-                  // Wait for userId to be available
-                  if (!userId) {
-                    for (let i = 0; i < 10; i++) {
-                      await new Promise(resolve => setTimeout(resolve, 500));
-                      if (currentUserId) {
-                        userId = currentUserId;
-                        break;
-                      }
-                    }
-                  }
-
-                  // Send verification email
-                  if (userId) {
-                    setLoadingMessage("Sending verification email...");
-                    await sendVerificationEmail({ userId: userId as Id<"users"> });
-                  }
+                  // Send verification email using the email address
+                  setLoadingMessage("Sending verification email...");
+                  const userEmail = formData.get("email") as string;
+                  await resendVerificationEmailMutation({ email: userEmail });
 
                   // Sign out the user
                   setLoadingMessage("Finalizing...");
@@ -246,7 +229,7 @@ export default function SignIn() {
                   // Redirect to check-email page
                   setLoading(false);
                   setLoadingMessage(null);
-                  router.push(`/check-email?email=${encodeURIComponent(formData.get("email") as string)}`);
+                  router.push(`/check-email?email=${encodeURIComponent(userEmail)}`);
                   return;
                 } catch (err) {
                   console.error("Error during signup flow:", err);

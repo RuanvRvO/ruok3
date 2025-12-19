@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalAction } from "./_generated/server";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 // Query to check if employee has already submitted today
@@ -382,7 +382,6 @@ export const getHistoricalCheckins = query({
 
     const organisation = args.organisation;
 
-    const today = new Date().toISOString().split("T")[0];
     const days = args.days || 30;
     const allCheckins = [];
 

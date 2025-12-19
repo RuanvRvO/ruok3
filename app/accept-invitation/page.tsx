@@ -149,35 +149,34 @@ export default function AcceptInvitation() {
     }
   }, [currentUserId, isAuthenticated, token, acceptInvitation, userOrganizations, router, waitingForAuth]);
 
-  // Force sign out if user is authenticated and trying to create a new account
+  // Force sign out if user is authenticated but it's the wrong account
   // This prevents session contamination where the wrong user ID gets used
   useEffect(() => {
     // Skip if we're already signing out, loading, or currently in the signup process
-    if (signingOut || !invitation || isSigningUpRef.current) {
+    if (signingOut || !invitation || isSigningUpRef.current || !emailToCheck) {
       return;
     }
 
-    // If user is authenticated and in signup mode, check if it's for a different email
-    if (isAuthenticated && isSignupMode && currentUser?.email) {
+    // If user is authenticated, check if their email matches the expected email
+    if (isAuthenticated && currentUser?.email) {
       const expectedEmail = emailToCheck.toLowerCase().trim();
       const currentEmail = currentUser.email.toLowerCase().trim();
 
       // If the authenticated user's email doesn't match the expected email
-      if (expectedEmail && expectedEmail !== currentEmail) {
-        // Force sign out to prevent creating membership for wrong user
+      if (expectedEmail !== currentEmail) {
+        // Force sign out immediately to prevent wrong account usage
+        console.log(`Signed in as ${currentEmail} but invitation is for ${expectedEmail}. Signing out...`);
         setSigningOut(true);
-        setError(`You are currently signed in as ${currentUser.email}. You will be signed out to create an account for ${emailToCheck}.`);
+        setError(`You are currently signed in as ${currentEmail}, but this invitation is for ${expectedEmail}. Signing you out...`);
 
-        // Sign out after a brief delay to show the message
-        setTimeout(() => {
-          void signOut().then(() => {
-            setSigningOut(false);
-            setError(null);
-          });
-        }, 2000);
+        // Sign out immediately
+        void signOut().then(() => {
+          setSigningOut(false);
+          setError(null);
+        });
       }
     }
-  }, [isAuthenticated, isSignupMode, currentUser, emailToCheck, signOut, signingOut]);
+  }, [isAuthenticated, currentUser, emailToCheck, signOut, signingOut, invitation]);
 
   // Global error handler to catch uncaught errors from signIn
   useEffect(() => {
@@ -353,6 +352,32 @@ export default function AcceptInvitation() {
       continueInvitation();
     }
   }, [currentUserId, isAuthenticated, waitingForAuth, token, currentUser, acceptInvitationForExistingUser, acceptInvitation, userOrganizations, router]);
+
+  // Show signing out state
+  if (signingOut) {
+    return (
+      <div className="flex flex-col gap-4 sm:gap-6 md:gap-8 w-full max-w-lg mx-auto min-h-screen justify-center items-center px-4 py-6 sm:py-8">
+        <div className="text-center flex flex-col items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 md:gap-6">
+            <Image src="/smile.png" alt="Smile Logo" width={95} height={95} className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24" />
+            <div className="w-px h-12 sm:h-16 md:h-20 bg-slate-300 dark:bg-slate-600"></div>
+            <Image src="/sad.png" alt="Sad Logo" width={90} height={90} className="w-14 h-14 sm:w-18 sm:h-18 md:w-[90px] md:h-[90px]" />
+          </div>
+          <div className="flex items-center gap-2 mt-4">
+            <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+            <p className="ml-2 text-slate-600 dark:text-slate-400">Signing out...</p>
+          </div>
+          {error && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 max-w-md mt-4">
+              <p className="text-blue-700 dark:text-blue-300 text-sm">{error}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (!token || invitation === undefined || emailExists === undefined) {
     return (
