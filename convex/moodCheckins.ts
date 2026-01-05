@@ -118,6 +118,17 @@ export const getTrends = query({
     days: v.optional(v.number()), // Number of days to look back, default 7
     organisation: v.string(),
   },
+  returns: v.array(v.object({
+    date: v.string(),
+    green: v.number(),
+    amber: v.number(),
+    red: v.number(),
+    total: v.number(),
+    employeeCount: v.number(),
+    greenPercent: v.number(),
+    amberPercent: v.number(),
+    redPercent: v.number(),
+  })),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -432,6 +443,17 @@ export const getGroupTrends = query({
     days: v.optional(v.number()), // Number of days to look back, default 7
     organisation: v.string(),
   },
+  returns: v.array(v.object({
+    date: v.string(),
+    green: v.number(),
+    amber: v.number(),
+    red: v.number(),
+    total: v.number(),
+    employeeCount: v.number(),
+    greenPercent: v.number(),
+    amberPercent: v.number(),
+    redPercent: v.number(),
+  })),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {

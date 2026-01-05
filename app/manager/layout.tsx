@@ -66,7 +66,7 @@ export default function ManagerLayout({
 
   // Get user's role in selected organization
   const userRole = useQuery(
-    api.users.getUserRoleInOrg,
+    api.organizationMemberships.getUserRoleInOrg,
     selectedOrg ? { organisation: selectedOrg } : "skip"
   );
 

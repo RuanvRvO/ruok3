@@ -113,10 +113,11 @@ export const listAccessRequests = query({
 
     // Get access requests for this organization
     if (args.status) {
+      const status = args.status;
       return await ctx.db
         .query("accessRequests")
         .withIndex("by_organisation_and_status", (q) =>
-          q.eq("organisation", args.organisation).eq("status", args.status)
+          q.eq("organisation", args.organisation).eq("status", status)
         )
         .collect();
     } else {

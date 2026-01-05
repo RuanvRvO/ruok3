@@ -28,7 +28,7 @@ export default function EditOrganizationPage() {
 
   // Check if user has access to the selected organization
   const userRole = useQuery(
-    api.users.getUserRoleInOrg,
+    api.organizationMemberships.getUserRoleInOrg,
     selectedOrg ? { organisation: selectedOrg } : "skip"
   );
 
@@ -509,7 +509,7 @@ export default function EditOrganizationPage() {
 }
 
 interface GroupCardProps {
-  group: { _id: Id<"groups">; groupName: string };
+  group: { _id: Id<"groups">; name: string };
   employees: Array<{ _id: Id<"employees">; firstName: string; email: string }>;
   onRemoveGroup: (groupId: Id<"groups">, groupName: string) => void;
   onAddMember: (groupId: Id<"groups">, employeeId: Id<"employees">) => void;

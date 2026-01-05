@@ -47,7 +47,7 @@ export default function ViewOrganizationPage() {
 
   // Check if user has access to the selected organization
   const userRole = useQuery(
-    api.users.getUserRoleInOrg,
+    api.organizationMemberships.getUserRoleInOrg,
     selectedOrg ? { organisation: selectedOrg } : "skip"
   );
 
@@ -157,33 +157,13 @@ export default function ViewOrganizationPage() {
     return historicalCheckins.filter((checkin) => checkin.mood === historicalMoodFilter);
   }, [historicalCheckins, historicalMoodFilter]);
 
-  // Show signing out message if access was denied
-  if (accessError) {
-    return (
-      <div className="mx-auto">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-rose-400 rounded-full animate-bounce"></div>
-          <div
-            className="w-2 h-2 bg-rose-500 rounded-full animate-bounce"
-            style={{ animationDelay: "0.1s" }}
-          ></div>
-          <div
-            className="w-2 h-2 bg-rose-600 rounded-full animate-bounce"
-            style={{ animationDelay: "0.2s" }}
-          ></div>
-          <p className="ml-2 text-rose-600 dark:text-rose-400">Access denied. Signing out...</p>
-        </div>
-      </div>
-    );
-  }
-
   // Check if this is a new user with no employees - only when data is loaded
   const isNewOrganization = employees !== undefined && employees.length === 0;
   const isFirstTimeUser = userOrgs !== undefined && userOrgs.length === 0;
 
   // Show welcome page for first-time users (users with no organization memberships)
   // Check this BEFORE showing loading screen, since first-time users won't have selectedOrg
-  if (userOrgs !== undefined && isFirstTimeUser && !accessError) {
+  if (userOrgs !== undefined && isFirstTimeUser) {
     return (
       <div className="flex flex-col gap-10 px-4 md:px-8 py-8 mx-auto w-full max-w-4xl">
         <div className="text-center">
@@ -678,7 +658,7 @@ export default function ViewOrganizationPage() {
 }
 
 // Reusable Mood Graph Component
-function MoodGraph({ trends, isMonthly = false }: { trends: Array<{ date: string; green: number; amber: number; red: number; employeeCount?: number }>; isMonthly?: boolean }) {
+function MoodGraph({ trends, isMonthly = false }: { trends: Array<{ date: string; green: number; amber: number; red: number; total: number; employeeCount: number; greenPercent: number; amberPercent: number; redPercent: number }>; isMonthly?: boolean }) {
   // Y-axis should go up to the maximum number of employees across all days
   // Also consider actual response totals to ensure historical data isn't cut off
   const maxEmployeeCount = Math.max(...trends.map(d => d.employeeCount || 0), 1);

@@ -24,7 +24,7 @@ export default function ManageManagersPage() {
   }, []);
 
   const userRole = useQuery(
-    api.users.getUserRoleInOrg,
+    api.organizationMemberships.getUserRoleInOrg,
     selectedOrg ? { organisation: selectedOrg } : "skip"
   );
 
