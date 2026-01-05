@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalQuery } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 // Create a new organization
@@ -331,6 +331,38 @@ export const findMembershipsByEmail = query({
       allMembershipsWithDetails: membershipsWithDetails,
       message: `Found ${memberships.length} memberships for user`,
     };
+  },
+});
+
+// Internal query to get organization members (for email notifications)
+export const getOrganizationMembersInternal = internalQuery({
+  args: {
+    organisation: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Get all members
+    const memberships = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_organisation", (q) => q.eq("organisation", args.organisation))
+      .collect();
+
+    // Fetch user details for each member
+    const members = await Promise.all(
+      memberships.map(async (membership) => {
+        const user = await ctx.db.get(membership.userId);
+        return {
+          _id: membership._id,
+          userId: membership.userId,
+          email: user?.email || "",
+          name: user?.name || "",
+          surname: user?.surname || "",
+          role: membership.role,
+          createdAt: membership.createdAt,
+        };
+      })
+    );
+
+    return members;
   },
 });
 

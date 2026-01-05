@@ -52,9 +52,15 @@ export default function ManageManagersPage() {
   );
 
   const invitations = useQuery(api.managerInvitations.listInvitations);
+  const accessRequests = useQuery(
+    api.accessRequests.listAccessRequests,
+    selectedOrg && userRole ? { organisation: selectedOrg, status: "pending" } : "skip"
+  );
   const createInvitation = useMutation(api.managerInvitations.createInvitation);
   const removeMember = useMutation(api.organizationMemberships.removeOrganizationMember);
   const revokeInvitation = useMutation(api.managerInvitations.revokeInvitation);
+  const approveAccessRequest = useMutation(api.accessRequests.approveAccessRequest);
+  const declineAccessRequest = useMutation(api.accessRequests.declineAccessRequest);
 
   const [role, setRole] = useState<"viewer" | "editor">("viewer");
   const [email, setEmail] = useState("");
@@ -138,7 +144,33 @@ export default function ManageManagersPage() {
     setSuccess("Invitation link copied to clipboard!");
   };
 
-  if (user === undefined || members === undefined || invitations === undefined || userRole === undefined) {
+  const handleApproveRequest = async (requestId: Id<"accessRequests">) => {
+    if (!confirm("Are you sure you want to approve this access request?")) {
+      return;
+    }
+
+    try {
+      await approveAccessRequest({ requestId });
+      setSuccess("Access request approved! The user will receive an email notification.");
+    } catch (err: any) {
+      setError(err.message || "Failed to approve access request");
+    }
+  };
+
+  const handleDeclineRequest = async (requestId: Id<"accessRequests">) => {
+    if (!confirm("Are you sure you want to decline this access request?")) {
+      return;
+    }
+
+    try {
+      await declineAccessRequest({ requestId });
+      setSuccess("Access request declined.");
+    } catch (err: any) {
+      setError(err.message || "Failed to decline access request");
+    }
+  };
+
+  if (user === undefined || members === undefined || invitations === undefined || accessRequests === undefined || userRole === undefined) {
     return (
       <div className="mx-auto">
         <div className="flex items-center gap-2">
@@ -425,6 +457,58 @@ export default function ManageManagersPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Pending Access Requests */}
+      {isOwner && accessRequests && accessRequests.length > 0 && (
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6">
+          <h2 className="font-semibold text-xl text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <UserPlus className="size-5" />
+            Pending Access Requests
+          </h2>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+            Review and approve or decline access requests from users who want to join your organization.
+          </p>
+          <div className="flex flex-col gap-3">
+            {accessRequests.map((request) => (
+              <div
+                key={request._id}
+                className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800"
+              >
+                <div className="flex-1">
+                  <p className="font-medium text-slate-900 dark:text-slate-100">
+                    {request.requestedEmail}
+                  </p>
+                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mt-1">
+                    <Clock className="size-3" />
+                    <span>
+                      {request.role === "viewer" ? "View Only" : "Can Edit"} •
+                      Requested {new Date(request.requestedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => handleApproveRequest(request._id)}
+                    variant="ghost"
+                    size="sm"
+                    className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    onClick={() => handleDeclineRequest(request._id)}
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  >
+                    Decline
+                  </Button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

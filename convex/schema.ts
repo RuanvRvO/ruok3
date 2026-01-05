@@ -95,6 +95,21 @@ const schema = defineSchema({
     .index("by_token", ["token"])
     .index("by_email", ["email"])
     .index("by_user", ["userId"]),
+  accessRequests: defineTable({
+    invitationId: v.id("managerInvitations"), // Link to the general invite link
+    requestedEmail: v.string(),
+    organisation: v.string(),
+    role: v.union(v.literal("editor"), v.literal("viewer")),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("declined")),
+    requestedAt: v.number(),
+    respondedAt: v.optional(v.number()),
+    respondedBy: v.optional(v.id("users")), // Owner who approved/declined
+  })
+    .index("by_invitation", ["invitationId"])
+    .index("by_email", ["requestedEmail"])
+    .index("by_organisation", ["organisation"])
+    .index("by_status", ["status"])
+    .index("by_organisation_and_status", ["organisation", "status"]),
 });
 
 export default schema;

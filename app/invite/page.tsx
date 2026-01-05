@@ -78,9 +78,14 @@ export default function InvitePage() {
     }
 
     try {
-      // Always redirect to accept-invitation page - it will handle signup/signin flow
-      // Pass email as query param so accept-invitation can use it if invitation doesn't have email set
-      router.push(`/accept-invitation?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`);
+      // Check invitation type
+      if (invitation?.invitationType === "email") {
+        // Email-specific invitation - redirect to accept-invitation page
+        router.push(`/accept-invitation?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`);
+      } else {
+        // General/shareable link - create access request instead of auto-granting access
+        router.push(`/request-access?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`);
+      }
     } catch (err: unknown) {
       console.error("Error during redirect:", err);
       const msg = err instanceof Error ? err.message : String(err);
