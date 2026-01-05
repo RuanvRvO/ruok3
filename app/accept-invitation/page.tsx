@@ -120,7 +120,6 @@ export default function AcceptInvitation() {
           // In this case, just redirect - the membership exists in the database
           // The user will see their organization when they get to the manager page
           if (!orgs || orgs.length === 0) {
-            console.log("Organization membership created but query hasn't updated yet. Redirecting anyway - membership exists in database.");
             // Don't show error - just redirect and let the manager page handle it
             // The membership is in the database, the query just needs more time
             setLoadingMessage(null);
@@ -136,7 +135,6 @@ export default function AcceptInvitation() {
           router.push("/manager/view");
         } catch (invitationError: unknown) {
           const errorMessage = invitationError instanceof Error ? invitationError.message : String(invitationError);
-          console.error("Failed to accept invitation:", invitationError);
           setLoadingMessage(null);
           setError(`Failed to accept invitation: ${errorMessage}. Please try again or contact support.`);
           setLoading(false);
@@ -165,7 +163,6 @@ export default function AcceptInvitation() {
       // If the authenticated user's email doesn't match the expected email
       if (expectedEmail !== currentEmail) {
         // Force sign out immediately to prevent wrong account usage
-        console.log(`Signed in as ${currentEmail} but invitation is for ${expectedEmail}. Signing out...`);
         setSigningOut(true);
         setError(`You are currently signed in as ${currentEmail}, but this invitation is for ${expectedEmail}. Signing you out...`);
 
@@ -321,7 +318,6 @@ export default function AcceptInvitation() {
             }
             
             if (!orgs || orgs.length === 0) {
-              console.log("Organization membership created but query hasn't updated yet. Redirecting anyway.");
               isSigningUpRef.current = false;
               setLoadingMessage(null);
               router.push("/manager/view");
@@ -335,7 +331,6 @@ export default function AcceptInvitation() {
             router.push("/manager/view");
           }
         } catch (err: unknown) {
-          console.error("Failed to accept invitation automatically:", err);
           const errorMessage = err instanceof Error ? err.message : String(err);
           const lower = errorMessage.toLowerCase();
           const isNetwork = lower.includes("network") || lower.includes("fetch");
@@ -521,7 +516,6 @@ export default function AcceptInvitation() {
           setLoadingMessage("Sending verification email...");
           await resendVerificationEmail({ email: emailToUse });
         } catch (emailError) {
-          console.error("Failed to send verification email:", emailError);
           // Continue anyway - user can request it again on check-email page
         }
 
@@ -712,7 +706,6 @@ export default function AcceptInvitation() {
       // In this case, just redirect - the membership exists in the database
       // The user will see their organization when they get to the manager page
       if (!orgs || orgs!.length === 0) {
-        console.log("Organization membership created but query hasn't updated yet. Redirecting anyway - membership exists in database.");
         // Don't throw error - just redirect and let the manager page handle it
         // The membership is in the database, the query just needs more time
         isSigningUpRef.current = false;

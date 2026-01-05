@@ -87,7 +87,6 @@ export default function InvitePage() {
         router.push(`/request-access?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`);
       }
     } catch (err: unknown) {
-      console.error("Error during redirect:", err);
       const msg = err instanceof Error ? err.message : String(err);
       const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
       setError(

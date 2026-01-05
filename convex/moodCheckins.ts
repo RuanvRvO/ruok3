@@ -567,7 +567,6 @@ export const sendDailyEmails = internalAction({
 
     const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey) {
-      console.error("RESEND_API_KEY not configured");
       return { error: "Resend API key not configured" };
     }
 
@@ -648,11 +647,9 @@ export const sendDailyEmails = internalAction({
           sentCount++;
         } else {
           errorCount++;
-          console.error(`Failed to send email to ${employee.email}:`, await response.text());
         }
       } catch (error) {
         errorCount++;
-        console.error(`Error sending email to ${employee.email}:`, error);
       }
     }
 

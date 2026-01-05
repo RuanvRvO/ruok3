@@ -56,7 +56,6 @@ export default function ViewOrganizationPage() {
   useEffect(() => {
     // Only check if we have a selected org and the query has completed
     if (selectedOrg && userRole !== undefined && userRole === null) {
-      console.log(`Access denied to organization: ${selectedOrg}. Signing out...`);
       setAccessError(true);
 
       // Clear the invalid organization from localStorage

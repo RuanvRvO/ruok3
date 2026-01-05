@@ -55,7 +55,7 @@ export default function VerifyRequired() {
       await signOut();
       window.location.href = "/signin";
     } catch (err) {
-      console.error("Sign out error:", err);
+      // Silently handle sign out error
     }
   };
 

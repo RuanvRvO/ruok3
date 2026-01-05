@@ -298,7 +298,6 @@ export const sendAccessRequestNotification = internalAction({
   handler: async (ctx, args): Promise<{ success: boolean; error?: string }> => {
     const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey) {
-      console.error("RESEND_API_KEY not configured");
       return { success: false, error: "Resend API key not configured" };
     }
 
@@ -310,7 +309,6 @@ export const sendAccessRequestNotification = internalAction({
     const owners = memberships.filter((m: any) => m.role === "owner");
 
     if (owners.length === 0) {
-      console.error("No owners found for organization:", args.organisation);
       return { success: false, error: "No owners found" };
     }
 
@@ -381,10 +379,10 @@ export const sendAccessRequestNotification = internalAction({
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error(`Failed to send notification to ${owner.email}:`, errorText);
+          // Failed to send notification
         }
       } catch (error) {
-        console.error(`Error sending notification to ${owner.email}:`, error);
+        // Error sending notification
       }
     }
 
@@ -403,7 +401,6 @@ export const sendAccessRequestApprovalEmail = internalAction({
   handler: async (ctx, args): Promise<{ success: boolean; error?: string }> => {
     const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey) {
-      console.error("RESEND_API_KEY not configured");
       return { success: false, error: "Resend API key not configured" };
     }
 
@@ -473,11 +470,9 @@ export const sendAccessRequestApprovalEmail = internalAction({
         return { success: true };
       } else {
         const errorText = await response.text();
-        console.error(`Failed to send approval email to ${args.requestedEmail}:`, errorText);
         return { success: false, error: errorText };
       }
     } catch (error) {
-      console.error(`Error sending approval email to ${args.requestedEmail}:`, error);
       return { success: false, error: String(error) };
     }
   },
@@ -492,7 +487,6 @@ export const sendAccessRequestDeclineEmail = internalAction({
   handler: async (ctx, args): Promise<{ success: boolean; error?: string }> => {
     const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey) {
-      console.error("RESEND_API_KEY not configured");
       return { success: false, error: "Resend API key not configured" };
     }
 
@@ -544,11 +538,9 @@ export const sendAccessRequestDeclineEmail = internalAction({
         return { success: true };
       } else {
         const errorText = await response.text();
-        console.error(`Failed to send decline email to ${args.requestedEmail}:`, errorText);
         return { success: false, error: errorText };
       }
     } catch (error) {
-      console.error(`Error sending decline email to ${args.requestedEmail}:`, error);
       return { success: false, error: String(error) };
     }
   },

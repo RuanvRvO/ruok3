@@ -92,7 +92,6 @@ export default function RequestAccessPage() {
 
       setSuccess(true);
     } catch (err: unknown) {
-      console.error("Error creating access request:", err);
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg || "Failed to submit access request. Please try again.");
       setLoading(false);

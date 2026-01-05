@@ -71,7 +71,6 @@ export default function SignIn() {
           // Always redirect to manager view (sidebar will show all orgs)
           router.push("/manager/view");
         } catch (err) {
-          console.error("Failed to complete sign-in:", err);
           const message =
             (err as Error)?.message?.toString().trim() ||
             "Failed to complete sign-in. Please refresh and try again.";
@@ -232,7 +231,6 @@ export default function SignIn() {
                   router.push(`/check-email?email=${encodeURIComponent(userEmail)}`);
                   return;
                 } catch (err) {
-                  console.error("Error during signup flow:", err);
                   setError("Account created but verification email failed. Please sign in and request a new verification email.");
                   setLoading(false);
                   setLoadingMessage(null);

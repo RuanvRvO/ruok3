@@ -75,7 +75,6 @@ export const sendVerificationEmailAction = internalAction({
   handler: async (ctx, args): Promise<{ success: boolean; error?: string }> => {
     const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey) {
-      console.error("RESEND_API_KEY not configured");
       return { success: false, error: "Resend API key not configured" };
     }
 
@@ -145,11 +144,9 @@ export const sendVerificationEmailAction = internalAction({
         return { success: true };
       } else {
         const errorText = await response.text();
-        console.error(`Failed to send verification email to ${args.email}:`, errorText);
         return { success: false, error: errorText };
       }
     } catch (error) {
-      console.error(`Error sending verification email to ${args.email}:`, error);
       return { success: false, error: String(error) };
     }
   },

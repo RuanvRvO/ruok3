@@ -37,7 +37,6 @@ export default function EditOrganizationPage() {
   useEffect(() => {
     // Only check if we have a selected org and the query has completed
     if (selectedOrg && userRole !== undefined && userRole === null) {
-      console.log(`Access denied to organization: ${selectedOrg}. Signing out...`);
       setAccessError(true);
 
       // Clear the invalid organization from localStorage
@@ -198,7 +197,6 @@ export default function EditOrganizationPage() {
         organisation: selectedOrg
       });
     } catch (error: any) {
-      console.error("Failed to add member:", error);
       const msg = error?.message?.toString() || "";
       alert(msg || "Could not add member. Please verify the employee and try again.");
     }
@@ -213,7 +211,6 @@ export default function EditOrganizationPage() {
         organisation: selectedOrg
       });
     } catch (error: any) {
-      console.error("Failed to remove member:", error);
       const msg = error?.message?.toString() || "";
       alert(msg || "Could not remove member. Please refresh and try again.");
     }

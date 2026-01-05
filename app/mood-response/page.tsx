@@ -62,7 +62,6 @@ export default function MoodResponsePage() {
                   : "Could not save your response. Please retry in a moment.")
             );
           }
-          console.error(err);
       }
     };
 
@@ -91,7 +90,6 @@ export default function MoodResponsePage() {
             ? "Network error while submitting your details. Please check your connection and retry."
             : "Could not submit your details. Please retry in a moment.")
       );
-      console.error(err);
       setIsSubmitting(false);
     }
   };
