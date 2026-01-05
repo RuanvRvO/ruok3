@@ -217,7 +217,7 @@ export const updateAuthAccountPassword = internalMutation({
     // Convex Auth Password provider stores the password hash in account.secret
     await ctx.db.patch(args.accountId, {
       secret: args.passwordHash,
-    } as any);
+    });
   },
 });
 

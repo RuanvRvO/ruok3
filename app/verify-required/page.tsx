@@ -43,8 +43,9 @@ export default function VerifyRequired() {
       setMessage(result.message || "Verification email sent!");
       // Start 60 second cooldown
       setCooldownSeconds(60);
-    } catch (err: any) {
-      setError(err?.message?.toString() || "Failed to send verification email. Please try again.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to send verification email. Please try again.";
+      setError(message);
     } finally {
       setResending(false);
     }
@@ -54,7 +55,7 @@ export default function VerifyRequired() {
     try {
       await signOut();
       window.location.href = "/signin";
-    } catch (err) {
+    } catch {
       // Silently handle sign out error
     }
   };
@@ -102,12 +103,12 @@ export default function VerifyRequired() {
 
         <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
           <p className="text-slate-700 dark:text-slate-300 text-sm mb-2 font-medium">
-            Didn't receive the email?
+            Didn&apos;t receive the email?
           </p>
           <ul className="text-slate-600 dark:text-slate-400 text-xs space-y-1 mb-3 list-disc list-inside">
             <li>Check your spam or junk folder</li>
             <li>Wait a few minutes for the email to arrive</li>
-            <li>Make sure you're checking the correct email address</li>
+            <li>Make sure you&apos;re checking the correct email address</li>
           </ul>
           <button
             onClick={handleResend}

@@ -126,13 +126,13 @@ export default function RequestAccessPage() {
               Your access request to <span className="font-semibold">{invitation.organisation}</span> has been sent to the organization owner.
             </p>
             <p className="text-slate-600 dark:text-slate-400 text-sm mt-4">
-              You'll receive an email at <span className="font-semibold">{email}</span> when your request is reviewed.
+              You&apos;ll receive an email at <span className="font-semibold">{email}</span> when your request is reviewed.
             </p>
           </div>
 
           <div className="text-sm text-slate-500 dark:text-slate-400 mt-2">
             <p>The organization owner will review your request and either approve or decline it.</p>
-            <p className="mt-2">If approved, you'll be able to create an account and access the organization.</p>
+            <p className="mt-2">If approved, you&apos;ll be able to create an account and access the organization.</p>
           </div>
         </div>
 
@@ -174,7 +174,7 @@ export default function RequestAccessPage() {
       <div className="w-full bg-slate-100 dark:bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-300 dark:border-slate-600">
         <div className="text-center mb-6">
           <p className="text-slate-600 dark:text-slate-400 mb-2">
-            You're requesting access to
+            You&apos;re requesting access to
           </p>
           <p className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-2">
             {invitation.organisation}
@@ -204,7 +204,7 @@ export default function RequestAccessPage() {
               className="w-full bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all"
             />
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              You'll receive an email when your request is reviewed
+              You&apos;ll receive an email when your request is reviewed
             </p>
           </div>
 

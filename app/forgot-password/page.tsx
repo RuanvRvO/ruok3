@@ -41,8 +41,8 @@ export default function ForgotPassword() {
       setSuccess(result.message || "If an account with this email exists, a password reset link has been sent.");
       // Start 60 second cooldown
       setCooldownSeconds(60);
-    } catch (err: any) {
-      const msg = err?.message?.toString() || "";
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
       const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
       setError(
         msg ||
@@ -98,7 +98,7 @@ export default function ForgotPassword() {
         onSubmit={handleSubmit}
       >
         <p className="text-slate-600 dark:text-slate-400 text-sm mb-2">
-          Enter your email address and we'll send you a link to reset your password.
+          Enter your email address and we&apos;ll send you a link to reset your password.
         </p>
         <input
           className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"

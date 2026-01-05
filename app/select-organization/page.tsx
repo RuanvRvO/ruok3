@@ -90,8 +90,9 @@ export default function SelectOrganization() {
       // and the useEffect will redirect if it's the only one
       setShowCreateForm(false);
       setOrgName("");
-    } catch (err: any) {
-      setError(err.message || "Failed to create organization");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to create organization";
+      setError(message);
     } finally {
       setCreating(false);
     }

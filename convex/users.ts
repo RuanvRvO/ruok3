@@ -30,7 +30,8 @@ export const checkEmailExists = query({
     for (const account of authAccounts) {
       // The account data structure depends on Convex Auth implementation
       // Typically email might be in account.email or account.profile.email
-      const accountEmail = (account as any).email || (account as any).profile?.email;
+      const accountEmail = (account as { email?: string; profile?: { email?: string } }).email ||
+        (account as { email?: string; profile?: { email?: string } }).profile?.email;
       if (accountEmail && accountEmail.toLowerCase().trim() === args.email.toLowerCase().trim()) {
         return true;
       }
@@ -132,28 +133,6 @@ export const getUserByEmail = query({
       name: user.name,
       surname: user.surname,
     } : null;
-  },
-});
-
-// Query to get user's role in current organization
-export const getUserRoleInOrg = query({
-  args: {
-    organisation: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      return null;
-    }
-
-    const membership = await ctx.db
-      .query("organizationMemberships")
-      .withIndex("by_user_and_org", (q) =>
-        q.eq("userId", userId).eq("organisation", args.organisation)
-      )
-      .first();
-
-    return membership?.role || null;
   },
 });
 

@@ -12,7 +12,6 @@ export default function ViewOrganizationPage() {
   const { signOut } = useAuthActions();
   const router = useRouter();
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
-  const [accessError, setAccessError] = useState(false);
 
   // Get selected organization from localStorage
   useEffect(() => {
@@ -56,8 +55,6 @@ export default function ViewOrganizationPage() {
   useEffect(() => {
     // Only check if we have a selected org and the query has completed
     if (selectedOrg && userRole !== undefined && userRole === null) {
-      setAccessError(true);
-
       // Clear the invalid organization from localStorage
       localStorage.removeItem("selectedOrganization");
 
@@ -195,14 +192,14 @@ export default function ViewOrganizationPage() {
             Welcome, {viewer ?? "there"}!
           </h1>
           <p className="text-xl text-slate-600 dark:text-slate-400 mb-8">
-            You've successfully created your account. Let's get you started!
+            You&apos;ve successfully created your account. Let&apos;s get you started!
           </p>
         </div>
         
         <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900 dark:to-indigo-900 rounded-2xl border-2 border-blue-200 dark:border-blue-700 p-8">
           <div className="text-center max-w-2xl mx-auto">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6">
-              What's Next?
+              What&apos;s Next?
             </h2>
             <div className="flex flex-col gap-6 items-start text-left">
               <div className="flex items-start gap-4 w-full">
@@ -240,7 +237,7 @@ export default function ViewOrganizationPage() {
                     Track Wellbeing
                   </h3>
                   <p className="text-slate-600 dark:text-slate-400">
-                    Monitor your team's wellbeing trends and respond to those who need support.
+                    Monitor your team&apos;s wellbeing trends and respond to those who need support.
                   </p>
                 </div>
               </div>
@@ -283,7 +280,7 @@ export default function ViewOrganizationPage() {
           Welcome {viewer ?? "Anonymous"}!
         </h1>
         <p className="text-slate-600 dark:text-slate-400 text-lg">
-          Here is your organization's wellbeing dashboard.
+          Here is your organization&apos;s wellbeing dashboard.
         </p>
       </div>
 
@@ -323,11 +320,11 @@ export default function ViewOrganizationPage() {
           <div className="text-center max-w-2xl">
             <div className="text-6xl mb-6">🚀</div>
             <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-4">
-              Let's Get Started!
+              Let&apos;s Get Started!
             </h2>
             <p className="text-lg text-slate-600 dark:text-slate-400 mb-8">
-              Your organization dashboard is ready, but you haven't added any employees yet.
-              Click the <span className="font-semibold text-slate-800 dark:text-slate-200">"Edit Organization"</span> button
+              Your organization dashboard is ready, but you haven&apos;t added any employees yet.
+              Click the <span className="font-semibold text-slate-800 dark:text-slate-200">&quot;Edit Organization&quot;</span> button
               in the sidebar to add your first employees.
             </p>
             <div className="flex flex-col gap-4 items-start mx-auto pl-43">
@@ -528,7 +525,7 @@ export default function ViewOrganizationPage() {
                 No check-ins in the last 24 hours.
               </p>
             ) : (
-              sortedCheckins.map((checkin: any) => (
+              sortedCheckins.map((checkin) => (
                 <div
                   key={checkin._id}
                   className={`p-4 rounded-lg border ${
@@ -549,7 +546,7 @@ export default function ViewOrganizationPage() {
                   </div>
                   {checkin.note && (
                     <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
-                      "{checkin.note}"
+                      &quot;{checkin.note}&quot;
                     </p>
                   )}
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
@@ -635,7 +632,7 @@ export default function ViewOrganizationPage() {
                     No historical check-ins with notes.
                   </p>
                 ) : (
-                  filteredHistoricalCheckins.map((checkin: any) => (
+                  filteredHistoricalCheckins.map((checkin) => (
                     <div
                       key={checkin._id}
                       className={`p-4 rounded-lg border ${
@@ -656,7 +653,7 @@ export default function ViewOrganizationPage() {
                       </div>
                       {checkin.note && (
                         <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
-                          "{checkin.note}"
+                          &quot;{checkin.note}&quot;
                         </p>
                       )}
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
@@ -681,7 +678,7 @@ export default function ViewOrganizationPage() {
 }
 
 // Reusable Mood Graph Component
-function MoodGraph({ trends, isMonthly = false }: { trends: any[]; isMonthly?: boolean }) {
+function MoodGraph({ trends, isMonthly = false }: { trends: Array<{ date: string; green: number; amber: number; red: number; employeeCount?: number }>; isMonthly?: boolean }) {
   // Y-axis should go up to the maximum number of employees across all days
   // Also consider actual response totals to ensure historical data isn't cut off
   const maxEmployeeCount = Math.max(...trends.map(d => d.employeeCount || 0), 1);
@@ -866,7 +863,7 @@ function MoodGraph({ trends, isMonthly = false }: { trends: any[]; isMonthly?: b
 }
 
 // Organization Mood Graph Component
-function OrganizationMoodGraph({ days, timeRange, employees, organisation }: { days: number; timeRange: "1week" | "1month" | "1year" | "overall"; employees: any[] | undefined; organisation: string | null }) {
+function OrganizationMoodGraph({ days, timeRange, employees, organisation }: { days: number; timeRange: "1week" | "1month" | "1year" | "overall"; employees: Array<{ createdAt: number }> | undefined; organisation: string | null }) {
   const trends = useQuery(api.moodCheckins.getTrends, organisation ? { days, organisation } : "skip");
 
   // Aggregate into monthly averages when viewing "overall" or "1year"

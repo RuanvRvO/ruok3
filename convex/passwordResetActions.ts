@@ -52,7 +52,7 @@ export const updatePasswordHash = internalAction({
         throw new Error("Failed to verify password update");
       }
 
-      const storedSecret = (updatedAccount as any).secret;
+      const storedSecret = (updatedAccount as { secret?: string }).secret;
       if (storedSecret !== hashedPassword) {
         throw new Error("Password hash was not updated correctly");
       }

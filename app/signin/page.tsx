@@ -230,7 +230,7 @@ export default function SignIn() {
                   setLoadingMessage(null);
                   router.push(`/check-email?email=${encodeURIComponent(userEmail)}`);
                   return;
-                } catch (err) {
+                } catch {
                   setError("Account created but verification email failed. Please sign in and request a new verification email.");
                   setLoading(false);
                   setLoadingMessage(null);

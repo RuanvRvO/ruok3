@@ -42,8 +42,9 @@ export default function CheckEmail() {
       setMessage(result.message || "Verification email sent!");
       // Start 60 second cooldown
       setCooldownSeconds(60);
-    } catch (err: any) {
-      setError(err?.message?.toString() || "Failed to send verification email. Please try again.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to send verification email. Please try again.";
+      setError(message);
     } finally {
       setResending(false);
     }
@@ -77,7 +78,7 @@ export default function CheckEmail() {
       <div className="flex flex-col gap-4 w-full bg-slate-100 dark:bg-slate-800 p-4 sm:p-6 md:p-8 rounded-2xl shadow-xl border border-slate-300 dark:border-slate-600">
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
           <p className="text-slate-700 dark:text-slate-300 font-medium text-sm mb-3">
-            We've sent a verification email to:
+            We&apos;ve sent a verification email to:
           </p>
           {email && (
             <p className="text-slate-900 dark:text-slate-100 font-semibold text-base mb-3">
@@ -91,7 +92,7 @@ export default function CheckEmail() {
 
         <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
           <p className="text-slate-700 dark:text-slate-300 text-sm mb-2 font-medium">
-            Didn't receive the email?
+            Didn&apos;t receive the email?
           </p>
           <ul className="text-slate-600 dark:text-slate-400 text-xs space-y-1 mb-3 list-disc list-inside">
             <li>Check your spam or junk folder</li>

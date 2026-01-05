@@ -66,8 +66,8 @@ export default function ResetPassword() {
       setTimeout(() => {
         router.push("/signin");
       }, 2000);
-    } catch (err: any) {
-      const msg = err?.message?.toString() || "";
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
       const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
       setError(
         msg ||

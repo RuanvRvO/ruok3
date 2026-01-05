@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { validateAndNormalizeEmail } from "./emailValidation";
 
 // Mutation to create an access request for a general invite link
 export const createAccessRequest = mutation({
@@ -26,12 +27,8 @@ export const createAccessRequest = mutation({
       throw new Error("This is an email-specific invitation. Please use the link from your email.");
     }
 
-    // Validate email format
-    const emailLower = args.requestedEmail.toLowerCase().trim();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(emailLower)) {
-      throw new Error("Invalid email format");
-    }
+    // Validate and normalize email
+    const emailLower = validateAndNormalizeEmail(args.requestedEmail);
 
     // Check if user with this email already has access to the organization
     const existingUser = await ctx.db
@@ -169,7 +166,7 @@ export const approveAccessRequest = mutation({
       .withIndex("email", (q) => q.eq("email", request.requestedEmail))
       .first();
 
-    let userIdToAdd = existingUser?._id;
+    const userIdToAdd = existingUser?._id;
 
     // If user doesn't exist yet, they'll need to create an account
     // We'll just mark the request as approved and send them an email
@@ -306,7 +303,7 @@ export const sendAccessRequestNotification = internalAction({
       organisation: args.organisation,
     });
 
-    const owners = memberships.filter((m: any) => m.role === "owner");
+    const owners = memberships.filter((m) => m.role === "owner");
 
     if (owners.length === 0) {
       return { success: false, error: "No owners found" };
@@ -378,10 +375,9 @@ export const sendAccessRequestNotification = internalAction({
         });
 
         if (!response.ok) {
-          const errorText = await response.text();
           // Failed to send notification
         }
-      } catch (error) {
+      } catch {
         // Error sending notification
       }
     }

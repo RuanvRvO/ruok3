@@ -61,8 +61,9 @@ export default function AccountSettingsPage() {
         name,
         surname,
       });
-    } catch (err: any) {
-      setError(err.message || "Failed to update account settings");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to update account settings";
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }

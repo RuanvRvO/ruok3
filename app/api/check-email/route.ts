@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     const exists = await fetchQuery(api.users.checkEmailExists, { email });
 
     return NextResponse.json({ exists });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ exists: false }, { status: 500 });
   }
 }

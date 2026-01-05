@@ -563,7 +563,7 @@ export const sendDailyEmails = internalAction({
   args: {},
   handler: async (ctx): Promise<{ success: boolean; sentCount: number; errorCount: number; totalEmployees: number } | { error: string }> => {
     // Get all employees from all organizations
-    const employees: any = await ctx.runQuery(internal.employees.listAll);
+    const employees = await ctx.runQuery(internal.employees.listAll);
 
     const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey) {
@@ -648,7 +648,7 @@ export const sendDailyEmails = internalAction({
         } else {
           errorCount++;
         }
-      } catch (error) {
+      } catch {
         errorCount++;
       }
     }

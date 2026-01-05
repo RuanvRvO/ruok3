@@ -44,8 +44,9 @@ export default function VerifyEmail() {
       setTimeout(() => {
         router.push("/signin");
       }, 2000);
-    } catch (err: any) {
-      setError(err?.message?.toString() || "Failed to verify email. Please try again or request a new verification link.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to verify email. Please try again or request a new verification link.";
+      setError(message);
     } finally {
       setVerifying(false);
     }

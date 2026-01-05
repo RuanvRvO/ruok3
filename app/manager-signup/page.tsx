@@ -103,8 +103,8 @@ export default function ManagerSignUp() {
       // No longer create viewer - just redirect to signin then accept invitation
       // The user will create their account through normal signup, then accept the invitation
       router.push(`/signin?flow=signup&returnTo=/accept-invitation?token=${token}`);
-    } catch (err: any) {
-      const msg = err?.message?.toString() || "";
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
       const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
       setError(
         msg ||
@@ -127,7 +127,7 @@ export default function ManagerSignUp() {
         </div>
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
           <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
-            You've been invited to <span className="font-semibold text-slate-800 dark:text-slate-200">{invitation.organisation}</span>
+            You&apos;ve been invited to <span className="font-semibold text-slate-800 dark:text-slate-200">{invitation.organisation}</span>
           </p>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Access Level: {invitation.role === "viewer" ? "View Only" : "Can Edit"}

@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { validateAndNormalizeEmail } from "./emailValidation";
 
 // Generate a random token for invitation
 function generateToken(): string {
@@ -43,13 +44,8 @@ export const createInvitation = mutation({
 
     // Validate email if provided
     if (hasEmail) {
-      const emailLower = args.email!.toLowerCase().trim();
-
-      // Email format validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(emailLower)) {
-        throw new Error("Invalid email format");
-      }
+      // Validate and normalize email
+      const emailLower = validateAndNormalizeEmail(args.email!);
 
       // Check for existing pending invitation to same email for same org
       const existingInvitation = await ctx.db

@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Id } from "../../convex/_generated/dataModel";
 
 export default function MoodResponsePage() {
   const searchParams = useSearchParams();
@@ -21,7 +22,7 @@ export default function MoodResponsePage() {
   const updateDetails = useMutation(api.moodCheckins.updateDetails);
   const hasSubmittedToday = useQuery(
     api.moodCheckins.hasSubmittedToday,
-    employeeId ? { employeeId: employeeId as any } : "skip"
+    employeeId ? { employeeId: employeeId as Id<"employees"> } : "skip"
   );
 
   // Check if already submitted and auto-save mood
@@ -45,15 +46,16 @@ export default function MoodResponsePage() {
 
       try {
         await recordMood({
-          employeeId: employeeId as any,
+          employeeId: employeeId as Id<"employees">,
           mood: mood,
         });
         setAutoSaved(true);
-        } catch (err: any) {
-          if (err?.message?.includes("ALREADY_SUBMITTED_TODAY")) {
+        } catch (err: unknown) {
+          const errMsg = err instanceof Error ? err.message : "";
+          if (errMsg.includes("ALREADY_SUBMITTED_TODAY")) {
             setError("ALREADY_SUBMITTED");
           } else {
-            const msg = err?.message?.toString() || "";
+            const msg = errMsg || "";
             const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
             setError(
               msg ||
@@ -75,14 +77,14 @@ export default function MoodResponsePage() {
     setIsSubmitting(true);
     try {
       await updateDetails({
-        employeeId: employeeId as any,
+        employeeId: employeeId as Id<"employees">,
         note: note.trim() || undefined,
         isAnonymous: isAnonymous,
       });
       // Close the tab after successful submission
       window.close();
-    } catch (err: any) {
-      const msg = err?.message?.toString() || "";
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
       const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
       setError(
         msg ||

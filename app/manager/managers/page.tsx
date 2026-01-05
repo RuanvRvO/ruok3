@@ -14,7 +14,6 @@ export default function ManageManagersPage() {
   const { signOut } = useAuthActions();
   const router = useRouter();
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
-  const [accessError, setAccessError] = useState(false);
 
   // Get selected organization from localStorage
   useEffect(() => {
@@ -33,8 +32,6 @@ export default function ManageManagersPage() {
   useEffect(() => {
     // Only check if we have a selected org and the query has completed
     if (selectedOrg && userRole !== undefined && userRole === null) {
-      setAccessError(true);
-
       // Clear the invalid organization from localStorage
       localStorage.removeItem("selectedOrganization");
 
@@ -68,40 +65,6 @@ export default function ManageManagersPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
 
-  const handleGenerateInvitation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedOrg) return;
-
-    setIsSubmitting(true);
-    setError(null);
-    setSuccess(null);
-    setGeneratedUrl(null);
-
-    try {
-      // Send optional email parameter
-      const result = await createInvitation({
-        role,
-        organisation: selectedOrg,
-        email: email.trim() || undefined
-      });
-
-      if (result.mode === "email") {
-        // Email invitation sent
-        setSuccess(`Invitation email sent to ${email}! They'll receive instructions to join.`);
-        setEmail(""); // Clear email field
-      } else {
-        // Link-based invitation
-        const baseUrl = window.location.origin;
-        const inviteUrl = `${baseUrl}/invite?token=${encodeURIComponent(result.token)}`;
-        setGeneratedUrl(inviteUrl);
-        setSuccess("Invitation URL generated! Copy and share it with anyone you want to invite.");
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to create invitation");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const copyInviteUrl = () => {
     if (generatedUrl) {
@@ -118,8 +81,9 @@ export default function ManageManagersPage() {
     try {
       await removeMember({ membershipId });
       setSuccess("User removed successfully!");
-    } catch (err: any) {
-      setError(err.message || "Failed to remove user");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to remove user";
+      setError(message);
     }
   };
 
@@ -131,8 +95,9 @@ export default function ManageManagersPage() {
     try {
       await revokeInvitation({ invitationId });
       setSuccess("Invitation revoked successfully!");
-    } catch (err: any) {
-      setError(err.message || "Failed to revoke invitation");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to revoke invitation";
+      setError(message);
     }
   };
 
@@ -151,8 +116,9 @@ export default function ManageManagersPage() {
     try {
       await approveAccessRequest({ requestId });
       setSuccess("Access request approved! The user will receive an email notification.");
-    } catch (err: any) {
-      setError(err.message || "Failed to approve access request");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to approve access request";
+      setError(message);
     }
   };
 
@@ -164,8 +130,9 @@ export default function ManageManagersPage() {
     try {
       await declineAccessRequest({ requestId });
       setSuccess("Access request declined.");
-    } catch (err: any) {
-      setError(err.message || "Failed to decline access request");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to decline access request";
+      setError(message);
     }
   };
 
@@ -211,7 +178,7 @@ export default function ManageManagersPage() {
           Member Access
         </h1>
         <p className="text-slate-600 dark:text-slate-400">
-          Invite users to view or edit your organization's wellbeing data.
+          Invite users to view or edit your organization&apos;s wellbeing data.
         </p>
       </div>
 
@@ -320,8 +287,9 @@ export default function ManageManagersPage() {
                     setSuccess(`Invitation email sent to ${email}! They'll receive instructions to join.`);
                     setEmail("");
                   }
-                } catch (err: any) {
-                  setError(err.message || "Failed to send invitation");
+                } catch (err: unknown) {
+                  const message = err instanceof Error ? err.message : "Failed to send invitation";
+                  setError(message);
                 } finally {
                   setIsSubmitting(false);
                 }
@@ -422,8 +390,9 @@ export default function ManageManagersPage() {
                     setGeneratedUrl(inviteUrl);
                     setSuccess("Invitation URL generated! Copy and share it with anyone you want to invite.");
                   }
-                } catch (err: any) {
-                  setError(err.message || "Failed to generate invitation");
+                } catch (err: unknown) {
+                  const message = err instanceof Error ? err.message : "Failed to generate invitation";
+                  setError(message);
                 } finally {
                   setIsSubmitting(false);
                 }

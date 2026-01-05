@@ -515,7 +515,7 @@ export default function AcceptInvitation() {
         try {
           setLoadingMessage("Sending verification email...");
           await resendVerificationEmail({ email: emailToUse });
-        } catch (emailError) {
+        } catch {
           // Continue anyway - user can request it again on check-email page
         }
 

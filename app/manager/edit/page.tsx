@@ -17,7 +17,6 @@ export default function EditOrganizationPage() {
   const { signOut } = useAuthActions();
   const router = useRouter();
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
-  const [accessError, setAccessError] = useState(false);
 
   // Get selected organization from localStorage
   useEffect(() => {
@@ -37,8 +36,6 @@ export default function EditOrganizationPage() {
   useEffect(() => {
     // Only check if we have a selected org and the query has completed
     if (selectedOrg && userRole !== undefined && userRole === null) {
-      setAccessError(true);
-
       // Clear the invalid organization from localStorage
       localStorage.removeItem("selectedOrganization");
 
@@ -73,7 +70,6 @@ export default function EditOrganizationPage() {
 
   const [groupName, setGroupName] = useState("");
   const [isAddingGroup, setIsAddingGroup] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState<Id<"groups"> | null>(null);
   const [groupToDelete, setGroupToDelete] = useState<{ id: Id<"groups">; name: string } | null>(null);
 
   const isLoading = employees === undefined;
@@ -100,9 +96,9 @@ export default function EditOrganizationPage() {
       } else {
         setErrorMessage(result.error || "Could not add employee. Please verify details and try again.");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle unexpected errors
-      const msg = error?.message?.toString() || "";
+      const msg = error instanceof Error ? error.message : "";
       const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
       setErrorMessage(
         msg ||
@@ -120,13 +116,13 @@ export default function EditOrganizationPage() {
 
     try {
       await removeEmployee({
-        employeeId: employeeToDelete.id as any,
+        employeeId: employeeToDelete.id as Id<"employees">,
         organisation: selectedOrg
       });
       setEmployeeToDelete(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setEmployeeToDelete(null);
-      const msg = error?.message?.toString() || "";
+      const msg = error instanceof Error ? error.message : "";
       setErrorMessage(
         msg ||
           "Could not remove employee. Please refresh and try again. If the issue persists, verify your permissions."
@@ -153,9 +149,9 @@ export default function EditOrganizationPage() {
       } else {
         setErrorMessage(result.error || "Could not add group. Please verify the name and try again.");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle unexpected errors
-      const msg = error?.message?.toString() || "";
+      const msg = error instanceof Error ? error.message : "";
       const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
       setErrorMessage(
         msg ||
@@ -177,9 +173,9 @@ export default function EditOrganizationPage() {
         organisation: selectedOrg
       });
       setGroupToDelete(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setGroupToDelete(null);
-      const msg = error?.message?.toString() || "";
+      const msg = error instanceof Error ? error.message : "";
       setErrorMessage(
         msg ||
           "Could not remove group. Please refresh and try again. If the issue persists, verify your permissions."
@@ -196,8 +192,8 @@ export default function EditOrganizationPage() {
         employeeId,
         organisation: selectedOrg
       });
-    } catch (error: any) {
-      const msg = error?.message?.toString() || "";
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "";
       alert(msg || "Could not add member. Please verify the employee and try again.");
     }
   };
@@ -210,8 +206,8 @@ export default function EditOrganizationPage() {
         membershipId,
         organisation: selectedOrg
       });
-    } catch (error: any) {
-      const msg = error?.message?.toString() || "";
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "";
       alert(msg || "Could not remove member. Please refresh and try again.");
     }
   };
@@ -336,7 +332,7 @@ export default function EditOrganizationPage() {
           Organization Management - {viewer ?? "Anonymous"}
         </h2>
         <p className="text-slate-600 dark:text-slate-400 mt-2">
-          Manage your organization's employees, groups, and settings.
+          Manage your organization&apos;s employees, groups, and settings.
         </p>
       </div>
 
@@ -512,24 +508,26 @@ export default function EditOrganizationPage() {
   );
 }
 
+interface GroupCardProps {
+  group: { _id: Id<"groups">; groupName: string };
+  employees: Array<{ _id: Id<"employees">; firstName: string; email: string }>;
+  onRemoveGroup: (groupId: Id<"groups">, groupName: string) => void;
+  onAddMember: (groupId: Id<"groups">, employeeId: Id<"employees">) => void;
+  onRemoveMember: (membershipId: Id<"groupMembers">) => void;
+}
+
 function GroupCard({
   group,
   employees,
   onRemoveGroup,
   onAddMember,
   onRemoveMember,
-}: {
-  group: any;
-  employees: any[];
-  onRemoveGroup: (groupId: Id<"groups">, groupName: string) => void;
-  onAddMember: (groupId: Id<"groups">, employeeId: Id<"employees">) => void;
-  onRemoveMember: (membershipId: Id<"groupMembers">) => void;
-}) {
+}: GroupCardProps) {
   const members = useQuery(api.groups.getMembers, { groupId: group._id });
   const [showAddMember, setShowAddMember] = useState(false);
 
   const availableEmployees = employees.filter(
-    (emp) => !members?.some((m: any) => m._id === emp._id)
+    (emp) => !members?.some((m) => m._id === emp._id)
   );
 
   return (
@@ -559,7 +557,7 @@ function GroupCard({
           <p className="text-xs text-slate-500 dark:text-slate-400">No members yet</p>
         ) : (
           <div className="flex flex-col gap-1">
-            {members.map((member: any) => (
+            {members.map((member) => (
               <div
                 key={member.membershipId}
                 className="flex items-center justify-between p-2 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700"
