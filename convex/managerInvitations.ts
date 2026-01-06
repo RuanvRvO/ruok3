@@ -303,9 +303,31 @@ export const acceptInvitation = mutation({
       throw new Error(`User found but email is not set. User ID: ${args.userId}. Please wait a moment and try again.`);
     }
 
+    // Auto-approve any pending access requests for this invitation and email
+    // This handles the case where user went through request-access flow
+    const userEmail = user.email.toLowerCase().trim();
+    const pendingRequest = await ctx.db
+      .query("accessRequests")
+      .withIndex("by_email", (q) => q.eq("requestedEmail", userEmail))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("invitationId"), invitation._id),
+          q.eq(q.field("status"), "pending")
+        )
+      )
+      .first();
+
+    if (pendingRequest) {
+      // Auto-approve the access request since they verified their email
+      await ctx.db.patch(pendingRequest._id, {
+        status: "approved",
+        respondedAt: Date.now(),
+        respondedBy: invitation.invitedBy, // Use the invitation creator as the approver
+      });
+    }
+
     // Enforce single-use for email-based invitations
     if (invitation.invitationType === "email") {
-      const userEmail = user.email.toLowerCase().trim();
       const invitationEmail = invitation.email?.toLowerCase().trim();
 
       if (!invitationEmail) {
@@ -414,9 +436,31 @@ export const acceptInvitationForExistingUser = mutation({
       throw new Error("This invitation has expired");
     }
 
+    // Auto-approve any pending access requests for this invitation and email
+    // This handles the case where user went through request-access flow
+    const userEmail = user.email.toLowerCase().trim();
+    const pendingRequest = await ctx.db
+      .query("accessRequests")
+      .withIndex("by_email", (q) => q.eq("requestedEmail", userEmail))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("invitationId"), invitation._id),
+          q.eq(q.field("status"), "pending")
+        )
+      )
+      .first();
+
+    if (pendingRequest) {
+      // Auto-approve the access request since they verified their email
+      await ctx.db.patch(pendingRequest._id, {
+        status: "approved",
+        respondedAt: Date.now(),
+        respondedBy: invitation.invitedBy, // Use the invitation creator as the approver
+      });
+    }
+
     // Enforce single-use for email-based invitations
     if (invitation.invitationType === "email") {
-      const userEmail = user.email.toLowerCase().trim();
       const invitationEmail = invitation.email?.toLowerCase().trim();
 
       if (!invitationEmail) {

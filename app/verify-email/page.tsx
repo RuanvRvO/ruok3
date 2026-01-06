@@ -40,9 +40,23 @@ export default function VerifyEmail() {
       const result = await verifyEmail({ token });
       setSuccess(result.message || "Email verified successfully!");
 
-      // Redirect to sign in after 2 seconds
+      // Check if there's a pending invitation token in localStorage
+      const pendingToken = typeof window !== "undefined" ? localStorage.getItem("pendingInvitationToken") : null;
+      const pendingEmail = typeof window !== "undefined" ? localStorage.getItem("pendingInvitationEmail") : null;
+
+      // Clear the pending invitation data
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("pendingInvitationToken");
+        localStorage.removeItem("pendingInvitationEmail");
+      }
+
+      // Redirect to accept-invitation if there's a pending invitation, otherwise go to sign in
       setTimeout(() => {
-        router.push("/signin");
+        if (pendingToken && pendingEmail) {
+          router.push(`/accept-invitation?token=${encodeURIComponent(pendingToken)}&email=${encodeURIComponent(pendingEmail)}`);
+        } else {
+          router.push("/signin");
+        }
       }, 2000);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to verify email. Please try again or request a new verification link.";

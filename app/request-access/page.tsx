@@ -90,6 +90,12 @@ export default function RequestAccessPage() {
         requestedEmail: email.toLowerCase().trim(),
       });
 
+      // Store the invitation token and email in localStorage so it can be retrieved after email verification
+      if (typeof window !== "undefined" && token) {
+        localStorage.setItem("pendingInvitationToken", token);
+        localStorage.setItem("pendingInvitationEmail", email.toLowerCase().trim());
+      }
+
       setSuccess(true);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
