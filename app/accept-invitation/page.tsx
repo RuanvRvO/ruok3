@@ -511,6 +511,38 @@ export default function AcceptInvitation() {
           throw signUpError;
         }
 
+        // Wait for currentUserId to become available after signup
+        setLoadingMessage("Setting up your access...");
+        let userId = currentUserId;
+        let attempts = 0;
+        while (!userId && attempts < 30) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+          userId = currentUserId;
+          attempts++;
+        }
+
+        if (!userId) {
+          setError("Account created but unable to set up access. Please sign in to continue.");
+          isSigningUpRef.current = false;
+          setLoading(false);
+          setLoadingMessage(null);
+          router.push(`/signin`);
+          return;
+        }
+
+        // Accept the invitation immediately after account creation
+        try {
+          setLoadingMessage("Granting organization access...");
+          await acceptInvitation({ token, userId: userId as Id<"users"> });
+        } catch (invitationError: unknown) {
+          const errorMessage = invitationError instanceof Error ? invitationError.message : String(invitationError);
+          setError(`Account created but failed to grant access: ${errorMessage}. Please contact support.`);
+          isSigningUpRef.current = false;
+          setLoading(false);
+          setLoadingMessage(null);
+          return;
+        }
+
         // Send verification email using public mutation (doesn't require auth)
         try {
           setLoadingMessage("Sending verification email...");
@@ -524,9 +556,14 @@ export default function AcceptInvitation() {
         setLoading(false);
         setLoadingMessage(null);
 
+        // Store flag indicating invitation was accepted, so verify-email page knows to redirect to dashboard
+        if (typeof window !== "undefined") {
+          localStorage.setItem("invitationAccepted", "true");
+        }
+
         // Redirect to check-email page
         router.push(`/check-email?email=${encodeURIComponent(emailToUse)}`);
-        return; // Exit early - user needs to verify email before accepting invitation
+        return; // Exit early - user needs to verify email before accessing the app
       } else {
         // Sign in mode
         formData.set("flow", "signIn");

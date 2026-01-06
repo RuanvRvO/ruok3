@@ -40,21 +40,30 @@ export default function VerifyEmail() {
       const result = await verifyEmail({ token });
       setSuccess(result.message || "Email verified successfully!");
 
-      // Check if there's a pending invitation token in localStorage
+      // Check if invitation was already accepted (user created account via invitation link)
+      const invitationAccepted = typeof window !== "undefined" ? localStorage.getItem("invitationAccepted") : null;
+
+      // Check if there's a pending invitation token in localStorage (old flow, kept for backwards compatibility)
       const pendingToken = typeof window !== "undefined" ? localStorage.getItem("pendingInvitationToken") : null;
       const pendingEmail = typeof window !== "undefined" ? localStorage.getItem("pendingInvitationEmail") : null;
 
-      // Clear the pending invitation data
+      // Clear the stored data
       if (typeof window !== "undefined") {
+        localStorage.removeItem("invitationAccepted");
         localStorage.removeItem("pendingInvitationToken");
         localStorage.removeItem("pendingInvitationEmail");
       }
 
-      // Redirect to accept-invitation if there's a pending invitation, otherwise go to sign in
+      // Redirect based on invitation status
       setTimeout(() => {
-        if (pendingToken && pendingEmail) {
+        if (invitationAccepted) {
+          // Invitation was already accepted, go directly to dashboard
+          router.push("/manager/view");
+        } else if (pendingToken && pendingEmail) {
+          // Old flow: redirect to accept-invitation page
           router.push(`/accept-invitation?token=${encodeURIComponent(pendingToken)}&email=${encodeURIComponent(pendingEmail)}`);
         } else {
+          // No invitation, go to sign in
           router.push("/signin");
         }
       }, 2000);
@@ -93,6 +102,9 @@ export default function VerifyEmail() {
   }
 
   if (success) {
+    // Check if invitation was accepted to show correct redirect message
+    const invitationAccepted = typeof window !== "undefined" ? localStorage.getItem("invitationAccepted") : null;
+
     return (
       <div className="flex flex-col gap-4 sm:gap-6 md:gap-8 w-full max-w-lg mx-auto min-h-screen justify-center items-center px-4 py-6 sm:py-8">
         <div className="text-center flex flex-col items-center gap-2 sm:gap-3 md:gap-4">
@@ -107,7 +119,9 @@ export default function VerifyEmail() {
         </div>
         <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg">
           {success}
-          <p className="text-sm mt-2">Redirecting to sign in...</p>
+          <p className="text-sm mt-2">
+            {invitationAccepted ? "Redirecting to your dashboard..." : "Redirecting to sign in..."}
+          </p>
         </div>
       </div>
     );
