@@ -7,6 +7,15 @@ export const list = query({
   args: {
     organisation: v.string(),
   },
+  returns: v.array(v.object({
+    _id: v.id("employees"),
+    _creationTime: v.number(),
+    firstName: v.string(),
+    email: v.string(),
+    organisation: v.string(),
+    createdAt: v.number(),
+    deletedAt: v.optional(v.number()),
+  })),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -154,6 +163,15 @@ export const remove = mutation({
 // Internal query to get all employees (for sending emails)
 export const listAll = internalQuery({
   args: {},
+  returns: v.array(v.object({
+    _id: v.id("employees"),
+    _creationTime: v.number(),
+    firstName: v.string(),
+    email: v.string(),
+    organisation: v.string(),
+    createdAt: v.number(),
+    deletedAt: v.optional(v.number()),
+  })),
   handler: async (ctx) => {
     const allEmployees = await ctx.db.query("employees").collect();
     // Filter out soft-deleted employees

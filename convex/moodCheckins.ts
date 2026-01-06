@@ -8,6 +8,7 @@ export const hasSubmittedToday = query({
   args: {
     employeeId: v.id("employees"),
   },
+  returns: v.boolean(),
   handler: async (ctx, args) => {
     const employee = await ctx.db.get(args.employeeId);
     if (!employee) {
@@ -212,6 +213,7 @@ export const getTodayCheckins = query({
   args: {
     organisation: v.string(),
   },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -284,6 +286,7 @@ export const getGroupTodayCheckins = query({
     groupId: v.id("groups"),
     organisation: v.string(),
   },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -373,6 +376,7 @@ export const getHistoricalCheckins = query({
     days: v.optional(v.number()), // Number of days to look back, default 30
     organisation: v.string(),
   },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {

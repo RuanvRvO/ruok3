@@ -14,7 +14,8 @@
       "Bash(npm uninstall:*)",
       "Bash(npm run lint)",
       "Bash(npm run build:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

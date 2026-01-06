@@ -39,6 +39,12 @@ export const createOrganization = mutation({
 // Get all organizations for the current user
 export const getUserOrganizations = query({
   args: {},
+  returns: v.array(v.object({
+    _id: v.id("organizationMemberships"),
+    organisation: v.string(),
+    role: v.union(v.literal("owner"), v.literal("editor"), v.literal("viewer")),
+    createdAt: v.number(),
+  })),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -65,6 +71,7 @@ export const getUserRoleInOrg = query({
   args: {
     organisation: v.string(),
   },
+  returns: v.union(v.null(), v.union(v.literal("owner"), v.literal("editor"), v.literal("viewer"))),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -87,6 +94,15 @@ export const getOrganizationMembers = query({
   args: {
     organisation: v.string(),
   },
+  returns: v.array(v.object({
+    _id: v.id("organizationMemberships"),
+    userId: v.id("users"),
+    email: v.string(),
+    name: v.string(),
+    surname: v.string(),
+    role: v.union(v.literal("owner"), v.literal("editor"), v.literal("viewer")),
+    createdAt: v.number(),
+  })),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -294,6 +310,15 @@ export const getOrganizationMembersInternal = internalQuery({
   args: {
     organisation: v.string(),
   },
+  returns: v.array(v.object({
+    _id: v.id("organizationMemberships"),
+    userId: v.id("users"),
+    email: v.string(),
+    name: v.string(),
+    surname: v.string(),
+    role: v.union(v.literal("owner"), v.literal("editor"), v.literal("viewer")),
+    createdAt: v.number(),
+  })),
   handler: async (ctx, args) => {
     // Get all members
     const memberships = await ctx.db

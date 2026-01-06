@@ -93,6 +93,18 @@ export const listAccessRequests = query({
     organisation: v.string(),
     status: v.optional(v.union(v.literal("pending"), v.literal("approved"), v.literal("declined"))),
   },
+  returns: v.array(v.object({
+    _id: v.id("accessRequests"),
+    _creationTime: v.number(),
+    invitationId: v.id("managerInvitations"),
+    requestedEmail: v.string(),
+    organisation: v.string(),
+    role: v.union(v.literal("editor"), v.literal("viewer")),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("declined")),
+    requestedAt: v.number(),
+    respondedAt: v.optional(v.number()),
+    respondedBy: v.optional(v.id("users")),
+  })),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -267,6 +279,21 @@ export const checkApprovedAccessRequest = query({
     email: v.string(),
     organisation: v.string(),
   },
+  returns: v.union(
+    v.null(),
+    v.object({
+      _id: v.id("accessRequests"),
+      _creationTime: v.number(),
+      invitationId: v.id("managerInvitations"),
+      requestedEmail: v.string(),
+      organisation: v.string(),
+      role: v.union(v.literal("editor"), v.literal("viewer")),
+      status: v.union(v.literal("pending"), v.literal("approved"), v.literal("declined")),
+      requestedAt: v.number(),
+      respondedAt: v.optional(v.number()),
+      respondedBy: v.optional(v.id("users")),
+    })
+  ),
   handler: async (ctx, args) => {
     const emailLower = args.email.toLowerCase().trim();
 

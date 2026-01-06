@@ -8,6 +8,7 @@ export const checkEmailExists = query({
   args: {
     email: v.string(),
   },
+  returns: v.boolean(),
   handler: async (ctx, args) => {
     // Check users table first
     const existingUser = await ctx.db
@@ -44,6 +45,18 @@ export const checkEmailExists = query({
 // Query to get current user's full info
 export const getCurrentUser = query({
   args: {},
+  returns: v.union(
+    v.null(),
+    v.object({
+      _id: v.id("users"),
+      _creationTime: v.number(),
+      name: v.optional(v.string()),
+      surname: v.optional(v.string()),
+      email: v.optional(v.string()),
+      emailVerificationTime: v.optional(v.number()),
+      isAnonymous: v.optional(v.boolean()),
+    })
+  ),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -62,6 +75,7 @@ export const getCurrentUser = query({
 // Query to get current user ID
 export const getCurrentUserId = query({
   args: {},
+  returns: v.union(v.null(), v.id("users")),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     return userId;
@@ -73,6 +87,7 @@ export const getCurrentUserId = query({
 // Returns false for existing users (grandfathered) or verified users
 export const needsEmailVerification = query({
   args: {},
+  returns: v.boolean(),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -121,6 +136,15 @@ export const getUserByEmail = query({
   args: {
     email: v.string(),
   },
+  returns: v.union(
+    v.null(),
+    v.object({
+      _id: v.id("users"),
+      email: v.optional(v.string()),
+      name: v.optional(v.string()),
+      surname: v.optional(v.string()),
+    })
+  ),
   handler: async (ctx, args) => {
     const user = await ctx.db
       .query("users")
@@ -168,6 +192,15 @@ export const getOrganizationMembersWithDetails = query({
   args: {
     organisation: v.string(),
   },
+  returns: v.array(v.object({
+    _id: v.id("organizationMemberships"),
+    userId: v.id("users"),
+    email: v.string(),
+    name: v.string(),
+    surname: v.string(),
+    role: v.union(v.literal("owner"), v.literal("editor"), v.literal("viewer")),
+    createdAt: v.number(),
+  })),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {

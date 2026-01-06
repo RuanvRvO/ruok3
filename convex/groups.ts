@@ -7,6 +7,13 @@ export const list = query({
   args: {
     organisation: v.string(),
   },
+  returns: v.array(v.object({
+    _id: v.id("groups"),
+    _creationTime: v.number(),
+    name: v.string(),
+    organisation: v.string(),
+    createdAt: v.number(),
+  })),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -42,6 +49,16 @@ export const getMembers = query({
   args: {
     groupId: v.id("groups"),
   },
+  returns: v.array(v.object({
+    membershipId: v.id("groupMembers"),
+    _id: v.optional(v.id("employees")),
+    _creationTime: v.optional(v.number()),
+    firstName: v.optional(v.string()),
+    email: v.optional(v.string()),
+    organisation: v.optional(v.string()),
+    createdAt: v.optional(v.number()),
+    deletedAt: v.optional(v.number()),
+  })),
   handler: async (ctx, args) => {
     const memberships = await ctx.db
       .query("groupMembers")

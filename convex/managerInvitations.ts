@@ -135,6 +135,19 @@ export const createInvitation = mutation({
 // Query to list all manager invitations for organizations the user owns
 export const listInvitations = query({
   args: {},
+  returns: v.array(v.object({
+    _id: v.id("managerInvitations"),
+    _creationTime: v.number(),
+    email: v.optional(v.string()),
+    organisation: v.string(),
+    role: v.union(v.literal("editor"), v.literal("viewer")),
+    invitedBy: v.id("users"),
+    token: v.string(),
+    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("expired")),
+    invitationType: v.optional(v.union(v.literal("email"), v.literal("link"))),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+  })),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -204,6 +217,23 @@ export const getInvitationByToken = query({
   args: {
     token: v.string(),
   },
+  returns: v.union(
+    v.null(),
+    v.object({
+      _id: v.id("managerInvitations"),
+      _creationTime: v.number(),
+      email: v.optional(v.string()),
+      organisation: v.string(),
+      role: v.union(v.literal("editor"), v.literal("viewer")),
+      invitedBy: v.id("users"),
+      token: v.string(),
+      status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("expired")),
+      invitationType: v.optional(v.union(v.literal("email"), v.literal("link"))),
+      createdAt: v.number(),
+      expiresAt: v.number(),
+      isExpired: v.boolean(),
+    })
+  ),
   handler: async (ctx, args) => {
     const invitation = await ctx.db
       .query("managerInvitations")

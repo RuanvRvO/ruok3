@@ -157,6 +157,11 @@ export const verifyToken = query({
   args: {
     token: v.string(),
   },
+  returns: v.object({
+    valid: v.boolean(),
+    message: v.optional(v.string()),
+    email: v.optional(v.string()),
+  }),
   handler: async (ctx, args) => {
     const verification = await ctx.db
       .query("emailVerifications")

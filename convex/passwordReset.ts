@@ -156,6 +156,7 @@ export const getAuthAccount = internalQuery({
   args: {
     accountId: v.id("authAccounts"),
   },
+  returns: v.union(v.null(), v.any()),
   handler: async (ctx, args) => {
     return await ctx.db.get(args.accountId);
   },
@@ -166,6 +167,18 @@ export const getUserById = internalQuery({
   args: {
     userId: v.id("users"),
   },
+  returns: v.union(
+    v.null(),
+    v.object({
+      _id: v.id("users"),
+      _creationTime: v.number(),
+      name: v.optional(v.string()),
+      surname: v.optional(v.string()),
+      email: v.optional(v.string()),
+      emailVerificationTime: v.optional(v.number()),
+      isAnonymous: v.optional(v.boolean()),
+    })
+  ),
   handler: async (ctx, args) => {
     return await ctx.db.get(args.userId);
   },
@@ -247,6 +260,11 @@ export const verifyPasswordResetToken = query({
   args: {
     token: v.string(),
   },
+  returns: v.object({
+    valid: v.boolean(),
+    message: v.optional(v.string()),
+    email: v.optional(v.string()),
+  }),
   handler: async (ctx, args) => {
     const reset = await ctx.db
       .query("passwordResets")
