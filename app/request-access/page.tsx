@@ -90,13 +90,13 @@ export default function RequestAccessPage() {
         requestedEmail: email.toLowerCase().trim(),
       });
 
-      // Store the invitation token and email in localStorage so it can be retrieved after email verification
-      if (typeof window !== "undefined" && token) {
-        localStorage.setItem("pendingInvitationToken", token);
-        localStorage.setItem("pendingInvitationEmail", email.toLowerCase().trim());
-      }
-
-      setSuccess(true);
+      // Redirect to signin page with message (new flow)
+      const params = new URLSearchParams({
+        email: email.toLowerCase().trim(),
+        message: "access_requested",
+        org: invitation.organisation,
+      });
+      router.push(`/signin?${params.toString()}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg || "Failed to submit access request. Please try again.");
