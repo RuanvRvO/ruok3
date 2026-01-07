@@ -280,7 +280,8 @@ export default function ManageManagersPage() {
                   const result = await createInvitation({
                     role,
                     organisation: selectedOrg,
-                    email: email.trim()
+                    email: email.trim(),
+                    baseUrl: window.location.origin, // Pass current deployment URL
                   });
 
                   if (result.mode === "email") {
@@ -378,15 +379,16 @@ export default function ManageManagersPage() {
                 setGeneratedUrl(null);
 
                 try {
+                  const baseUrl = window.location.origin;
                   const result = await createInvitation({
                     role,
                     organisation: selectedOrg,
-                    email: undefined
+                    email: undefined,
+                    baseUrl: baseUrl, // Pass current deployment URL
                   });
 
                   if (result.mode === "link") {
-                    const baseUrl = window.location.origin;
-                    const inviteUrl = `${baseUrl}/invite?token=${encodeURIComponent(result.token)}`;
+                    const inviteUrl = `${baseUrl}/accept-invitation?token=${encodeURIComponent(result.token)}`;
                     setGeneratedUrl(inviteUrl);
                     setSuccess("Invitation URL generated! Copy and share it with anyone you want to invite.");
                   }

@@ -15,6 +15,7 @@ export const createInvitation = mutation({
     role: v.union(v.literal("editor"), v.literal("viewer")),
     organisation: v.string(),
     email: v.optional(v.string()),
+    baseUrl: v.optional(v.string()), // Frontend can pass the current URL
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -112,6 +113,7 @@ export const createInvitation = mutation({
         role: args.role,
         token,
         inviterName,
+        baseUrl: args.baseUrl, // Pass the frontend's URL
       });
 
       return {
@@ -540,6 +542,7 @@ export const sendInvitationEmail = internalAction({
     role: v.union(v.literal("editor"), v.literal("viewer")),
     token: v.string(),
     inviterName: v.string(),
+    baseUrl: v.optional(v.string()), // URL from frontend
   },
   handler: async (ctx, args): Promise<{ success: boolean; error?: string }> => {
     // Validate email address
@@ -553,13 +556,8 @@ export const sendInvitationEmail = internalAction({
     }
 
     // Build the base URL for the invitation link
-    // Priority: VERCEL_URL (for preview deployments) > SITE_URL (for production) > localhost
-    let baseUrl = process.env.SITE_URL || "http://localhost:3000";
-
-    // For Vercel preview deployments, use VERCEL_URL instead
-    if (process.env.VERCEL_URL) {
-      baseUrl = `https://${process.env.VERCEL_URL}`;
-    }
+    // Priority: Frontend-provided baseUrl > SITE_URL (env var) > localhost
+    let baseUrl = args.baseUrl || process.env.SITE_URL || "http://localhost:3000";
 
     // Remove trailing slash from baseUrl if present
     if (baseUrl.endsWith('/')) {
