@@ -42,3 +42,4 @@ After the initial setup (<2 minutes) you'll have a working full-stack app using:
 todo:
 
 -setup dev env to have password reset testing done correctly and test (why did i get sent to localhost? is it really a problem?)
+
