@@ -456,46 +456,42 @@ export default function AcceptInvitation() {
       }
 
       // Create access request (this will validate email, check for duplicates, etc.)
-      console.log("Submitting access request for:", emailToUse);
-
       await createAccessRequest({
         invitationId: invitation._id,
         requestedEmail: emailToUse,
-      });
+      })
+        .then(() => {
+          // Redirect to signin with pre-filled email and message
+          const params = new URLSearchParams({
+            email: emailToUse,
+            message: "access_requested",
+            org: invitation.organisation,
+          });
+          router.push(`/signin?${params.toString()}`);
+        })
+        .catch((error) => {
+          // Extract error message using the same pattern as signin page
+          const errorMessage = error?.message ?? "";
 
-      console.log("Access request successful, redirecting...");
+          // Set user-friendly error message
+          if (errorMessage.includes("already has access")) {
+            setError("User already has access to this organization. Please sign in to continue.");
+          } else if (errorMessage.includes("pending access request")) {
+            setError("You already have a pending access request for this organization. Please wait for approval.");
+          } else if (errorMessage.includes("expired")) {
+            setError("This invitation has expired. Please request a new invitation link.");
+          } else if (errorMessage.includes("valid email")) {
+            setError("Please enter a valid email address.");
+          } else {
+            // Fallback to the original error message or generic message
+            setError(errorMessage || "Failed to submit access request. Please try again.");
+          }
 
-      // Redirect to signin with pre-filled email and message
-      const params = new URLSearchParams({
-        email: emailToUse,
-        message: "access_requested",
-        org: invitation.organisation,
-      });
-      router.push(`/signin?${params.toString()}`);
+          setLoading(false);
+        });
     } catch (err: unknown) {
-      // Extract error message from various possible error formats
-      console.error("Access request error (full object):", err);
-      console.error("Error type:", typeof err);
-      console.error("Error constructor:", err?.constructor?.name);
-
-      let errorMessage = "Failed to submit access request. Please try again.";
-
-      if (err instanceof Error) {
-        console.log("Error is instance of Error, message:", err.message);
-        errorMessage = err.message;
-      } else if (typeof err === "string") {
-        console.log("Error is string:", err);
-        errorMessage = err;
-      } else if (err && typeof err === "object" && "message" in err) {
-        console.log("Error has message property:", err.message);
-        errorMessage = String(err.message);
-      } else if (err && typeof err === "object" && "data" in err) {
-        console.log("Error has data property:", err);
-        errorMessage = JSON.stringify(err);
-      }
-
-      console.log("Final error message to display:", errorMessage);
-      setError(errorMessage);
+      // Catch any other errors
+      setError("An unexpected error occurred. Please try again.");
       setLoading(false);
     }
   };
