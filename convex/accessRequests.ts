@@ -55,16 +55,15 @@ export const createAccessRequest = mutation({
     }
 
     // Check if there's already a pending request from this email for this organization
-    const existingRequest = await ctx.db
+    // Get all access requests for this email, then check in code (avoid using .filter())
+    const allRequestsForEmail = await ctx.db
       .query("accessRequests")
       .withIndex("by_email", (q) => q.eq("requestedEmail", emailLower))
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("organisation"), invitation.organisation),
-          q.eq(q.field("status"), "pending")
-        )
-      )
-      .first();
+      .collect();
+
+    const existingRequest = allRequestsForEmail.find(
+      (req) => req.organisation === invitation.organisation && req.status === "pending"
+    );
 
     if (existingRequest) {
       throw new Error("You already have a pending access request for this organization. Please wait for approval.");
