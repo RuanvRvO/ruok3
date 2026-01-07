@@ -662,7 +662,7 @@ export const sendDailyEmails = internalAction({
             Authorization: `Bearer ${resendApiKey}`,
           },
           body: JSON.stringify({
-            from: "R u OK <onboarding@resend.dev>", // Change this to your verified domain
+            from: "R u OK <noreply@harbourweb.org>",
             to: employee.email,
             subject: `${employee.organisation} - Daily Check-In: How are you feeling today?`,
             html: emailHtml,
