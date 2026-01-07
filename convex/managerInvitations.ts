@@ -558,7 +558,7 @@ export const sendInvitationEmail = internalAction({
       baseUrl = baseUrl.slice(0, -1);
     }
     const encodedToken = encodeURIComponent(args.token);
-    const inviteLink = `${baseUrl}/manager-signup?token=${encodedToken}`;
+    const inviteLink = `${baseUrl}/accept-invitation?token=${encodedToken}`;
     const roleDisplay = args.role === "viewer" ? "View Only" : "Can Edit";
 
     const emailHtml = `
