@@ -552,11 +552,20 @@ export const sendInvitationEmail = internalAction({
       return { success: false, error: "Resend API key not configured" };
     }
 
-    // Remove trailing slash from baseUrl if present
+    // Build the base URL for the invitation link
+    // Priority: VERCEL_URL (for preview deployments) > SITE_URL (for production) > localhost
     let baseUrl = process.env.SITE_URL || "http://localhost:3000";
+
+    // For Vercel preview deployments, use VERCEL_URL instead
+    if (process.env.VERCEL_URL) {
+      baseUrl = `https://${process.env.VERCEL_URL}`;
+    }
+
+    // Remove trailing slash from baseUrl if present
     if (baseUrl.endsWith('/')) {
       baseUrl = baseUrl.slice(0, -1);
     }
+
     const encodedToken = encodeURIComponent(args.token);
     const inviteLink = `${baseUrl}/accept-invitation?token=${encodedToken}`;
     const roleDisplay = args.role === "viewer" ? "View Only" : "Can Edit";
