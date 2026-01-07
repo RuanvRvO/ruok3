@@ -11,94 +11,84 @@ export const createAccessRequest = mutation({
     requestedEmail: v.string(),
   },
   handler: async (ctx, args) => {
+    // Get the invitation to verify it exists and get org/role info
+    const invitation = await ctx.db.get(args.invitationId);
+    if (!invitation) {
+      throw new Error("Invitation not found. Please request a new invitation link.");
+    }
+
+    // Check if invitation is expired
+    if (invitation.expiresAt < Date.now()) {
+      throw new Error("This invitation has expired. Please request a new invitation link.");
+    }
+
+    // Only allow access requests for general links (not email-specific invites)
+    if (invitation.invitationType === "email") {
+      throw new Error("This is an email-specific invitation. Please use the link from your email.");
+    }
+
+    // Validate and normalize email
+    let emailLower: string;
     try {
-      // Get the invitation to verify it exists and get org/role info
-      const invitation = await ctx.db.get(args.invitationId);
-      if (!invitation) {
-        throw new Error("Invitation not found. Please request a new invitation link.");
-      }
+      emailLower = validateAndNormalizeEmail(args.requestedEmail);
+    } catch {
+      throw new Error("Please enter a valid email address.");
+    }
 
-      // Check if invitation is expired
-      if (invitation.expiresAt < Date.now()) {
-        throw new Error("This invitation has expired. Please request a new invitation link.");
-      }
+    // Check if user with this email already has access to the organization
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", emailLower))
+      .first();
 
-      // Only allow access requests for general links (not email-specific invites)
-      if (invitation.invitationType === "email") {
-        throw new Error("This is an email-specific invitation. Please use the link from your email.");
-      }
-
-      // Validate and normalize email
-      let emailLower: string;
-      try {
-        emailLower = validateAndNormalizeEmail(args.requestedEmail);
-      } catch {
-        throw new Error("Please enter a valid email address.");
-      }
-
-      // Check if user with this email already has access to the organization
-      const existingUser = await ctx.db
-        .query("users")
-        .withIndex("email", (q) => q.eq("email", emailLower))
-        .first();
-
-      if (existingUser) {
-        const existingMembership = await ctx.db
-          .query("organizationMemberships")
-          .withIndex("by_user_and_org", (q) =>
-            q.eq("userId", existingUser._id).eq("organisation", invitation.organisation)
-          )
-          .first();
-
-        if (existingMembership) {
-          throw new Error("User already has access to this organization. Please sign in to continue.");
-        }
-      }
-
-      // Check if there's already a pending request from this email for this organization
-      const existingRequest = await ctx.db
-        .query("accessRequests")
-        .withIndex("by_email", (q) => q.eq("requestedEmail", emailLower))
-        .filter((q) =>
-          q.and(
-            q.eq(q.field("organisation"), invitation.organisation),
-            q.eq(q.field("status"), "pending")
-          )
+    if (existingUser) {
+      const existingMembership = await ctx.db
+        .query("organizationMemberships")
+        .withIndex("by_user_and_org", (q) =>
+          q.eq("userId", existingUser._id).eq("organisation", invitation.organisation)
         )
         .first();
 
-      if (existingRequest) {
-        throw new Error("You already have a pending access request for this organization. Please wait for approval.");
+      if (existingMembership) {
+        throw new Error("User already has access to this organization. Please sign in to continue.");
       }
-
-      // Create the access request
-      const requestId = await ctx.db.insert("accessRequests", {
-        invitationId: args.invitationId,
-        requestedEmail: emailLower,
-        organisation: invitation.organisation,
-        role: invitation.role,
-        status: "pending",
-        requestedAt: Date.now(),
-      });
-
-      // Notify organization owner(s) via email
-      await ctx.scheduler.runAfter(0, internal.accessRequests.sendAccessRequestNotification, {
-        requestId,
-        organisation: invitation.organisation,
-        requestedEmail: emailLower,
-        role: invitation.role,
-      });
-
-      return { success: true, requestId };
-    } catch (error) {
-      // If it's already an Error with a message, throw it as-is
-      // This ensures our user-friendly error messages are preserved
-      if (error instanceof Error) {
-        throw error;
-      }
-      // For any other type of error, throw a generic user-friendly message
-      throw new Error("Failed to submit access request. Please try again or contact support.");
     }
+
+    // Check if there's already a pending request from this email for this organization
+    const existingRequest = await ctx.db
+      .query("accessRequests")
+      .withIndex("by_email", (q) => q.eq("requestedEmail", emailLower))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("organisation"), invitation.organisation),
+          q.eq(q.field("status"), "pending")
+        )
+      )
+      .first();
+
+    if (existingRequest) {
+      throw new Error("You already have a pending access request for this organization. Please wait for approval.");
+    }
+
+    // Create the access request
+    const requestId = await ctx.db.insert("accessRequests", {
+      invitationId: args.invitationId,
+      requestedEmail: emailLower,
+      organisation: invitation.organisation,
+      role: invitation.role,
+      status: "pending",
+      requestedAt: Date.now(),
+    });
+
+    // Notify organization owner(s) via email
+    await ctx.scheduler.runAfter(0, internal.accessRequests.sendAccessRequestNotification, {
+      requestId,
+      organisation: invitation.organisation,
+      requestedEmail: emailLower,
+      role: invitation.role,
+    });
+
+    return { success: true, requestId };
   },
 });
 
