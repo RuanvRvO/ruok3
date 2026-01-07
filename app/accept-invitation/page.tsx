@@ -456,10 +456,14 @@ export default function AcceptInvitation() {
       }
 
       // Create access request (this will validate email, check for duplicates, etc.)
+      console.log("Submitting access request for:", emailToUse);
+
       await createAccessRequest({
         invitationId: invitation._id,
         requestedEmail: emailToUse,
       });
+
+      console.log("Access request successful, redirecting...");
 
       // Redirect to signin with pre-filled email and message
       const params = new URLSearchParams({
@@ -470,17 +474,27 @@ export default function AcceptInvitation() {
       router.push(`/signin?${params.toString()}`);
     } catch (err: unknown) {
       // Extract error message from various possible error formats
+      console.error("Access request error (full object):", err);
+      console.error("Error type:", typeof err);
+      console.error("Error constructor:", err?.constructor?.name);
+
       let errorMessage = "Failed to submit access request. Please try again.";
 
       if (err instanceof Error) {
+        console.log("Error is instance of Error, message:", err.message);
         errorMessage = err.message;
       } else if (typeof err === "string") {
+        console.log("Error is string:", err);
         errorMessage = err;
       } else if (err && typeof err === "object" && "message" in err) {
+        console.log("Error has message property:", err.message);
         errorMessage = String(err.message);
+      } else if (err && typeof err === "object" && "data" in err) {
+        console.log("Error has data property:", err);
+        errorMessage = JSON.stringify(err);
       }
 
-      console.error("Access request error:", err);
+      console.log("Final error message to display:", errorMessage);
       setError(errorMessage);
       setLoading(false);
     }
