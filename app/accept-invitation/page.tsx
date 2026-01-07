@@ -42,6 +42,7 @@ export default function AcceptInvitation() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [surname, setSurname] = useState("");
+  const [email, setEmail] = useState(""); // For link-based invitations where user enters email
   const [isSignupMode, setIsSignupMode] = useState(true); // Default to signup
   const signInErrorRef = useRef(false); // Ref to track sign-in errors (for use in closures)
   const [signingOut, setSigningOut] = useState(false); // Track if we're signing out
@@ -387,7 +388,11 @@ export default function AcceptInvitation() {
     );
   }
 
-  if (!token || invitation === undefined || emailExists === undefined) {
+  // For link-based invitations (no email), we don't need to wait for emailExists
+  const needsEmailCheck = emailToCheck !== "";
+  const isLoading = !token || invitation === undefined || (needsEmailCheck && emailExists === undefined);
+
+  if (isLoading) {
     return (
       <div className="flex flex-col gap-4 sm:gap-6 md:gap-8 w-full max-w-lg mx-auto min-h-screen justify-center items-center px-4 py-6 sm:py-8">
         <div className="flex items-center gap-2">
@@ -447,10 +452,10 @@ export default function AcceptInvitation() {
         return;
       }
 
-      // Use email from query params if invitation doesn't have email
-      const emailToUse = invitation?.email || emailFromQuery || "";
+      // Use email from query params, invitation, or user-entered email (for sharable links)
+      const emailToUse = invitation?.email || emailFromQuery || email.trim();
       if (!emailToUse) {
-        setError("Email is required. Please go back and enter your email.");
+        setError("Email is required. Please enter your email address.");
         setLoading(false);
         return;
       }
@@ -823,19 +828,25 @@ export default function AcceptInvitation() {
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Access Level: {invitation.role === "viewer" ? "View Only" : "Can Edit"}
           </p>
-          {isSignupMode ? (
-            <p className="text-sm text-slate-600 dark:text-slate-400 mt-3">
-              Create an account with email <span className="font-semibold">{emailToCheck}</span> to accept this invitation.
-            </p>
-          ) : (
-            <>
+          {emailToCheck ? (
+            isSignupMode ? (
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-3">
-                An account with email <span className="font-semibold">{emailToCheck}</span> already exists.
+                Create an account with email <span className="font-semibold">{emailToCheck}</span> to accept this invitation.
               </p>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                Please sign in to accept this invitation and add access to your account.
-              </p>
-            </>
+            ) : (
+              <>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-3">
+                  An account with email <span className="font-semibold">{emailToCheck}</span> already exists.
+                </p>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                  Please sign in to accept this invitation and add access to your account.
+                </p>
+              </>
+            )
+          ) : (
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-3">
+              Enter your email address and create an account to accept this invitation.
+            </p>
           )}
         </div>
       </div>
@@ -844,10 +855,13 @@ export default function AcceptInvitation() {
         onSubmit={handleSubmit}
       >
         <input
-          className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 cursor-not-allowed opacity-60"
+          className={`bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 ${emailToCheck ? 'cursor-not-allowed opacity-60' : 'focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all'} placeholder:text-slate-400`}
           type="email"
-          value={emailToCheck}
-          disabled
+          value={emailToCheck || email}
+          onChange={(e) => !emailToCheck && setEmail(e.target.value)}
+          placeholder="Email Address"
+          disabled={!!emailToCheck}
+          required
         />
         {isSignupMode && (
           <>
