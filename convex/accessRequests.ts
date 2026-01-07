@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -14,17 +14,17 @@ export const createAccessRequest = mutation({
     // Get the invitation to verify it exists and get org/role info
     const invitation = await ctx.db.get(args.invitationId);
     if (!invitation) {
-      throw new Error("Invitation not found. Please request a new invitation link.");
+      throw new ConvexError("Invitation not found. Please request a new invitation link.");
     }
 
     // Check if invitation is expired
     if (invitation.expiresAt < Date.now()) {
-      throw new Error("This invitation has expired. Please request a new invitation link.");
+      throw new ConvexError("This invitation has expired. Please request a new invitation link.");
     }
 
     // Only allow access requests for general links (not email-specific invites)
     if (invitation.invitationType === "email") {
-      throw new Error("This is an email-specific invitation. Please use the link from your email.");
+      throw new ConvexError("This is an email-specific invitation. Please use the link from your email.");
     }
 
     // Validate and normalize email
@@ -32,7 +32,7 @@ export const createAccessRequest = mutation({
     try {
       emailLower = validateAndNormalizeEmail(args.requestedEmail);
     } catch {
-      throw new Error("Please enter a valid email address.");
+      throw new ConvexError("Please enter a valid email address.");
     }
 
     // Check if user with this email already has access to the organization
@@ -50,7 +50,7 @@ export const createAccessRequest = mutation({
         .first();
 
       if (existingMembership) {
-        throw new Error("User already has access to this organization. Please sign in to continue.");
+        throw new ConvexError("User already has access to this organization. Please sign in to continue.");
       }
     }
 
@@ -66,7 +66,7 @@ export const createAccessRequest = mutation({
     );
 
     if (existingRequest) {
-      throw new Error("You already have a pending access request for this organization. Please wait for approval.");
+      throw new ConvexError("You already have a pending access request for this organization. Please wait for approval.");
     }
 
     // Create the access request
