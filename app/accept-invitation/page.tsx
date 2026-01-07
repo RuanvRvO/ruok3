@@ -469,7 +469,18 @@ export default function AcceptInvitation() {
       });
       router.push(`/signin?${params.toString()}`);
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
+      // Extract error message from various possible error formats
+      let errorMessage = "Failed to submit access request. Please try again.";
+
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === "string") {
+        errorMessage = err;
+      } else if (err && typeof err === "object" && "message" in err) {
+        errorMessage = String(err.message);
+      }
+
+      console.error("Access request error:", err);
       setError(errorMessage);
       setLoading(false);
     }
