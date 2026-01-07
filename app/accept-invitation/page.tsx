@@ -30,6 +30,7 @@ export default function AcceptInvitation() {
   const acceptInvitation = useMutation(api.managerInvitations.acceptInvitation);
   const resendVerificationEmail = useMutation(api.emailVerification.resendVerificationEmail);
   const sendVerificationEmail = useMutation(api.emailVerification.sendVerificationEmail);
+  const createAccessRequest = useMutation(api.accessRequests.createAccessRequest);
   const currentUserId = useQuery(api.users.getCurrentUserId);
   const currentUser = useQuery(api.users.getCurrentUser);
   const userOrganizations = useQuery(api.organizationMemberships.getUserOrganizations);
@@ -49,6 +50,9 @@ export default function AcceptInvitation() {
   const isSigningUpRef = useRef(false); // Track if we're currently in signup process
   const [waitingForAuth, setWaitingForAuth] = useState(false); // Track if we're waiting for auth after signup
   const pendingTokenRef = useRef<string | null>(null); // Store token while waiting for auth
+
+  // Detect if this is a shareable link invitation (requires approval)
+  const isShareableLink = invitation?.invitationType === "link";
 
   // Redirect if no token
   useEffect(() => {
@@ -429,6 +433,47 @@ export default function AcceptInvitation() {
       </div>
     );
   }
+
+  // Handler for shareable link invitations (creates access request instead of immediate access)
+  const handleShareableLinkSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      if (!invitation || !token) {
+        setError("Invalid invitation");
+        setLoading(false);
+        return;
+      }
+
+      // Use email from query or user input
+      const emailToUse = emailFromQuery || email.trim();
+      if (!emailToUse) {
+        setError("Please enter your email address");
+        setLoading(false);
+        return;
+      }
+
+      // Create access request (this will validate email, check for duplicates, etc.)
+      await createAccessRequest({
+        invitationId: invitation._id,
+        requestedEmail: emailToUse,
+      });
+
+      // Redirect to signin with pre-filled email and message
+      const params = new URLSearchParams({
+        email: emailToUse,
+        message: "access_requested",
+        org: invitation.organisation,
+      });
+      router.push(`/signin?${params.toString()}`);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setError(errorMessage);
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -828,7 +873,11 @@ export default function AcceptInvitation() {
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Access Level: {invitation.role === "viewer" ? "View Only" : "Can Edit"}
           </p>
-          {emailToCheck ? (
+          {isShareableLink ? (
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-3">
+              Enter your email to request access to this organization. A manager will review your request.
+            </p>
+          ) : emailToCheck ? (
             isSignupMode ? (
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-3">
                 Create an account with email <span className="font-semibold">{emailToCheck}</span> to accept this invitation.
@@ -850,19 +899,51 @@ export default function AcceptInvitation() {
           )}
         </div>
       </div>
-      <form
-        className="flex flex-col gap-4 w-full bg-slate-100 dark:bg-slate-800 p-4 sm:p-6 md:p-8 rounded-2xl shadow-xl border border-slate-300 dark:border-slate-600"
-        onSubmit={handleSubmit}
-      >
-        <input
-          className={`bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 ${emailToCheck ? 'cursor-not-allowed opacity-60' : 'focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all'} placeholder:text-slate-400`}
-          type="email"
-          value={emailToCheck || email}
-          onChange={(e) => !emailToCheck && setEmail(e.target.value)}
-          placeholder="Email Address"
-          disabled={!!emailToCheck}
-          required
-        />
+
+      {/* Show different forms based on invitation type */}
+      {isShareableLink ? (
+        // Email-only form for shareable links (creates access request)
+        <form
+          className="flex flex-col gap-4 w-full bg-slate-100 dark:bg-slate-800 p-4 sm:p-6 md:p-8 rounded-2xl shadow-xl border border-slate-300 dark:border-slate-600"
+          onSubmit={handleShareableLinkSubmit}
+        >
+          <input
+            className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
+            type="email"
+            value={emailFromQuery || email}
+            onChange={(e) => !emailFromQuery && setEmail(e.target.value)}
+            placeholder="Email Address"
+            disabled={!!emailFromQuery}
+            required
+          />
+          {error && (
+            <div className="bg-rose-500/10 border border-rose-500/30 dark:border-rose-500/50 rounded-lg p-4">
+              <p className="text-rose-700 dark:text-rose-300 font-medium text-sm break-words">{error}</p>
+            </div>
+          )}
+          <button
+            className="bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 text-white font-semibold rounded-lg py-3 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? "Submitting Request..." : "Request Access"}
+          </button>
+        </form>
+      ) : (
+        // Full signup/signin form for email invitations (immediate access)
+        <form
+          className="flex flex-col gap-4 w-full bg-slate-100 dark:bg-slate-800 p-4 sm:p-6 md:p-8 rounded-2xl shadow-xl border border-slate-300 dark:border-slate-600"
+          onSubmit={handleSubmit}
+        >
+          <input
+            className={`bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 ${emailToCheck ? 'cursor-not-allowed opacity-60' : 'focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all'} placeholder:text-slate-400`}
+            type="email"
+            value={emailToCheck || email}
+            onChange={(e) => !emailToCheck && setEmail(e.target.value)}
+            placeholder="Email Address"
+            disabled={!!emailToCheck}
+            required
+          />
         {isSignupMode && (
           <>
             <input
@@ -944,6 +1025,8 @@ export default function AcceptInvitation() {
           </button>
         </div>
       </form>
+      )}
+
       <Link
         href="/signin"
         className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-sm transition-colors underline underline-offset-2"

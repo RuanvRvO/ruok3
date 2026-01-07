@@ -18,6 +18,8 @@ export default function SignIn() {
   const returnTo = searchParams.get("returnTo");
   const invitationToken = searchParams.get("token");
   const invitationEmail = searchParams.get("email");
+  const messageType = searchParams.get("message");
+  const orgName = searchParams.get("org");
   const organizations = useQuery(api.organizationMemberships.getUserOrganizations);
   const resendVerificationEmailMutation = useMutation(api.emailVerification.resendVerificationEmail);
   const [flow, setFlow] = useState<"signIn" | "signUp">(initialFlow);
@@ -121,6 +123,16 @@ export default function SignIn() {
             : "Create a new account"}
         </p>
       </div>
+
+      {/* Access request confirmation message */}
+      {messageType === "access_requested" && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 w-full">
+          <p className="text-blue-700 dark:text-blue-300 text-sm">
+            Access request submitted for <strong>{orgName || "the organization"}</strong>.
+            Please sign in or create an account. You&apos;ll receive an email once your request is approved.
+          </p>
+        </div>
+      )}
 
       <form
         className="flex flex-col gap-4 w-full bg-slate-100 dark:bg-slate-800 p-4 sm:p-6 md:p-8 rounded-2xl shadow-xl border border-slate-300 dark:border-slate-600"
