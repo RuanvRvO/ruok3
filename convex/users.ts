@@ -126,7 +126,18 @@ export const needsEmailVerification = query({
       return false;
     }
 
-    // New user without verification - they need to verify
+    // Check if user has any organization memberships (came via invitation)
+    // If they do, they don't need email verification - they were explicitly invited
+    const membership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+
+    if (membership) {
+      return false; // User has org access via invitation - allow them in
+    }
+
+    // New user without verification and no org membership - they need to verify
     return true;
   },
 });

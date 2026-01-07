@@ -29,6 +29,7 @@ export default function AcceptInvitation() {
   const acceptInvitationForExistingUser = useMutation(api.managerInvitations.acceptInvitationForExistingUser);
   const acceptInvitation = useMutation(api.managerInvitations.acceptInvitation);
   const resendVerificationEmail = useMutation(api.emailVerification.resendVerificationEmail);
+  const sendVerificationEmail = useMutation(api.emailVerification.sendVerificationEmail);
   const currentUserId = useQuery(api.users.getCurrentUserId);
   const currentUser = useQuery(api.users.getCurrentUser);
   const userOrganizations = useQuery(api.organizationMemberships.getUserOrganizations);
@@ -90,51 +91,63 @@ export default function AcceptInvitation() {
       // Automatically accept the invitation
       const continueInvitation = async () => {
         try {
-          await acceptInvitation({ token: tokenToUse, userId: currentUserId as Id<"users"> });
+          console.log("Accepting invitation for userId:", currentUserId);
+          const result = await acceptInvitation({ token: tokenToUse, userId: currentUserId as Id<"users"> });
+          console.log("Invitation accepted successfully:", result);
           setLoadingMessage(null);
-          
+
           // Continue with the rest of the flow (redirect, etc.)
           // Wait for organizations query to update after accepting invitation
           setLoadingMessage("Finalizing access...");
           let orgs: Array<{ organisation: string }> | undefined = undefined;
           const initialCount = userOrganizations?.length || 0;
-          
+
+          console.log("Waiting for organizations query to update. Initial count:", initialCount);
+
           // Wait longer for the query to update - database might need time to propagate
-          // Poll for up to 20 seconds (40 iterations * 500ms)
-          for (let i = 0; i < 40; i++) {
+          // Poll for up to 30 seconds (60 iterations * 500ms)
+          for (let i = 0; i < 60; i++) {
             await new Promise(resolve => setTimeout(resolve, 500));
             if (userOrganizations) {
               const currentCount = userOrganizations.length;
               if (currentCount > initialCount || currentCount >= 1) {
                 orgs = userOrganizations;
+                console.log("Organizations updated! Count:", currentCount);
                 break;
               }
             }
           }
-          
+
           if (!orgs && userOrganizations) {
             orgs = userOrganizations;
           }
-          
+
+          console.log("Final orgs:", orgs);
+
           // If still no orgs after waiting, the membership was created but query hasn't updated yet
           // In this case, just redirect - the membership exists in the database
           // The user will see their organization when they get to the manager page
           if (!orgs || orgs.length === 0) {
             // Don't show error - just redirect and let the manager page handle it
             // The membership is in the database, the query just needs more time
+            console.log("No orgs found yet, redirecting to dashboard anyway");
             setLoadingMessage(null);
             setLoading(false);
             isSigningUpRef.current = false;
             router.push("/manager/view");
             return;
           }
-          
+
           const org = orgs[0];
+          console.log("Setting selected organization:", org.organisation);
           localStorage.setItem("selectedOrganization", org.organisation);
           isSigningUpRef.current = false;
+          setLoadingMessage(null);
+          setLoading(false);
           router.push("/manager/view");
         } catch (invitationError: unknown) {
           const errorMessage = invitationError instanceof Error ? invitationError.message : String(invitationError);
+          console.error("Failed to accept invitation:", invitationError);
           setLoadingMessage(null);
           setError(`Failed to accept invitation: ${errorMessage}. Please try again or contact support.`);
           setLoading(false);
@@ -511,59 +524,15 @@ export default function AcceptInvitation() {
           throw signUpError;
         }
 
-        // Wait for currentUserId to become available after signup
+        // Set flags to let the useEffect handle the invitation acceptance
+        // The useEffect will automatically run when currentUserId becomes available
+        setWaitingForAuth(true);
+        pendingTokenRef.current = token;
         setLoadingMessage("Setting up your access...");
-        let userId = currentUserId;
-        let attempts = 0;
-        while (!userId && attempts < 30) {
-          await new Promise(resolve => setTimeout(resolve, 200));
-          userId = currentUserId;
-          attempts++;
-        }
 
-        if (!userId) {
-          setError("Account created but unable to set up access. Please sign in to continue.");
-          isSigningUpRef.current = false;
-          setLoading(false);
-          setLoadingMessage(null);
-          router.push(`/signin`);
-          return;
-        }
-
-        // Accept the invitation immediately after account creation
-        try {
-          setLoadingMessage("Granting organization access...");
-          await acceptInvitation({ token, userId: userId as Id<"users"> });
-        } catch (invitationError: unknown) {
-          const errorMessage = invitationError instanceof Error ? invitationError.message : String(invitationError);
-          setError(`Account created but failed to grant access: ${errorMessage}. Please contact support.`);
-          isSigningUpRef.current = false;
-          setLoading(false);
-          setLoadingMessage(null);
-          return;
-        }
-
-        // Send verification email using public mutation (doesn't require auth)
-        try {
-          setLoadingMessage("Sending verification email...");
-          await resendVerificationEmail({ email: emailToUse });
-        } catch {
-          // Continue anyway - user can request it again on check-email page
-        }
-
-        // Reset signup flag
-        isSigningUpRef.current = false;
-        setLoading(false);
-        setLoadingMessage(null);
-
-        // Store flag indicating invitation was accepted, so verify-email page knows to redirect to dashboard
-        if (typeof window !== "undefined") {
-          localStorage.setItem("invitationAccepted", "true");
-        }
-
-        // Redirect to check-email page
-        router.push(`/check-email?email=${encodeURIComponent(emailToUse)}`);
-        return; // Exit early - user needs to verify email before accessing the app
+        // The useEffect at lines 72-148 will automatically continue when auth is ready
+        // It will accept the invitation and redirect to dashboard
+        return;
       } else {
         // Sign in mode
         formData.set("flow", "signIn");
