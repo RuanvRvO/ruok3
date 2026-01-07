@@ -39,7 +39,12 @@ After the initial setup (<2 minutes) you'll have a working full-stack app using:
 
 
 
-todo:
+-when inviting an email that exists, have a better error message
 
--setup dev env to have password reset testing done correctly and test (why did i get sent to localhost? is it really a problem?)
+-when signed in is the landing page showing the correct instructions? and what if you are waiting for approval
 
+-3 wrong password timeout?
+
+also not getting verification email + workflow review
+
+-clicking on view only or edit only changes both top and bottom blue dot, not just the one im switching between

@@ -58,7 +58,8 @@ export default function ManageManagersPage() {
   const approveAccessRequest = useMutation(api.accessRequests.approveAccessRequest);
   const declineAccessRequest = useMutation(api.accessRequests.declineAccessRequest);
 
-  const [role, setRole] = useState<"viewer" | "editor">("viewer");
+  const [role, setRole] = useState<"viewer" | "editor">("viewer"); // For email invitations
+  const [linkRole, setLinkRole] = useState<"viewer" | "editor">("viewer"); // For shareable links
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -337,8 +338,8 @@ export default function ManageManagersPage() {
                     type="radio"
                     name="role-link"
                     value="viewer"
-                    checked={role === "viewer"}
-                    onChange={(e) => setRole(e.target.value as "viewer")}
+                    checked={linkRole === "viewer"}
+                    onChange={(e) => setLinkRole(e.target.value as "viewer")}
                     className="w-4 h-4 mt-1"
                   />
                   <div className="flex-1">
@@ -354,8 +355,8 @@ export default function ManageManagersPage() {
                     type="radio"
                     name="role-link"
                     value="editor"
-                    checked={role === "editor"}
-                    onChange={(e) => setRole(e.target.value as "editor")}
+                    checked={linkRole === "editor"}
+                    onChange={(e) => setLinkRole(e.target.value as "editor")}
                     className="w-4 h-4 mt-1"
                   />
                   <div className="flex-1">
@@ -381,7 +382,7 @@ export default function ManageManagersPage() {
                 try {
                   const baseUrl = window.location.origin;
                   const result = await createInvitation({
-                    role,
+                    role: linkRole,
                     organisation: selectedOrg,
                     email: undefined,
                     baseUrl: baseUrl, // Pass current deployment URL
