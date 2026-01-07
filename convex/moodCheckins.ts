@@ -671,10 +671,14 @@ export const sendDailyEmails = internalAction({
 
         if (response.ok) {
           sentCount++;
+          console.log(`✓ Sent mood email to ${employee.email} (${employee.firstName})`);
         } else {
+          const errorText = await response.text();
+          console.error(`✗ Failed to send to ${employee.email}: ${response.status} ${errorText}`);
           errorCount++;
         }
-      } catch {
+      } catch (error) {
+        console.error(`✗ Exception sending to ${employee.email}:`, error);
         errorCount++;
       }
     }
