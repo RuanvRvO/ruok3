@@ -28,8 +28,6 @@ export default function AcceptInvitation() {
   );
   const acceptInvitationForExistingUser = useMutation(api.managerInvitations.acceptInvitationForExistingUser);
   const acceptInvitation = useMutation(api.managerInvitations.acceptInvitation);
-  const resendVerificationEmail = useMutation(api.emailVerification.resendVerificationEmail);
-  const sendVerificationEmail = useMutation(api.emailVerification.sendVerificationEmail);
   const createAccessRequest = useMutation(api.accessRequests.createAccessRequest);
   const currentUserId = useQuery(api.users.getCurrentUserId);
   const currentUser = useQuery(api.users.getCurrentUser);

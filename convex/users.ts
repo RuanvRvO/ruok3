@@ -53,7 +53,6 @@ export const getCurrentUser = query({
       name: v.optional(v.string()),
       surname: v.optional(v.string()),
       email: v.optional(v.string()),
-      emailVerificationTime: v.optional(v.number()),
       isAnonymous: v.optional(v.boolean()),
     })
   ),
@@ -82,65 +81,6 @@ export const getCurrentUserId = query({
   },
 });
 
-// Query to check if current user needs email verification
-// Returns true if user is new and hasn't verified email
-// Returns false for existing users (grandfathered) or verified users
-export const needsEmailVerification = query({
-  args: {},
-  returns: v.boolean(),
-  handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      return false; // Not authenticated, no verification needed (redirect will happen elsewhere)
-    }
-
-    const user = await ctx.db.get(userId);
-    if (!user) {
-      return false;
-    }
-
-    // If user has emailVerificationTime, they're verified (or grandfathered if it's undefined/null for old users)
-    // New users will have emailVerificationTime explicitly set to null/undefined when created
-    // and will need to verify before it's set to a timestamp
-
-    // Strategy for grandfathering:
-    // - Existing users (created before this feature): emailVerificationTime is undefined -> allowed
-    // - New users who just signed up: emailVerificationTime is undefined -> need to verify
-    // - Verified users: emailVerificationTime is a number -> allowed
-
-    // We'll use creation timestamp as a heuristic:
-    // If user was created recently (within last hour) and has no verification time, they need to verify
-    // If user is old and has no verification time, they're grandfathered
-
-    const userCreatedAt = user._creationTime; // Convex automatically tracks this
-    const oneHourAgo = Date.now() - (60 * 60 * 1000);
-
-    // If email is already verified, no need to verify again
-    if (user.emailVerificationTime) {
-      return false;
-    }
-
-    // If user was created more than 1 hour ago and has no verification time,
-    // they're an existing user - grandfather them in
-    if (userCreatedAt < oneHourAgo) {
-      return false;
-    }
-
-    // Check if user has any organization memberships (came via invitation)
-    // If they do, they don't need email verification - they were explicitly invited
-    const membership = await ctx.db
-      .query("organizationMemberships")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .first();
-
-    if (membership) {
-      return false; // User has org access via invitation - allow them in
-    }
-
-    // New user without verification and no org membership - they need to verify
-    return true;
-  },
-});
 
 // Query to get user by email (for fixing orphaned memberships)
 export const getUserByEmail = query({

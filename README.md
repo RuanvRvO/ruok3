@@ -45,6 +45,4 @@ After the initial setup (<2 minutes) you'll have a working full-stack app using:
 
 -3 wrong password timeout?
 
-also not getting verification email + workflow review
-
--clicking on view only or edit only changes both top and bottom blue dot, not just the one im switching between
+also not getting verification email first time + workflow review

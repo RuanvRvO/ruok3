@@ -12,7 +12,6 @@ const schema = defineSchema({
     name: v.optional(v.string()),
     surname: v.optional(v.string()),
     email: v.optional(v.string()),
-    emailVerificationTime: v.optional(v.number()),
     isAnonymous: v.optional(v.boolean()),
   }).index("email", ["email"]),
   // Organization memberships - links users to organizations with roles
@@ -74,17 +73,6 @@ const schema = defineSchema({
     .index("by_date", ["date"])
     .index("by_organisation_and_date", ["organisation", "date"]),
   passwordResets: defineTable({
-    email: v.string(),
-    token: v.string(),
-    userId: v.id("users"),
-    expiresAt: v.number(),
-    used: v.boolean(),
-    createdAt: v.number(),
-  })
-    .index("by_token", ["token"])
-    .index("by_email", ["email"])
-    .index("by_user", ["userId"]),
-  emailVerifications: defineTable({
     email: v.string(),
     token: v.string(),
     userId: v.id("users"),

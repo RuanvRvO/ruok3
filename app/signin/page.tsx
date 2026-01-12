@@ -21,7 +21,6 @@ export default function SignIn() {
   const messageType = searchParams.get("message");
   const orgName = searchParams.get("org");
   const organizations = useQuery(api.organizationMemberships.getUserOrganizations);
-  const resendVerificationEmailMutation = useMutation(api.emailVerification.resendVerificationEmail);
   const [flow, setFlow] = useState<"signIn" | "signUp">(initialFlow);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -220,39 +219,6 @@ export default function SignIn() {
               if (signInErrorRef.current) {
                 return; // Don't redirect if there was an error
               }
-
-              // Handle signup flow - send verification email
-              if (flow === "signUp") {
-                try {
-                  // Wait for account creation to complete
-                  setLoadingMessage("Creating your account...");
-                  await new Promise(resolve => setTimeout(resolve, 1500));
-
-                  // Send verification email using the email address
-                  setLoadingMessage("Sending verification email...");
-                  const userEmail = formData.get("email") as string;
-                  await resendVerificationEmailMutation({ email: userEmail });
-
-                  // Sign out the user
-                  setLoadingMessage("Finalizing...");
-                  await signOut();
-
-                  // Redirect to check-email page
-                  setLoading(false);
-                  setLoadingMessage(null);
-                  router.push(`/check-email?email=${encodeURIComponent(userEmail)}`);
-                  return;
-                } catch {
-                  setError("Account created but verification email failed. Please sign in and request a new verification email.");
-                  setLoading(false);
-                  setLoadingMessage(null);
-                  return;
-                }
-              }
-
-              // Normal sign-in flow continues here
-              // Note: Invitation acceptance is handled by useEffect hook above
-              // which properly reacts to isAuthenticated and currentUserId changes
 
               // Redirect to returnTo URL if present
               if (returnTo) {
