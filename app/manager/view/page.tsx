@@ -12,6 +12,8 @@ export default function ViewOrganizationPage() {
   const { signOut } = useAuthActions();
   const router = useRouter();
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
+  // Capture current time on mount for calculations (avoids impure Date.now() in render)
+  const [mountTime] = useState(() => Date.now());
 
   // Get selected organization from localStorage
   useEffect(() => {
@@ -72,39 +74,35 @@ export default function ViewOrganizationPage() {
 
   // Calculate days based on time range (for organization)
   // For "overall", calculate days since organization creation
-  let days: number;
-  if (timeRange === "overall") {
-    // Find the earliest employee creation date as proxy for org creation
-    const earliestEmployee = employees && employees.length > 0 ? employees.reduce((earliest, emp) =>
-      !earliest || emp.createdAt < earliest.createdAt ? emp : earliest
-    , employees[0]) : null;
+  const days = useMemo(() => {
+    if (timeRange === "overall") {
+      // Find the earliest employee creation date as proxy for org creation
+      const earliestEmployee = employees && employees.length > 0 ? employees.reduce((earliest, emp) =>
+        !earliest || emp.createdAt < earliest.createdAt ? emp : earliest
+      , employees[0]) : null;
 
-    if (earliestEmployee) {
-      const daysSinceCreation = Math.ceil((Date.now() - earliestEmployee.createdAt) / (1000 * 60 * 60 * 24));
-      days = daysSinceCreation;
-    } else {
-      days = 365; // fallback
+      if (earliestEmployee) {
+        return Math.ceil((mountTime - earliestEmployee.createdAt) / (1000 * 60 * 60 * 24));
+      }
+      return 365; // fallback
     }
-  } else {
-    days = timeRange === "1week" ? 7 : timeRange === "1month" ? 30 : 365;
-  }
+    return timeRange === "1week" ? 7 : timeRange === "1month" ? 30 : 365;
+  }, [timeRange, employees, mountTime]);
 
   // Calculate days based on group time range
-  let groupDays: number;
-  if (groupTimeRange === "overall") {
-    const earliestEmployee = employees && employees.length > 0 ? employees.reduce((earliest, emp) =>
-      !earliest || emp.createdAt < earliest.createdAt ? emp : earliest
-    , employees[0]) : null;
+  const groupDays = useMemo(() => {
+    if (groupTimeRange === "overall") {
+      const earliestEmployee = employees && employees.length > 0 ? employees.reduce((earliest, emp) =>
+        !earliest || emp.createdAt < earliest.createdAt ? emp : earliest
+      , employees[0]) : null;
 
-    if (earliestEmployee) {
-      const daysSinceCreation = Math.ceil((Date.now() - earliestEmployee.createdAt) / (1000 * 60 * 60 * 24));
-      groupDays = daysSinceCreation;
-    } else {
-      groupDays = 365; // fallback
+      if (earliestEmployee) {
+        return Math.ceil((mountTime - earliestEmployee.createdAt) / (1000 * 60 * 60 * 24));
+      }
+      return 365; // fallback
     }
-  } else {
-    groupDays = groupTimeRange === "1week" ? 7 : groupTimeRange === "1month" ? 30 : 365;
-  }
+    return groupTimeRange === "1week" ? 7 : groupTimeRange === "1month" ? 30 : 365;
+  }, [groupTimeRange, employees, mountTime]);
 
   const todayCheckins = useQuery(
     api.moodCheckins.getTodayCheckins,
@@ -113,10 +111,6 @@ export default function ViewOrganizationPage() {
   const groups = useQuery(
     api.groups.list,
     selectedOrg && userRole ? { organisation: selectedOrg } : "skip"
-  );
-  const groupCheckins = useQuery(
-    api.moodCheckins.getGroupTodayCheckins,
-    selectedGroupId && selectedOrg && userRole ? { groupId: selectedGroupId, organisation: selectedOrg } : "skip"
   );
   const historicalCheckins = useQuery(
     api.moodCheckins.getHistoricalCheckins,
@@ -130,7 +124,10 @@ export default function ViewOrganizationPage() {
   // Auto-select first group when groups load
   useEffect(() => {
     if (groups && groups.length > 0 && selectedGroupId === null) {
-      setSelectedGroupId(groups[0]._id);
+      // Use queueMicrotask to avoid synchronous setState in effect
+      queueMicrotask(() => {
+        setSelectedGroupId(groups[0]._id);
+      });
     }
   }, [groups, selectedGroupId]);
 
@@ -141,14 +138,6 @@ export default function ViewOrganizationPage() {
       .filter((checkin) => checkin.note && checkin.note.trim().length > 0)
       .sort((a, b) => b.timestamp - a.timestamp);
   }, [todayCheckins]);
-
-  // Sort group check-ins by most recent first and filter only those with notes
-  const sortedGroupCheckins = useMemo(() => {
-    if (!groupCheckins) return [];
-    return [...groupCheckins]
-      .filter((checkin) => checkin.note && checkin.note.trim().length > 0)
-      .sort((a, b) => b.timestamp - a.timestamp);
-  }, [groupCheckins]);
 
   // Filter historical check-ins based on mood filter
   const filteredHistoricalCheckins = useMemo(() => {
@@ -388,7 +377,7 @@ export default function ViewOrganizationPage() {
             <h2 className="font-bold text-2xl text-slate-900 dark:text-slate-100 text-center border-b-2 border-slate-300 dark:border-slate-600 pb-3">
               Organization Mood {(timeRange === "overall" || timeRange === "1year") && "(Monthly Average)"}
             </h2>
-            <OrganizationMoodGraph days={days} timeRange={timeRange} employees={employees} organisation={selectedOrg} />
+            <OrganizationMoodGraph days={days} timeRange={timeRange} organisation={selectedOrg} />
           </div>
 
           <div className="h-px bg-slate-200 dark:bg-slate-700 my-4"></div>
@@ -843,7 +832,7 @@ function MoodGraph({ trends, isMonthly = false }: { trends: Array<{ date: string
 }
 
 // Organization Mood Graph Component
-function OrganizationMoodGraph({ days, timeRange, employees, organisation }: { days: number; timeRange: "1week" | "1month" | "1year" | "overall"; employees: Array<{ createdAt: number }> | undefined; organisation: string | null }) {
+function OrganizationMoodGraph({ days, timeRange, organisation }: { days: number; timeRange: "1week" | "1month" | "1year" | "overall"; organisation: string | null }) {
   const trends = useQuery(api.moodCheckins.getTrends, organisation ? { days, organisation } : "skip");
 
   // Aggregate into monthly averages when viewing "overall" or "1year"

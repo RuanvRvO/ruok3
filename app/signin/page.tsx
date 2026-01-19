@@ -5,12 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { useConvexAuth } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
 export default function SignIn() {
-  const { signIn, signOut } = useAuthActions();
+  const { signIn } = useAuthActions();
   const { isAuthenticated } = useConvexAuth();
   const searchParams = useSearchParams();
   const initialFlow = searchParams.get("flow") === "signup" ? "signUp" : "signIn";
@@ -23,7 +23,10 @@ export default function SignIn() {
   const organizations = useQuery(api.organizationMemberships.getUserOrganizations);
   const [flow, setFlow] = useState<"signIn" | "signUp">(initialFlow);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  // Initialize success message from URL parameter
+  const [success, setSuccess] = useState<string | null>(
+    successMessage ? "Account created successfully! Please sign in." : null
+  );
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
   const [email, setEmail] = useState(invitationEmail || "");
@@ -34,13 +37,6 @@ export default function SignIn() {
   const router = useRouter();
   const signInErrorRef = useRef(false); // Track if sign-in failed to prevent redirect
   const [waitingForAuth, setWaitingForAuth] = useState(false);
-
-  // Show success message when redirected from signup
-  useEffect(() => {
-    if (successMessage) {
-      setSuccess("Account created successfully! Please sign in.");
-    }
-  }, [successMessage]);
 
   // If there's an invitation token, redirect to accept-invitation page
   // The accept-invitation page handles the full invitation flow
@@ -53,34 +49,35 @@ export default function SignIn() {
 
   // Automatic continuation when authentication is ready
   useEffect(() => {
-    if (!waitingForAuth || !loading) {
+    if (!waitingForAuth || !loading || !isAuthenticated) {
       return;
     }
 
-    if (isAuthenticated) {
+    // Use microtask to avoid synchronous setState in effect
+    queueMicrotask(() => {
       setWaitingForAuth(false);
       setLoadingMessage(null);
+    });
 
-      const continueSignIn = async () => {
-        try {
-          // If user has organizations, auto-select the first one
-          if (organizations && organizations.length > 0) {
-            const org = organizations[0];
-            localStorage.setItem("selectedOrganization", org.organisation);
-          }
-
-          // Always redirect to manager view (sidebar will show all orgs)
-          router.push("/manager/view");
-        } catch (err) {
-          const message =
-            (err as Error)?.message?.toString().trim() ||
-            "Failed to complete sign-in. Please refresh and try again.";
-          setError(message);
-          setLoading(false);
+    const continueSignIn = async () => {
+      try {
+        // If user has organizations, auto-select the first one
+        if (organizations && organizations.length > 0) {
+          const org = organizations[0];
+          localStorage.setItem("selectedOrganization", org.organisation);
         }
-      };
-      continueSignIn();
-    }
+
+        // Always redirect to manager view (sidebar will show all orgs)
+        router.push("/manager/view");
+      } catch (err) {
+        const message =
+          (err as Error)?.message?.toString().trim() ||
+          "Failed to complete sign-in. Please refresh and try again.";
+        setError(message);
+        setLoading(false);
+      }
+    };
+    continueSignIn();
   }, [isAuthenticated, waitingForAuth, loading, organizations, router]);
 
   return (

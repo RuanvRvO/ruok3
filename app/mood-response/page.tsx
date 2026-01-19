@@ -27,43 +27,48 @@ export default function MoodResponsePage() {
 
   // Check if already submitted and auto-save mood
   useEffect(() => {
-    const saveMood = async () => {
-      if (!employeeId || !mood || !["green", "amber", "red"].includes(mood)) {
+    // Early validation - use queueMicrotask to avoid synchronous setState
+    if (!employeeId || !mood || !["green", "amber", "red"].includes(mood)) {
+      queueMicrotask(() => {
         setError("Invalid link. Please check your email for the correct link.");
-        return;
-      }
+      });
+      return;
+    }
 
-      if (autoSaved) return; // Prevent duplicate saves
+    if (autoSaved) return; // Prevent duplicate saves
 
-      // Wait for hasSubmittedToday query to load
-      if (hasSubmittedToday === undefined) return;
+    // Wait for hasSubmittedToday query to load
+    if (hasSubmittedToday === undefined) return;
 
-      // Check if already submitted today
-      if (hasSubmittedToday) {
+    // Check if already submitted today
+    if (hasSubmittedToday) {
+      queueMicrotask(() => {
         setError("ALREADY_SUBMITTED");
-        return;
-      }
+      });
+      return;
+    }
 
+    const saveMood = async () => {
       try {
         await recordMood({
           employeeId: employeeId as Id<"employees">,
           mood: mood,
         });
         setAutoSaved(true);
-        } catch (err: unknown) {
-          const errMsg = err instanceof Error ? err.message : "";
-          if (errMsg.includes("ALREADY_SUBMITTED_TODAY")) {
-            setError("ALREADY_SUBMITTED");
-          } else {
-            const msg = errMsg || "";
-            const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
-            setError(
-              msg ||
-                (isNetwork
-                  ? "Network error while saving your response. Please check your connection and retry."
-                  : "Could not save your response. Please retry in a moment.")
-            );
-          }
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : "";
+        if (errMsg.includes("ALREADY_SUBMITTED_TODAY")) {
+          setError("ALREADY_SUBMITTED");
+        } else {
+          const msg = errMsg || "";
+          const isNetwork = msg.toLowerCase().includes("network") || msg.toLowerCase().includes("fetch");
+          setError(
+            msg ||
+              (isNetwork
+                ? "Network error while saving your response. Please check your connection and retry."
+                : "Could not save your response. Please retry in a moment.")
+          );
+        }
       }
     };
 
@@ -112,13 +117,6 @@ export default function MoodResponsePage() {
     if (mood === "amber") return "from-amber-500 to-amber-600";
     if (mood === "red") return "from-red-500 to-red-600";
     return "from-slate-500 to-slate-600";
-  };
-
-  const getMoodText = () => {
-    if (mood === "green") return "I'm doing great!";
-    if (mood === "amber") return "I'm okay";
-    if (mood === "red") return "I need support";
-    return "";
   };
 
   if (error === "ALREADY_SUBMITTED") {

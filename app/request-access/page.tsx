@@ -19,7 +19,6 @@ export default function RequestAccessPage() {
   const [email, setEmail] = useState(emailParam || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
 
   // Redirect if no token
   useEffect(() => {
@@ -103,54 +102,6 @@ export default function RequestAccessPage() {
       setLoading(false);
     }
   };
-
-  if (success) {
-    return (
-      <div className="flex flex-col gap-8 w-full max-w-lg mx-auto h-screen justify-center items-center px-4">
-        <div className="text-center flex flex-col items-center gap-6">
-          <div className="flex items-center gap-6">
-            <Image
-              src="/smile.png"
-              alt="Success"
-              width={120}
-              height={120}
-            />
-          </div>
-
-          <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-            <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-
-          <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">
-            Request Submitted!
-          </h1>
-
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 w-full">
-            <p className="text-slate-700 dark:text-slate-300 text-base leading-relaxed">
-              Your access request to <span className="font-semibold">{invitation.organisation}</span> has been sent to the organization owner.
-            </p>
-            <p className="text-slate-600 dark:text-slate-400 text-sm mt-4">
-              You&apos;ll receive an email at <span className="font-semibold">{email}</span> when your request is reviewed.
-            </p>
-          </div>
-
-          <div className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-            <p>The organization owner will review your request and either approve or decline it.</p>
-            <p className="mt-2">If approved, you&apos;ll be able to create an account and access the organization.</p>
-          </div>
-        </div>
-
-        <Link
-          href="/signin"
-          className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-sm transition-colors underline underline-offset-2"
-        >
-          ← Back to Sign In
-        </Link>
-      </div>
-    );
-  }
 
   const roleDisplay = invitation.role === "viewer" ? "View Only" : "Can Edit";
 

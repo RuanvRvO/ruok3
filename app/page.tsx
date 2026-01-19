@@ -4,7 +4,6 @@ import { useConvexAuth } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default function LandingPage() {
@@ -80,11 +79,11 @@ export default function LandingPage() {
           <Image src="/sad.png" alt="Concerned" width={120} height={120} />
         </div>
         <h1 className="text-5xl md:text-6xl font-bold text-slate-900 dark:text-slate-100 mb-6">
-          Check in on your team's wellbeing
+          Check in on your team&apos;s wellbeing
         </h1>
         <p className="text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-10">
           A simple daily check-in system that helps organizations monitor and
-          support their team's mental health and wellbeing.
+          support their team&apos;s mental health and wellbeing.
         </p>
       </section>
 
@@ -103,8 +102,8 @@ export default function LandingPage() {
                 Daily Check-In
               </h3>
               <p className="text-slate-600 dark:text-slate-400">
-                Receive a daily notification or email reminder asking "Are you
-                okay?" Select red, amber, or green to indicate how you're
+                Receive a daily notification or email reminder asking &quot;Are you
+                okay?&quot; Select red, amber, or green to indicate how you&apos;re
                 feeling.
               </p>
             </div>
@@ -149,7 +148,7 @@ export default function LandingPage() {
               </h3>
               <p className="text-slate-600 dark:text-slate-400">
                 Create infinitely nested groups and divisions that reflect your
-                company's structure. Team members can belong to multiple groups.
+                company&apos;s structure. Team members can belong to multiple groups.
               </p>
             </div>
             <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-md border border-slate-200 dark:border-slate-700">
@@ -157,7 +156,7 @@ export default function LandingPage() {
                 🚦 Simple Traffic Light System
               </h3>
               <p className="text-slate-600 dark:text-slate-400">
-                Red, amber, green - it's that simple. Quick daily check-ins that
+                Red, amber, green - it&apos;s that simple. Quick daily check-ins that
                 take seconds but provide valuable insights.
               </p>
             </div>
@@ -194,7 +193,7 @@ export default function LandingPage() {
               </h3>
               <p className="text-slate-600 dark:text-slate-400">
                 See how your team is doing right now. Identify who might need
-                support before it's too late.
+                support before it&apos;s too late.
               </p>
             </div>
           </div>
@@ -205,7 +204,7 @@ export default function LandingPage() {
       <section className="bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-800 dark:to-purple-800 py-20">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-4xl font-bold text-white mb-6">
-            Ready to support your team's wellbeing?
+            Ready to support your team&apos;s wellbeing?
           </h2>
           <p className="text-xl text-blue-100">
             Join organizations that prioritize mental health and create a culture

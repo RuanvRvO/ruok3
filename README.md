@@ -46,3 +46,5 @@ After the initial setup (<2 minutes) you'll have a working full-stack app using:
 -3 wrong password timeout?
 
 also not getting verification email first time + workflow review
+
+-stuck in loading icon when creating org with new  account

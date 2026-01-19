@@ -15,7 +15,8 @@
       "Bash(npm run lint)",
       "Bash(npm run build:*)",
       "Bash(npx eslint:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

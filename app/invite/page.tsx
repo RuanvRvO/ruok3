@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import Image from "next/image";
@@ -12,16 +12,13 @@ export default function InvitePage() {
   const token = searchParams.get("token");
   const invitation = useQuery(api.managerInvitations.getInvitationByToken, token ? { token } : "skip");
 
-  const [email, setEmail] = useState("");
+  const [userEmail, setUserEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Pre-fill email if invitation has one (email-based invitations)
-  useEffect(() => {
-    if (invitation?.email && !email) {
-      setEmail(invitation.email);
-    }
-  }, [invitation, email]);
+  // Use invitation email if available, otherwise use user-entered email
+  const email = invitation?.email || userEmail;
+  const setEmail = invitation?.email ? () => {} : setUserEmail;
 
   if (!token) {
     return (

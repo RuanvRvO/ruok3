@@ -362,7 +362,7 @@ export default function AcceptInvitation() {
       };
       continueInvitation();
     }
-  }, [currentUserId, isAuthenticated, waitingForAuth, token, currentUser, acceptInvitationForExistingUser, acceptInvitation, userOrganizations, router]);
+  }, [currentUserId, isAuthenticated, waitingForAuth, token, currentUser, acceptInvitationForExistingUser, acceptInvitation, userOrganizations, router, invitation]);
 
   // Show signing out state
   if (signingOut) {
@@ -487,7 +487,7 @@ export default function AcceptInvitation() {
 
           setLoading(false);
         });
-    } catch (err: unknown) {
+    } catch {
       // Catch any other errors
       setError("An unexpected error occurred. Please try again.");
       setLoading(false);
