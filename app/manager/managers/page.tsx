@@ -191,7 +191,7 @@ export default function ManageManagersPage() {
 
       {/* Email Invitation Section */}
       {isOwner && (
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-8">
+        <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-8 shadow-sm">
           <h2 className="font-semibold text-xl text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2">
             <UserPlus className="size-5" />
             Invite New User
@@ -307,7 +307,7 @@ export default function ManageManagersPage() {
 
       {/* Generate Invite Link Section */}
       {isOwner && (
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-8">
+        <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-8 shadow-sm">
           <h2 className="font-semibold text-xl text-slate-900 dark:text-slate-100 mb-2">
             Generate Invite Code
           </h2>
@@ -434,7 +434,7 @@ export default function ManageManagersPage() {
 
       {/* Pending Access Requests */}
       {isOwner && accessRequests && accessRequests.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6">
+        <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-6 shadow-sm">
           <h2 className="font-semibold text-xl text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
             <UserPlus className="size-5" />
             Pending Access Requests
@@ -486,7 +486,7 @@ export default function ManageManagersPage() {
 
       {/* Pending Invitations */}
       {isOwner && pendingInvitations.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6">
+        <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-6 shadow-sm">
           <h2 className="font-semibold text-xl text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
             <Mail className="size-5" />
             Pending Invitations
@@ -540,7 +540,7 @@ export default function ManageManagersPage() {
       )}
 
       {/* Active Members */}
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6">
+      <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-6 shadow-sm">
         <h2 className="font-semibold text-xl text-slate-900 dark:text-slate-100 mb-4">Active Users</h2>
         {activeMembers.length === 0 ? (
           <p className="text-slate-500 dark:text-slate-400 text-center py-8">No additional users yet.</p>

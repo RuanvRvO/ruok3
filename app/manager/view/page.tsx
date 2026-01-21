@@ -165,7 +165,7 @@ export default function ViewOrganizationPage() {
           </p>
         </div>
         
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900 dark:to-indigo-900 rounded-2xl border-2 border-blue-200 dark:border-blue-700 p-8">
+        <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-blue-200/50 dark:border-blue-700/50 p-8 shadow-sm">
           <div className="text-center max-w-2xl mx-auto">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-6">
               What&apos;s Next?
@@ -254,7 +254,7 @@ export default function ViewOrganizationPage() {
       </div>
 
       {/* Color Key Legend */}
-      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+      <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-4 shadow-sm">
         <div className="flex gap-6 flex-wrap justify-center items-center">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-green-500 rounded"></div>
@@ -285,7 +285,7 @@ export default function ViewOrganizationPage() {
 
       {/* Empty State for New Organizations */}
       {isNewOrganization && (
-        <div className="flex flex-col items-center justify-center py-16 px-8 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600">
+        <div className="flex flex-col items-center justify-center py-16 px-8 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl border-2 border-dashed border-slate-300/50 dark:border-slate-600/50 shadow-sm">
           <div className="text-center max-w-2xl">
             <div className="text-6xl mb-6">🚀</div>
             <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-4">
@@ -668,7 +668,7 @@ function MoodGraph({ trends, isMonthly = false }: { trends: Array<{ date: string
   const containerWidth = graphWidth + 112;
 
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
+    <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-6 shadow-sm">
       <div className="flex justify-center">
         <div className="overflow-x-auto max-w-full" style={{ paddingTop: '9rem', marginTop: '-9rem' }}>
         {/* Graph Container */}
@@ -920,7 +920,7 @@ function OrganizationMoodGraph({ days, timeRange, organisation }: { days: number
 
   if (trends === undefined) {
     return (
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 mx-auto" style={{ width: "600px", height: "480px" }}>
+      <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-6 mx-auto shadow-sm" style={{ width: "600px", height: "480px" }}>
         <div className="flex items-center justify-center h-full">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
@@ -1028,7 +1028,7 @@ function GroupMoodGraph({ groupId, groupName, days, timeRange, organisation }: {
 
   if (trends === undefined || members === undefined) {
     return (
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 mx-auto" style={{ width: "600px", height: "480px" }}>
+      <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-6 mx-auto shadow-sm" style={{ width: "600px", height: "480px" }}>
         <div className="flex items-center justify-center h-full">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>

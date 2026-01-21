@@ -347,7 +347,7 @@ export default function EditOrganizationPage() {
             </h3>
           </div>
       {/* Add Employee Form */}
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 shadow-sm">
+      <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-6 shadow-sm">
         <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200 mb-4">
           Add New Employee
         </h3>
@@ -379,7 +379,7 @@ export default function EditOrganizationPage() {
       </div>
 
       {/* Employee List */}
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 shadow-sm">
+      <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-6 shadow-sm">
         <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200 mb-4">
           Employees ({isLoading ? "..." : employees.length})
         </h3>
@@ -441,7 +441,7 @@ export default function EditOrganizationPage() {
             </h3>
           </div>
       {/* Groups Management */}
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 shadow-sm">
+      <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-6 shadow-sm">
         <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200 mb-4">
           Add New Group
         </h3>
@@ -461,7 +461,7 @@ export default function EditOrganizationPage() {
       </div>
 
       {/* Groups List */}
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 shadow-sm">
+      <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-6 shadow-sm">
         <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200 mb-4">
           Groups ({isGroupsLoading ? "..." : groups.length})
         </h3>

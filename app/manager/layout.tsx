@@ -204,10 +204,21 @@ export default function ManagerLayout({
           <SignOutButtonSidebar />
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset>
+      <SidebarInset className="relative overflow-hidden">
+        {/* Background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800"></div>
+        <div className="absolute inset-0 opacity-30 dark:opacity-20" style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, rgb(148 163 184 / 0.4) 1px, transparent 0)`,
+          backgroundSize: '32px 32px'
+        }}></div>
+        {/* Decorative Blobs */}
+        <div className="absolute top-20 -left-20 w-72 h-72 bg-green-200/40 dark:bg-green-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-20 -right-20 w-96 h-96 bg-blue-200/40 dark:bg-blue-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-purple-200/20 dark:bg-purple-500/5 rounded-full blur-3xl"></div>
+        
         <SidebarToggleButton />
         <MobileSidebarTrigger />
-        <main className="p-4 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8">{children}</main>
+        <main className="relative z-10 p-4 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

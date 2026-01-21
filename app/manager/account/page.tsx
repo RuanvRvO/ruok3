@@ -110,7 +110,7 @@ export default function AccountSettingsPage() {
       </div>
 
       {/* Account Details Form */}
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6">
+      <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-6 shadow-sm">
         <h2 className="font-semibold text-xl text-slate-900 dark:text-slate-100 mb-6">
           Personal Information
         </h2>
