@@ -1,21 +1,33 @@
 "use client";
 
-import { useConvexAuth } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { api } from "../convex/_generated/api";
+import { useAuthActions } from "@convex-dev/auth/react";
 
 export default function LandingPage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
+  const { signOut } = useAuthActions();
   const router = useRouter();
+  // Only query organizations if authenticated
+  const organizations = useQuery(
+    api.organizationMemberships.getUserOrganizations,
+    isAuthenticated ? {} : "skip"
+  );
 
-  // Redirect authenticated users to manager view
+  // Derive the "waiting for approval" state from auth and organizations
+  // This avoids calling setState in useEffect
+  const showWaitingMessage = !isLoading && isAuthenticated && organizations !== undefined && organizations.length === 0;
+
+  // Redirect authenticated users with organizations to manager view
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
+    if (!isLoading && isAuthenticated && organizations !== undefined && organizations.length > 0) {
       router.push("/manager/view");
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, organizations, router]);
 
   if (isLoading) {
     return (
@@ -64,24 +76,64 @@ export default function LandingPage() {
             A simple tool for organizations to monitor and support their team&apos;s mental health through daily check-ins.
           </p>
 
-          {/* Centered Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button
-              onClick={() => router.push("/signin?flow=signup")}
-              size="lg"
-              className="px-8 text-base font-semibold shadow-lg hover:shadow-xl transition-shadow"
-            >
-              Get Started
-            </Button>
-            <Button
-              onClick={() => router.push("/signin")}
-              variant="outline"
-              size="lg"
-              className="px-8 text-base font-semibold bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm"
-            >
-              Sign In
-            </Button>
-          </div>
+          {/* Waiting for approval message for signed-in users without organizations */}
+          {showWaitingMessage && (
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-6 mb-8 max-w-md mx-auto">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-amber-100 dark:bg-amber-800/50 rounded-full flex items-center justify-center">
+                  <span className="text-xl">⏳</span>
+                </div>
+                <h3 className="font-semibold text-amber-800 dark:text-amber-300">Waiting for Access</h3>
+              </div>
+              <p className="text-amber-700 dark:text-amber-400 text-sm mb-4">
+                Your account has been created, but you don&apos;t have access to any organizations yet. 
+                If you&apos;ve requested access, please wait for approval from the organization owner.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  onClick={() => router.push("/select-organization")}
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+                >
+                  Create Organization
+                </Button>
+                <Button
+                  onClick={() => {
+                    void signOut().then(() => {
+                      localStorage.removeItem("selectedOrganization");
+                    });
+                  }}
+                  size="sm"
+                  variant="ghost"
+                  className="flex-1 text-amber-700 dark:text-amber-400"
+                >
+                  Sign Out
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Centered Action Buttons - only show if not waiting for approval */}
+          {!showWaitingMessage && (
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button
+                onClick={() => router.push("/signin?flow=signup")}
+                size="lg"
+                className="px-8 text-base font-semibold shadow-lg hover:shadow-xl transition-shadow"
+              >
+                Get Started
+              </Button>
+              <Button
+                onClick={() => router.push("/signin")}
+                variant="outline"
+                size="lg"
+                className="px-8 text-base font-semibold bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm"
+              >
+                Sign In
+              </Button>
+            </div>
+          )}
         </div>
       </section>
 

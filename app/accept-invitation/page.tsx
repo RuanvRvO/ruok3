@@ -94,9 +94,8 @@ export default function AcceptInvitation() {
       // Automatically accept the invitation
       const continueInvitation = async () => {
         try {
-          console.log("Accepting invitation for userId:", currentUserId);
           const result = await acceptInvitation({ token: tokenToUse, userId: currentUserId as Id<"users"> });
-          console.log("Invitation accepted successfully:", result);
+          void result; // Acknowledge result without logging
           setLoadingMessage(null);
 
           // Continue with the rest of the flow (redirect, etc.)
@@ -104,8 +103,6 @@ export default function AcceptInvitation() {
           setLoadingMessage("Finalizing access...");
           let orgs: Array<{ organisation: string }> | undefined = undefined;
           const initialCount = userOrganizations?.length || 0;
-
-          console.log("Waiting for organizations query to update. Initial count:", initialCount);
 
           // Wait longer for the query to update - database might need time to propagate
           // Poll for up to 30 seconds (60 iterations * 500ms)
@@ -115,7 +112,6 @@ export default function AcceptInvitation() {
               const currentCount = userOrganizations.length;
               if (currentCount > initialCount || currentCount >= 1) {
                 orgs = userOrganizations;
-                console.log("Organizations updated! Count:", currentCount);
                 break;
               }
             }
@@ -125,15 +121,12 @@ export default function AcceptInvitation() {
             orgs = userOrganizations;
           }
 
-          console.log("Final orgs:", orgs);
-
           // If still no orgs after waiting, the membership was created but query hasn't updated yet
           // In this case, just redirect - the membership exists in the database
           // The user will see their organization when they get to the manager page
           if (!orgs || orgs.length === 0) {
             // Don't show error - just redirect and let the manager page handle it
             // The membership is in the database, the query just needs more time
-            console.log("No orgs found yet, redirecting to dashboard anyway");
             setLoadingMessage(null);
             setLoading(false);
             isSigningUpRef.current = false;
@@ -142,7 +135,6 @@ export default function AcceptInvitation() {
           }
 
           const org = orgs[0];
-          console.log("Setting selected organization:", org.organisation);
           localStorage.setItem("selectedOrganization", org.organisation);
           isSigningUpRef.current = false;
           setLoadingMessage(null);
@@ -150,6 +142,7 @@ export default function AcceptInvitation() {
           router.push("/manager/view");
         } catch (invitationError: unknown) {
           const errorMessage = invitationError instanceof Error ? invitationError.message : String(invitationError);
+          // Keep console.error for production debugging of failures
           console.error("Failed to accept invitation:", invitationError);
           setLoadingMessage(null);
           setError(`Failed to accept invitation: ${errorMessage}. Please try again or contact support.`);

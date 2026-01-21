@@ -296,7 +296,7 @@ export default function SignIn() {
                 ) {
                   setError("Incorrect email or password. Please try again.");
                 } else if (errorMessage.includes("TooManyFailedAttempts")) {
-                  setError("Too many failed attempts. Please try again later.");
+                  setError("Too many failed login attempts. For security, please wait 15 minutes before trying again, or reset your password.");
                 } else if (
                   errorMessage.includes("Account with this email already exists") ||
                   errorMessage.includes("already exists")

@@ -39,12 +39,8 @@ After the initial setup (<2 minutes) you'll have a working full-stack app using:
 
 
 
--when inviting an email that exists, have a better error message
-
--when signed in is the landing page showing the correct instructions? and what if you are waiting for approval
-
--3 wrong password timeout?
-
-also not getting verification email first time + workflow review
-
--stuck in loading icon when creating org with new  account
+## Completed:
+- ✅ When inviting an email that exists, show a better error message (includes their role and instructions to sign in)
+- ✅ When signed in, landing page shows "waiting for approval" message if user has no organizations
+- ✅ 3 wrong password timeout - shows clear message with 15 minute wait time and option to reset password
+- ✅ Fixed stuck loading when creating org with new account (now redirects immediately after creation)

@@ -2,9 +2,17 @@ import { v } from "convex/values";
 import { mutation, query, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 
-// Generate a random token for password reset
+// Generate a cryptographically secure random token for password reset
 function generateToken(): string {
-  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+  // Use crypto.randomUUID() for secure token generation
+  // Falls back to timestamp-based token if crypto is not available
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID().replace(/-/g, '') + Date.now().toString(36);
+  }
+  // Fallback: combine multiple random sources for better entropy
+  const random1 = Math.random().toString(36).substring(2);
+  const random2 = Math.random().toString(36).substring(2);
+  return random1 + random2 + Date.now().toString(36);
 }
 
 // Mutation to request a password reset

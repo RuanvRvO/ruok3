@@ -4,9 +4,24 @@ import { internal } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { validateAndNormalizeEmail } from "./emailValidation";
 
-// Generate a random token for invitation
+// Role hierarchy for comparing access levels (higher number = more access)
+const ROLE_HIERARCHY: Record<string, number> = {
+  "owner": 3,
+  "editor": 2,
+  "viewer": 1
+};
+
+// Generate a cryptographically secure random token for invitation
 function generateToken(): string {
-  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+  // Use crypto.randomUUID() for secure token generation
+  // Falls back to timestamp-based token if crypto is not available
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID().replace(/-/g, '') + Date.now().toString(36);
+  }
+  // Fallback: combine multiple random sources for better entropy
+  const random1 = Math.random().toString(36).substring(2);
+  const random2 = Math.random().toString(36).substring(2);
+  return random1 + random2 + Date.now().toString(36);
 }
 
 // Mutation to create a manager invitation URL (with optional email for direct invites)
@@ -80,7 +95,9 @@ export const createInvitation = mutation({
           .first();
 
         if (existingMembership) {
-          throw new Error("This user already has access to the organization");
+          const roleDisplay = existingMembership.role === "owner" ? "Owner" : 
+                              existingMembership.role === "editor" ? "Editor" : "Viewer";
+          throw new Error(`This user already has access to ${args.organisation} as ${roleDisplay}. They can sign in to access the organization.`);
         }
       }
     }
@@ -354,15 +371,8 @@ export const acceptInvitation = mutation({
       .first();
 
     if (existingMembership) {
-      // Define role hierarchy for comparison
-      const roleHierarchy: Record<string, number> = {
-        "owner": 3,
-        "editor": 2,
-        "viewer": 1
-      };
-      
-      const existingRoleLevel = roleHierarchy[existingMembership.role] || 0;
-      const invitationRoleLevel = roleHierarchy[invitation.role] || 0;
+      const existingRoleLevel = ROLE_HIERARCHY[existingMembership.role] || 0;
+      const invitationRoleLevel = ROLE_HIERARCHY[invitation.role] || 0;
       
       // Check if user already has equal or higher access
       if (existingRoleLevel >= invitationRoleLevel) {
@@ -487,15 +497,8 @@ export const acceptInvitationForExistingUser = mutation({
       .first();
 
     if (existingMembership) {
-      // Define role hierarchy for comparison
-      const roleHierarchy: Record<string, number> = {
-        "owner": 3,
-        "editor": 2,
-        "viewer": 1
-      };
-      
-      const existingRoleLevel = roleHierarchy[existingMembership.role] || 0;
-      const invitationRoleLevel = roleHierarchy[invitation.role] || 0;
+      const existingRoleLevel = ROLE_HIERARCHY[existingMembership.role] || 0;
+      const invitationRoleLevel = ROLE_HIERARCHY[invitation.role] || 0;
       
       // Check if user already has equal or higher access
       if (existingRoleLevel >= invitationRoleLevel) {

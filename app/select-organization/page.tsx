@@ -93,15 +93,16 @@ export default function SelectOrganization() {
     setError(null);
 
     try {
-      await createOrganization({ name: orgName.trim() });
-      // After creation, the organization will appear in the list
-      // and the useEffect will redirect if it's the only one
+      const result = await createOrganization({ name: orgName.trim() });
+      // Store the organization and redirect immediately
+      localStorage.setItem("selectedOrganization", result.organisation);
       setShowCreateForm(false);
       setOrgName("");
+      // Redirect immediately after creation instead of waiting for useEffect
+      router.push("/manager/view");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to create organization";
       setError(message);
-    } finally {
       setCreating(false);
     }
   };
