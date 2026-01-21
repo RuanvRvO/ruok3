@@ -19,22 +19,16 @@ export default function LandingPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-4 sm:gap-6 md:gap-8 w-full min-h-screen justify-center items-center px-4 py-6 sm:py-8">
+      <div className="flex flex-col gap-4 sm:gap-6 md:gap-8 w-full min-h-screen justify-center items-center px-4 py-6 sm:py-8 bg-slate-50 dark:bg-slate-900">
         <div className="flex items-center gap-3 sm:gap-4 md:gap-6">
-          <Image src="/smile.png" alt="Smile Logo" width={90} height={90} className="w-16 h-16 sm:w-18 sm:h-18 md:w-[90px] md:h-[90px]" />
+          <Image src="/smile.png" alt="Smile Logo" width={90} height={90} className="w-16 h-16 sm:w-18 sm:h-18 md:w-[90px] md:h-[90px] object-contain" />
           <div className="w-px h-12 sm:h-16 md:h-20 bg-slate-300 dark:bg-slate-600"></div>
-          <Image src="/sad.png" alt="Sad Logo" width={90} height={90} className="w-14 h-14 sm:w-16 sm:h-16 md:w-[90px] md:h-[90px]" />
+          <Image src="/sad.png" alt="Sad Logo" width={90} height={90} className="w-14 h-14 sm:w-16 sm:h-16 md:w-[90px] md:h-[90px] object-contain" />
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-          <div
-            className="w-2 h-2 bg-slate-500 rounded-full animate-bounce"
-            style={{ animationDelay: "0.1s" }}
-          ></div>
-          <div
-            className="w-2 h-2 bg-slate-600 rounded-full animate-bounce"
-            style={{ animationDelay: "0.2s" }}
-          ></div>
+          <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
+          <div className="w-2 h-2 bg-slate-600 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
           <p className="ml-2 text-slate-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
@@ -42,188 +36,198 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <Image src="/smile.png" alt="R u OK Logo" width={40} height={40} />
-            <h1 className="text-xl font-bold text-slate-800 dark:text-slate-200">
-              R u OK?
-            </h1>
+    <div className="min-h-screen bg-white dark:bg-slate-950">
+      {/* Hero Section - Gradient Background */}
+      <section className="relative py-20 sm:py-28 px-4 overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800"></div>
+        <div className="absolute inset-0 opacity-30 dark:opacity-20" style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, rgb(148 163 184 / 0.4) 1px, transparent 0)`,
+          backgroundSize: '32px 32px'
+        }}></div>
+        {/* Decorative Blobs */}
+        <div className="absolute top-20 left-10 w-72 h-72 bg-green-200/40 dark:bg-green-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-10 right-10 w-96 h-96 bg-blue-200/40 dark:bg-blue-500/10 rounded-full blur-3xl"></div>
+        
+        <div className="relative max-w-3xl mx-auto text-center">
+          {/* Logo */}
+          <div className="flex justify-center items-center gap-6 mb-8">
+            <Image src="/smile.png" alt="Smile" width={80} height={80} className="object-contain drop-shadow-lg" />
+            <div className="w-px h-16 bg-slate-300 dark:bg-slate-600"></div>
+            <Image src="/sad.png" alt="Concerned" width={80} height={80} className="object-contain drop-shadow-lg" />
           </div>
-          <div className="flex gap-3">
-            <Button onClick={() => router.push("/signin")} variant="outline">
-              Sign In
-            </Button>
+
+          <h1 className="text-4xl sm:text-5xl font-bold text-slate-900 dark:text-slate-100 mb-4">
+            Team Wellbeing Check-ins
+          </h1>
+          <p className="text-lg text-slate-600 dark:text-slate-400 mb-8 max-w-xl mx-auto">
+            A simple tool for organizations to monitor and support their team&apos;s mental health through daily check-ins.
+          </p>
+
+          {/* Centered Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button
               onClick={() => router.push("/signin?flow=signup")}
-              variant="default"
+              size="lg"
+              className="px-8 text-base font-semibold shadow-lg hover:shadow-xl transition-shadow"
             >
               Get Started
             </Button>
+            <Button
+              onClick={() => router.push("/signin")}
+              variant="outline"
+              size="lg"
+              className="px-8 text-base font-semibold bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm"
+            >
+              Sign In
+            </Button>
           </div>
         </div>
-      </header>
-
-      {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 py-20 text-center">
-        <div className="flex justify-center gap-8 mb-8">
-          <Image
-            src="/smile.png"
-            alt="Smile"
-            width={120}
-            height={120}
-          />
-          <div className="w-px bg-slate-300 dark:bg-slate-600"></div>
-          <Image src="/sad.png" alt="Concerned" width={120} height={120} />
-        </div>
-        <h1 className="text-5xl md:text-6xl font-bold text-slate-900 dark:text-slate-100 mb-6">
-          Check in on your team&apos;s wellbeing
-        </h1>
-        <p className="text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-10">
-          A simple daily check-in system that helps organizations monitor and
-          support their team&apos;s mental health and wellbeing.
-        </p>
       </section>
 
-      {/* How It Works */}
-      <section className="bg-white dark:bg-slate-800 py-20">
-        <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center text-slate-900 dark:text-slate-100 mb-12">
+      {/* How It Works - Traffic Light Gradient */}
+      <section className="relative py-20 px-4 bg-white dark:bg-slate-900">
+        <div className="absolute inset-0 opacity-20 dark:opacity-10" style={{
+          backgroundImage: `linear-gradient(to right, rgb(34 197 94), rgb(234 179 8), rgb(239 68 68))`
+        }}></div>
+        
+        <div className="relative max-w-5xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center text-slate-900 dark:text-slate-100 mb-4">
             How It Works
           </h2>
+          <p className="text-center text-slate-500 dark:text-slate-400 mb-12 max-w-2xl mx-auto">
+            Get your team started in minutes with our simple three-step process.
+          </p>
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="flex flex-col items-center text-center p-6">
-              <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mb-4">
-                <span className="text-3xl">📱</span>
+            <div className="text-center bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+              <div className="w-14 h-14 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-green-500/20">
+                <span className="text-2xl font-bold text-white">1</span>
               </div>
-              <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-3">
-                Daily Check-In
-              </h3>
-              <p className="text-slate-600 dark:text-slate-400">
-                Receive a daily notification or email reminder asking &quot;Are you
-                okay?&quot; Select red, amber, or green to indicate how you&apos;re
-                feeling.
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">Daily Check-In</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Team members receive a simple daily prompt and respond with green, amber, or red to indicate how they&apos;re feeling.
               </p>
             </div>
-            <div className="flex flex-col items-center text-center p-6">
-              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mb-4">
-                <span className="text-3xl">💭</span>
+            <div className="text-center bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-blue-500/20">
+                <span className="text-2xl font-bold text-white">2</span>
               </div>
-              <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-3">
-                Optional Notes
-              </h3>
-              <p className="text-slate-600 dark:text-slate-400">
-                Add a personal note to your check-in. Choose to keep it private
-                or share it with your team to foster open communication.
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">Add Context</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Optionally add notes to provide context. Choose to keep them private or share with managers.
               </p>
             </div>
-            <div className="flex flex-col items-center text-center p-6">
-              <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center mb-4">
-                <span className="text-3xl">📊</span>
+            <div className="text-center bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+              <div className="w-14 h-14 bg-gradient-to-br from-purple-400 to-violet-500 rounded-xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-purple-500/20">
+                <span className="text-2xl font-bold text-white">3</span>
               </div>
-              <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-3">
-                Track & Support
-              </h3>
-              <p className="text-slate-600 dark:text-slate-400">
-                View dashboards showing sentiment trends for yourself, your
-                team, and the entire organization over time.
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">Track Trends</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Team can see aggregated insights and can identify team members who may need support.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center text-slate-900 dark:text-slate-100 mb-12">
+      {/* Features - Gradient Mesh Background */}
+      <section className="relative py-20 px-4 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-950"></div>
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-100/50 dark:bg-amber-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-sky-100/50 dark:bg-sky-500/5 rounded-full blur-3xl"></div>
+        
+        <div className="relative max-w-5xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center text-slate-900 dark:text-slate-100 mb-4">
             Features
           </h2>
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-md border border-slate-200 dark:border-slate-700">
-              <h3 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-3">
-                🏢 Flexible Organization Structure
-              </h3>
-              <p className="text-slate-600 dark:text-slate-400">
-                Create infinitely nested groups and divisions that reflect your
-                company&apos;s structure. Team members can belong to multiple groups.
+          <p className="text-center text-slate-500 dark:text-slate-400 mb-12 max-w-2xl mx-auto">
+            Everything you need to support your team&apos;s mental health and wellbeing.
+          </p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="p-6 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl border border-slate-200/50 dark:border-slate-700/50 hover:shadow-lg transition-shadow">
+              <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center mb-4">
+                <span className="text-xl">🚦</span>
+              </div>
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">Traffic Light System</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Simple red, amber, green responses make check-ins quick and easy.
               </p>
             </div>
-            <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-md border border-slate-200 dark:border-slate-700">
-              <h3 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-3">
-                🚦 Simple Traffic Light System
-              </h3>
-              <p className="text-slate-600 dark:text-slate-400">
-                Red, amber, green - it&apos;s that simple. Quick daily check-ins that
-                take seconds but provide valuable insights.
+            <div className="p-6 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl border border-slate-200/50 dark:border-slate-700/50 hover:shadow-lg transition-shadow">
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mb-4">
+                <span className="text-xl">📊</span>
+              </div>
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">Team Dashboards</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Monitor wellbeing trends across teams and identify patterns over time.
               </p>
             </div>
-            <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-md border border-slate-200 dark:border-slate-700">
-              <h3 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-3">
-                📈 Comprehensive Dashboards
-              </h3>
-              <p className="text-slate-600 dark:text-slate-400">
-                Monitor wellbeing trends at individual, team, and organization
-                levels. Identify patterns and take proactive action.
+            <div className="p-6 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl border border-slate-200/50 dark:border-slate-700/50 hover:shadow-lg transition-shadow">
+              <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mb-4">
+                <span className="text-xl">🔒</span>
+              </div>
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">Privacy Controls</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Users control what they share. Anonymous options available.
               </p>
             </div>
-            <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-md border border-slate-200 dark:border-slate-700">
-              <h3 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-3">
-                🔔 Smart Reminders
-              </h3>
-              <p className="text-slate-600 dark:text-slate-400">
-                Push notifications or email reminders ensure consistent
-                check-ins without being intrusive.
+            <div className="p-6 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl border border-slate-200/50 dark:border-slate-700/50 hover:shadow-lg transition-shadow">
+              <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mb-4">
+                <span className="text-xl">🏢</span>
+              </div>
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">Flexible Structure</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Create groups and teams that match your organization&apos;s structure.
               </p>
             </div>
-            <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-md border border-slate-200 dark:border-slate-700">
-              <h3 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-3">
-                🔒 Privacy First
-              </h3>
-              <p className="text-slate-600 dark:text-slate-400">
-                Personal notes are private by default. Users control what they
-                share with their team.
+            <div className="p-6 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl border border-slate-200/50 dark:border-slate-700/50 hover:shadow-lg transition-shadow">
+              <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center mb-4">
+                <span className="text-xl">📧</span>
+              </div>
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">Email Reminders</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Automated daily reminders ensure consistent participation.
               </p>
             </div>
-            <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-md border border-slate-200 dark:border-slate-700">
-              <h3 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-3">
-                ⏱️ Real-Time Insights
-              </h3>
-              <p className="text-slate-600 dark:text-slate-400">
-                See how your team is doing right now. Identify who might need
-                support before it&apos;s too late.
+            <div className="p-6 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl border border-slate-200/50 dark:border-slate-700/50 hover:shadow-lg transition-shadow">
+              <div className="w-10 h-10 bg-sky-100 dark:bg-sky-900/30 rounded-lg flex items-center justify-center mb-4">
+                <span className="text-xl">⚡</span>
+              </div>
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">Real-Time Data</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                See responses as they come in. No waiting for reports.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-800 dark:to-purple-800 py-20">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-4xl font-bold text-white mb-6">
-            Ready to support your team&apos;s wellbeing?
+      {/* CTA Section - Gradient */}
+      <section className="relative py-20 px-4 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950"></div>
+        <div className="absolute inset-0 opacity-20" style={{
+          backgroundImage: `radial-gradient(circle at 2px 2px, rgb(148 163 184 / 0.3) 1px, transparent 0)`,
+          backgroundSize: '24px 24px'
+        }}></div>
+        
+        <div className="relative max-w-2xl mx-auto text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
+            Ready to support your team?
           </h2>
-          <p className="text-xl text-blue-100">
-            Join organizations that prioritize mental health and create a culture
-            of care.
+          <p className="text-slate-400">
+            Start monitoring your team&apos;s wellbeing today.
           </p>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900 dark:bg-slate-950 py-12">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <div className="flex justify-center items-center gap-3 mb-4">
-            <Image src="/smile.png" alt="R u OK Logo" width={32} height={32} />
-            <span className="text-xl font-semibold text-slate-200">R u OK?</span>
+      <footer className="bg-slate-900 dark:bg-slate-950 py-10 px-4">
+        <div className="max-w-6xl mx-auto text-center">
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <Image src="/smile.png" alt="R u OK Logo" width={28} height={28} className="object-contain" />
+            <span className="font-semibold text-white">R u OK?</span>
           </div>
-          <p className="text-slate-400 mb-4">
-            Supporting workplace wellbeing, one check-in at a time.
-          </p>
-          <p className="text-slate-500 text-sm">
+          <p className="text-sm text-slate-500">
             © 2025 R u OK. All rights reserved.
           </p>
         </div>
