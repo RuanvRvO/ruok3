@@ -831,8 +831,8 @@ const FOLLOWUP_ENCOURAGEMENT_MESSAGES: Array<{
   }
 ];
 
-// Get today's message based on the date and whether employee needs extra encouragement
-function getTodaysMessage(
+// Get today's message based on the date and whether employee needs extra encouragement (fallback)
+function getFallbackMessage(
   employeeName: string,
   needsExtraEncouragement: boolean
 ): { greeting: string; subtext: string; subject: string; encouragement: string; verse: string; verseRef: string } {
@@ -855,6 +855,119 @@ function getTodaysMessage(
     verse: message.verse,
     verseRef: message.verseRef
   };
+}
+
+// Generate a unique encouraging message with Bible verse using Google Gemini API (FREE)
+async function generateAIMessage(
+  employeeName: string,
+  needsExtraEncouragement: boolean,
+  geminiApiKey: string
+): Promise<{ greeting: string; subtext: string; subject: string; encouragement: string; verse: string; verseRef: string } | null> {
+  try {
+    const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+    
+    const contextPrompt = needsExtraEncouragement
+      ? `The employee indicated they were struggling or needed support in their last check-in. Be extra caring, gentle, and supportive. Acknowledge that things have been tough.`
+      : `This is a regular daily check-in. Be warm, friendly, and encouraging.`;
+
+    const prompt = `You are writing a daily wellbeing check-in email for an employee named ${employeeName}. Today is ${dayOfWeek}.
+
+${contextPrompt}
+
+Generate a unique, heartfelt message with an encouraging thought and a relevant Bible verse. The message should feel personal and sincere, not generic or corporate.
+
+Respond ONLY with valid JSON (no markdown code blocks, no extra text):
+{
+  "greeting": "A warm, personal greeting using their name",
+  "subtext": "A brief caring message about checking in on their wellbeing (1-2 sentences)",
+  "subject": "A short, warm email subject line (under 50 characters)",
+  "encouragement": "An encouraging thought or message that feels genuine and uplifting (2-3 sentences)",
+  "verse": "A Bible verse that relates to the encouragement (just the verse text, no reference)",
+  "verseRef": "The verse reference (e.g., Psalm 23:4 or Philippians 4:13)"
+}
+
+Be creative and vary your responses. Avoid clichés. The tone should be caring and human.`;
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: prompt
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.9,
+            maxOutputTokens: 500,
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Gemini API error: ${response.status} - ${errorText}`);
+      return null;
+    }
+
+    const data = await response.json() as {
+      candidates?: Array<{
+        content?: {
+          parts?: Array<{ text?: string }>;
+        };
+      }>;
+    };
+    
+    // Extract the text content from Gemini's response
+    const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!textContent) {
+      console.error("No text content in Gemini response");
+      return null;
+    }
+
+    // Clean up the response - remove markdown code blocks if present
+    let cleanedText = textContent.trim();
+    if (cleanedText.startsWith("```json")) {
+      cleanedText = cleanedText.slice(7);
+    } else if (cleanedText.startsWith("```")) {
+      cleanedText = cleanedText.slice(3);
+    }
+    if (cleanedText.endsWith("```")) {
+      cleanedText = cleanedText.slice(0, -3);
+    }
+    cleanedText = cleanedText.trim();
+
+    // Parse the JSON response
+    const messageData = JSON.parse(cleanedText) as {
+      greeting: string;
+      subtext: string;
+      subject: string;
+      encouragement: string;
+      verse: string;
+      verseRef: string;
+    };
+    
+    return {
+      greeting: messageData.greeting,
+      subtext: messageData.subtext,
+      subject: messageData.subject,
+      encouragement: messageData.encouragement,
+      verse: messageData.verse,
+      verseRef: messageData.verseRef
+    };
+  } catch (error) {
+    console.error("Error generating AI message:", error);
+    return null;
+  }
 }
 
 // Internal query to get an employee's most recent mood check-in
@@ -905,7 +1018,7 @@ export const getLastMoodsForEmployees = internalQuery({
 // Internal action to send daily mood check-in emails via Resend
 export const sendDailyEmails = internalAction({
   args: {},
-  handler: async (ctx): Promise<{ success: boolean; sentCount: number; errorCount: number; totalEmployees: number } | { error: string }> => {
+  handler: async (ctx): Promise<{ success: boolean; sentCount: number; errorCount: number; totalEmployees: number; aiGenerated: number } | { error: string }> => {
     // Get all employees from all organizations
     const employees = await ctx.runQuery(internal.employees.listAll);
 
@@ -914,12 +1027,20 @@ export const sendDailyEmails = internalAction({
       return { error: "Resend API key not configured" };
     }
 
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    const useAI = !!geminiApiKey;
+
+    if (!useAI) {
+      console.log("⚠️ GEMINI_API_KEY not configured - using fallback static messages");
+    }
+
     // Get last mood for all employees in batch to check who needs extra encouragement
     const employeeIds = employees.map(e => e._id as Id<"employees">);
     const lastMoods = await ctx.runQuery(internal.moodCheckins.getLastMoodsForEmployees, { employeeIds });
 
     let sentCount = 0;
     let errorCount = 0;
+    let aiGenerated = 0;
 
     // Helper function to delay execution (respect rate limits)
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -941,8 +1062,21 @@ export const sendDailyEmails = internalAction({
         const lastMood = lastMoods[employee._id as string];
         const needsExtraEncouragement = lastMood === "red";
 
-        // Get personalized message for today (with extra encouragement if needed)
-        const todaysMessage = getTodaysMessage(employee.firstName, needsExtraEncouragement);
+        // Try to generate AI message, fall back to static if it fails
+        let todaysMessage: { greeting: string; subtext: string; subject: string; encouragement: string; verse: string; verseRef: string };
+        
+        if (useAI) {
+          const aiMessage = await generateAIMessage(employee.firstName, needsExtraEncouragement, geminiApiKey);
+          if (aiMessage) {
+            todaysMessage = aiMessage;
+            aiGenerated++;
+          } else {
+            // Fallback to static message if AI fails
+            todaysMessage = getFallbackMessage(employee.firstName, needsExtraEncouragement);
+          }
+        } else {
+          todaysMessage = getFallbackMessage(employee.firstName, needsExtraEncouragement);
+        }
 
         const emailHtml = `
 <!DOCTYPE html>
@@ -1015,7 +1149,8 @@ export const sendDailyEmails = internalAction({
 
         if (response.ok) {
           sentCount++;
-          console.log(`✓ Sent mood email to ${employee.email} (${employee.firstName})${needsExtraEncouragement ? " [extra encouragement]" : ""}`);
+          const aiTag = useAI ? " [AI]" : " [static]";
+          console.log(`✓ Sent mood email to ${employee.email} (${employee.firstName})${needsExtraEncouragement ? " [extra encouragement]" : ""}${aiTag}`);
         } else {
           const errorText = await response.text();
           console.error(`✗ Failed to send to ${employee.email}: ${response.status} ${errorText}`);
@@ -1032,6 +1167,7 @@ export const sendDailyEmails = internalAction({
       sentCount,
       errorCount,
       totalEmployees: employees.length,
+      aiGenerated,
     };
   },
 });
