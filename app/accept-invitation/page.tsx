@@ -311,6 +311,9 @@ export default function AcceptInvitation() {
     );
   }
 
+  // At this point invitation is guaranteed non-null (null case handled above)
+  if (!invitation) return null;
+
   // Handler for shareable link invitations (creates access request instead of immediate access)
   const handleShareableLinkSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

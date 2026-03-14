@@ -1529,7 +1529,7 @@ export const sendDailyEmails = internalAction({
     const useAI = !!geminiApiKey;
 
     if (!useAI) {
-      console.log("⚠️ GEMINI_API_KEY not configured - using fallback static messages");
+      // GEMINI_API_KEY not configured - using fallback static messages
     }
 
     // Get last mood for all employees in batch to check who needs extra encouragement
@@ -1658,8 +1658,6 @@ export const sendDailyEmails = internalAction({
 
         if (response.ok) {
           sentCount++;
-          const aiTag = useAI ? " [AI]" : " [static]";
-          console.log(`✓ Sent mood email to ${employee.email} (${employee.firstName})${needsExtraEncouragement ? " [extra encouragement]" : ""}${aiTag}`);
         } else {
           const errorText = await response.text();
           console.error(`✗ Failed to send to ${employee.email}: ${response.status} ${errorText}`);
