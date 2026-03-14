@@ -1556,19 +1556,10 @@ export const sendDailyEmails = internalAction({
 <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
   <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="background-color: white; border-radius: 12px; padding: 40px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-      <h1 style="color: #1e293b; margin: 0 0 16px 0; font-size: 28px;">${todaysMessage.greeting}</h1>
+      <h1 style="color: #1e293b; margin: 0 0 16px 0; font-size: 28px;">How are you feeling today, ${employee.firstName}?</h1>
       <p style="color: #64748b; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
         ${todaysMessage.subtext}
       </p>
-
-      <!-- Daily verse -->
-      <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px; margin: 0 0 32px 0;">
-        <p style="color: #3b82f6; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px 0;">Daily verse</p>
-        <p style="color: #1e3a8a; font-size: 14px; line-height: 1.5; margin: 0;">
-          <em>"${todaysMessage.verse}"</em><br>
-          <span style="color: #3b82f6; font-weight: 600;">— ${todaysMessage.verseRef}</span>
-        </p>
-      </div>
 
       <p style="color: #64748b; font-size: 14px; margin: 0 0 24px 0;">
         How are you feeling today?
@@ -1586,6 +1577,15 @@ export const sendDailyEmails = internalAction({
         <a href="${redUrl}" style="display: block; background-color: #ef4444; color: white; text-decoration: none; padding: 16px 32px; border-radius: 8px; text-align: center; font-weight: 600; font-size: 18px;">
           😔 I could use some support
         </a>
+      </div>
+
+      <!-- Daily verse -->
+      <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px; margin: 0 0 32px 0;">
+        <p style="color: #3b82f6; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px 0;">Daily verse</p>
+        <p style="color: #1e3a8a; font-size: 14px; line-height: 1.5; margin: 0;">
+          <em>"${todaysMessage.verse}"</em><br>
+          <span style="color: #3b82f6; font-weight: 600;">— ${todaysMessage.verseRef}</span>
+        </p>
       </div>
 
       <p style="color: #94a3b8; font-size: 13px; margin: 0; text-align: center;">
