@@ -73,6 +73,13 @@ export default function ManagerLayout({
   const userOrganizations = useQuery(api.organizationMemberships.getUserOrganizations);
   const createOrganization = useMutation(api.organizationMemberships.createOrganization);
 
+  // Pending access requests count (for nav badge) — only fetched for owners
+  const pendingAccessRequests = useQuery(
+    api.accessRequests.listAccessRequests,
+    selectedOrg && userRole === "owner" ? { organisation: selectedOrg, status: "pending" } : "skip"
+  );
+  const pendingAccessRequestCount = pendingAccessRequests?.length ?? 0;
+
   // Redirect to sign in if not authenticated
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -177,7 +184,7 @@ export default function ManagerLayout({
                     <span>View Organization</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                <ManagerLayoutNav pathname={pathname} router={router} userRole={userRole} />
+                <ManagerLayoutNav pathname={pathname} router={router} userRole={userRole} pendingAccessRequestCount={pendingAccessRequestCount} />
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -265,14 +272,14 @@ function MobileSidebarTrigger() {
 function ManagerLayoutNav({
   pathname,
   router,
-  userRole
+  userRole,
+  pendingAccessRequestCount,
 }: {
   pathname: string;
   router: AppRouterInstance;
   userRole: "owner" | "editor" | "viewer" | null | undefined;
+  pendingAccessRequestCount: number;
 }) {
-  if (!userRole) return null;
-
   const canEdit = userRole === "owner" || userRole === "editor";
   const isOwner = userRole === "owner";
 
@@ -299,6 +306,9 @@ function ManagerLayoutNav({
           >
             <Users className="size-4" />
             <span>Viewer Access</span>
+            {pendingAccessRequestCount > 0 && (
+              <span className="ml-auto w-2 h-2 rounded-full bg-orange-400 shrink-0" />
+            )}
           </SidebarMenuButton>
         </SidebarMenuItem>
       )}

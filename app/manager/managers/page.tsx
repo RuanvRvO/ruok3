@@ -5,7 +5,7 @@ import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Trash2, UserPlus, Mail, Eye, Edit2, Clock } from "lucide-react";
+import { Trash2, UserPlus, Mail, Eye, Edit2, Clock, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function ManageManagersPage() {
@@ -55,6 +55,14 @@ export default function ManageManagersPage() {
   const approveAccessRequest = useMutation(api.accessRequests.approveAccessRequest);
   const declineAccessRequest = useMutation(api.accessRequests.declineAccessRequest);
 
+  const [confirmDialog, setConfirmDialog] = useState<
+    | { action: "approve" | "decline"; requestId: Id<"accessRequests">; label: string }
+    | { action: "remove"; membershipId: Id<"organizationMemberships">; label: string }
+    | { action: "revoke"; invitationId: Id<"managerInvitations">; label: string }
+    | null
+  >(null);
+  const [isConfirming, setIsConfirming] = useState(false);
+
   const [role, setRole] = useState<"viewer" | "editor">("viewer"); // For email invitations
   const [linkRole, setLinkRole] = useState<"viewer" | "editor">("viewer"); // For shareable links
   const [email, setEmail] = useState("");
@@ -71,32 +79,12 @@ export default function ManageManagersPage() {
     }
   };
 
-  const handleRemoveMember = async (membershipId: Id<"organizationMemberships">) => {
-    if (!confirm("Are you sure you want to remove this user's access?")) {
-      return;
-    }
-
-    try {
-      await removeMember({ membershipId });
-      setSuccess("User removed successfully!");
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to remove user";
-      setError(message);
-    }
+  const handleRemoveMember = (membershipId: Id<"organizationMemberships">, label: string) => {
+    setConfirmDialog({ action: "remove", membershipId, label });
   };
 
-  const handleRevokeInvitation = async (invitationId: Id<"managerInvitations">) => {
-    if (!confirm("Are you sure you want to revoke this invitation?")) {
-      return;
-    }
-
-    try {
-      await revokeInvitation({ invitationId });
-      setSuccess("Invitation revoked successfully!");
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to revoke invitation";
-      setError(message);
-    }
+  const handleRevokeInvitation = (invitationId: Id<"managerInvitations">, label: string) => {
+    setConfirmDialog({ action: "revoke", invitationId, label });
   };
 
   const copyInviteLink = (token: string) => {
@@ -106,31 +94,37 @@ export default function ManageManagersPage() {
     setSuccess("Invitation link copied to clipboard!");
   };
 
-  const handleApproveRequest = async (requestId: Id<"accessRequests">) => {
-    if (!confirm("Are you sure you want to approve this access request?")) {
-      return;
-    }
-
-    try {
-      await approveAccessRequest({ requestId });
-      setSuccess("Access request approved! The user will receive an email notification.");
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to approve access request";
-      setError(message);
-    }
+  const handleApproveRequest = (requestId: Id<"accessRequests">, label: string) => {
+    setConfirmDialog({ action: "approve", requestId, label });
   };
 
-  const handleDeclineRequest = async (requestId: Id<"accessRequests">) => {
-    if (!confirm("Are you sure you want to decline this access request?")) {
-      return;
-    }
+  const handleDeclineRequest = (requestId: Id<"accessRequests">, label: string) => {
+    setConfirmDialog({ action: "decline", requestId, label });
+  };
 
+  const handleConfirmAction = async () => {
+    if (!confirmDialog) return;
+    setIsConfirming(true);
     try {
-      await declineAccessRequest({ requestId });
-      setSuccess("Access request declined.");
+      if (confirmDialog.action === "approve") {
+        await approveAccessRequest({ requestId: confirmDialog.requestId });
+        setSuccess("Access request approved! The user will receive an email notification.");
+      } else if (confirmDialog.action === "decline") {
+        await declineAccessRequest({ requestId: confirmDialog.requestId });
+        setSuccess("Access request declined.");
+      } else if (confirmDialog.action === "remove") {
+        await removeMember({ membershipId: confirmDialog.membershipId });
+        setSuccess("User removed successfully!");
+      } else if (confirmDialog.action === "revoke") {
+        await revokeInvitation({ invitationId: confirmDialog.invitationId });
+        setSuccess("Invitation revoked successfully!");
+      }
+      setConfirmDialog(null);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to decline access request";
+      const message = err instanceof Error ? err.message : "Failed to complete action";
       setError(message);
+    } finally {
+      setIsConfirming(false);
     }
   };
 
@@ -309,7 +303,7 @@ export default function ManageManagersPage() {
             Generate Invite Code
           </h2>
           <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 px-4 py-3 rounded-lg mb-6 text-sm">
-            ⚠️ This code is less secure and needs to be kept private. Anyone with this link can join your organization.
+            ⚠️ Anyone with this link can request access to your organization. You will need to approve each request before they gain access.
           </div>
 
           {error && !error.includes("email") && (
@@ -459,7 +453,7 @@ export default function ManageManagersPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
-                    onClick={() => handleApproveRequest(request._id)}
+                    onClick={() => handleApproveRequest(request._id, request.requestedEmail)}
                     variant="ghost"
                     size="sm"
                     className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
@@ -467,7 +461,7 @@ export default function ManageManagersPage() {
                     Approve
                   </Button>
                   <Button
-                    onClick={() => handleDeclineRequest(request._id)}
+                    onClick={() => handleDeclineRequest(request._id, request.requestedEmail)}
                     variant="ghost"
                     size="sm"
                     className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -522,7 +516,7 @@ export default function ManageManagersPage() {
                     Copy Link
                   </Button>
                   <Button
-                    onClick={() => handleRevokeInvitation(invitation._id)}
+                    onClick={() => handleRevokeInvitation(invitation._id, invitation.invitationType === "email" ? (invitation.email ?? "this invitation") : "this shareable link")}
                     variant="ghost"
                     size="icon"
                     className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -535,6 +529,74 @@ export default function ManageManagersPage() {
           </div>
         </div>
       )}
+
+      {/* Confirmation Modal */}
+      {confirmDialog && (() => {
+        const isDestructive = confirmDialog.action !== "approve";
+        const titles = {
+          approve: "Approve access request?",
+          decline: "Decline access request?",
+          remove: "Remove user access?",
+          revoke: "Revoke invitation?",
+        };
+        const bodies = {
+          approve: <span>This will grant <strong>{confirmDialog.label}</strong> access to your organization.</span>,
+          decline: <span>This will decline the access request from <strong>{confirmDialog.label}</strong>.</span>,
+          remove: <span>This will remove <strong>{confirmDialog.label}</strong> from your organization. This cannot be undone.</span>,
+          revoke: <span>This will revoke the invitation for <strong>{confirmDialog.label}</strong>. The link will no longer work.</span>,
+        };
+        const confirmLabels = { approve: "Approve", decline: "Decline", remove: "Remove", revoke: "Revoke" };
+        const loadingLabels = { approve: "Approving...", decline: "Declining...", remove: "Removing...", revoke: "Revoking..." };
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              onClick={() => !isConfirming && setConfirmDialog(null)}
+            />
+            <div className="relative bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 w-full max-w-md p-6 flex flex-col gap-5">
+              <div className="flex items-start gap-3">
+                <div className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                  isDestructive ? "bg-red-100 dark:bg-red-900/30" : "bg-green-100 dark:bg-green-900/30"
+                }`}>
+                  <AlertTriangle className={`size-5 ${
+                    isDestructive ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"
+                  }`} />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg text-slate-900 dark:text-slate-100">
+                    {titles[confirmDialog.action]}
+                  </h3>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                    {bodies[confirmDialog.action]}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <Button
+                  type="button"
+                  onClick={() => setConfirmDialog(null)}
+                  disabled={isConfirming}
+                  className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-900 dark:text-slate-100"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleConfirmAction}
+                  disabled={isConfirming}
+                  className={`text-white flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isDestructive ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
+                  }`}
+                >
+                  {isConfirming ? loadingLabels[confirmDialog.action] : confirmLabels[confirmDialog.action]}
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Active Members */}
       <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-6 shadow-sm">
@@ -568,7 +630,7 @@ export default function ManageManagersPage() {
                   </span>
                   {isOwner && member.role !== "owner" && (
                     <Button
-                      onClick={() => handleRemoveMember(member._id)}
+                      onClick={() => handleRemoveMember(member._id, member.name && member.surname ? `${member.name} ${member.surname}` : member.email)}
                       variant="ghost"
                       size="icon"
                       className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"

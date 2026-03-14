@@ -9,23 +9,14 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
     Password({
       profile(params) {
-        const profile: {
-          email: string;
-          name?: string;
-          surname?: string;
-        } = {
+        const name = params.name ? String(params.name).trim() : undefined;
+        const surname = params.surname ? String(params.surname).trim() : undefined;
+
+        return {
           email: params.email as string,
+          ...(name ? { name } : {}),
+          ...(surname ? { surname } : {}),
         };
-
-        // Add custom fields if they're present (signUp flow)
-        if (params.name) {
-          profile.name = params.name as string;
-        }
-        if (params.surname) {
-          profile.surname = params.surname as string;
-        }
-
-        return profile;
       },
       // Use bcryptjs for password hashing to match reset functionality
       crypto: passwordCrypto,

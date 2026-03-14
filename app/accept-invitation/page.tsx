@@ -31,7 +31,6 @@ export default function AcceptInvitation() {
   const createAccessRequest = useMutation(api.accessRequests.createAccessRequest);
   const currentUserId = useQuery(api.users.getCurrentUserId);
   const currentUser = useQuery(api.users.getCurrentUser);
-  const userOrganizations = useQuery(api.organizationMemberships.getUserOrganizations);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -39,6 +38,8 @@ export default function AcceptInvitation() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [name, setName] = useState("");
   const [surname, setSurname] = useState("");
   const [email, setEmail] = useState(""); // For link-based invitations where user enters email
@@ -168,15 +169,12 @@ export default function AcceptInvitation() {
           // If user already exists and has email, use acceptInvitationForExistingUser
           // Otherwise use acceptInvitation for new users
           const isExistingUser = currentUser?.email !== undefined;
-          console.log("[accept-invitation] useEffect continueInvitation:", { isExistingUser, currentUserId, tokenToUse: tokenToUse?.slice(0, 8) + "..." });
-          
           if (isExistingUser) {
             setLoadingMessage("Adding you to the organization...");
             const result = await acceptInvitationForExistingUser({ token: tokenToUse });
-            
-            // Check if user already has access
+
             if (result?.alreadyHasAccess) {
-              const roleDisplayName = result.existingRole === "owner" ? "Owner" : 
+              const roleDisplayName = result.existingRole === "owner" ? "Owner" :
                                      result.existingRole === "editor" ? "Editor" : "Viewer";
               setLoadingMessage(null);
               setLoading(false);
@@ -184,75 +182,19 @@ export default function AcceptInvitation() {
               setError(`You already have ${roleDisplayName} access to this organization.`);
               return;
             }
-            
-            // For existing users, wait for organizations query to update
-            setLoadingMessage("Finalizing access...");
-            let orgs: Array<{ organisation: string }> | undefined = undefined;
-            const initialCount = userOrganizations?.length || 0;
-            
-            // Poll until organizations have updated
-            for (let i = 0; i < 100; i++) { // 100 * 200ms = 20 seconds max
-              await new Promise(resolve => setTimeout(resolve, 200));
-              if (userOrganizations) {
-                const currentCount = userOrganizations.length;
-                if (currentCount > initialCount || currentCount >= 1) {
-                  orgs = userOrganizations;
-                  break;
-                }
-              }
-            }
-            
-            // If still no orgs, use current query result
-            if (!orgs && userOrganizations) {
-              orgs = userOrganizations;
-            }
-            
-            // Auto-select first organization if available
-            if (orgs && orgs.length > 0) {
-              const org = orgs[0];
-              localStorage.setItem("selectedOrganization", org.organisation);
-            }
-            
-            // Show success message before redirecting
-            setLoadingMessage(null);
+
+            // Membership created — redirect immediately, manager layout handles org selection
+            localStorage.setItem("selectedOrganization", invitation?.organisation || "");
             setSuccessMessage(`Successfully joined ${invitation?.organisation || 'the organization'}!`);
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            setSuccessMessage(null);
+            await new Promise(resolve => setTimeout(resolve, 1000));
             router.push("/manager/view");
           } else {
             // New user signup flow
             setLoadingMessage("Completing setup...");
             await acceptInvitation({ token: tokenToUse, userId: currentUserId as Id<"users"> });
-            
-            // Wait for organizations query to update
-            setLoadingMessage("Finalizing access...");
-            let orgs: Array<{ organisation: string }> | undefined = undefined;
-            const initialCount = userOrganizations?.length || 0;
-            
-            for (let i = 0; i < 40; i++) {
-              await new Promise(resolve => setTimeout(resolve, 500));
-              if (userOrganizations) {
-                const currentCount = userOrganizations.length;
-                if (currentCount > initialCount || currentCount >= 1) {
-                  orgs = userOrganizations;
-                  break;
-                }
-              }
-            }
-            
-            if (!orgs && userOrganizations) {
-              orgs = userOrganizations;
-            }
-            
-            if (!orgs || orgs.length === 0) {
-              isSigningUpRef.current = false;
-              setLoadingMessage(null);
-              router.push("/manager/view");
-              return;
-            }
-            
-            const org = orgs[0];
-            localStorage.setItem("selectedOrganization", org.organisation);
+
+            // Membership created — redirect immediately, manager layout handles org selection
+            localStorage.setItem("selectedOrganization", invitation?.organisation || "");
             isSigningUpRef.current = false;
             setLoadingMessage(null);
             router.push("/manager/view");
@@ -273,7 +215,7 @@ export default function AcceptInvitation() {
       };
       continueInvitation();
     }
-  }, [currentUserId, isAuthenticated, waitingForAuth, token, currentUser, acceptInvitationForExistingUser, acceptInvitation, userOrganizations, router, invitation]);
+  }, [currentUserId, isAuthenticated, waitingForAuth, token, currentUser, acceptInvitationForExistingUser, acceptInvitation, router, invitation]);
 
   // Show signing out state
   if (signingOut) {
@@ -336,21 +278,8 @@ export default function AcceptInvitation() {
 
   // Block invalid invitations at the UI level before any mutation fires
   const isAlreadyUsed = invitation?.invitationType === "email" && invitation?.status === "accepted";
-  console.log("[accept-invitation] invitation check:", {
-    token,
-    invitationId: invitation?._id,
-    status: invitation?.status,
-    invitationType: invitation?.invitationType,
-    isExpired: invitation?.isExpired,
-    isAlreadyUsed,
-    isAuthenticated,
-    currentUserId,
-    emailToCheck,
-  });
 
   if (!loading && (!invitation || invitation.isExpired || isAlreadyUsed)) {
-    const reason = !invitation ? "not found" : invitation.isExpired ? "expired" : "already used";
-    console.log("[accept-invitation] blocking invitation - reason:", reason);
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-blue-950 dark:to-indigo-950 relative overflow-hidden">
         <div className="absolute inset-0 opacity-30 dark:opacity-20" style={{
@@ -361,11 +290,7 @@ export default function AcceptInvitation() {
         <div className="absolute bottom-20 right-10 w-72 h-72 bg-blue-400/20 dark:bg-blue-500/10 rounded-full blur-3xl"></div>
         <div className="relative z-10 flex flex-col gap-4 sm:gap-6 md:gap-8 w-full max-w-lg mx-auto min-h-screen justify-center items-center px-4 py-6 sm:py-8">
           <div className="text-center flex flex-col items-center gap-2 sm:gap-3 md:gap-4">
-            <div className="flex items-center gap-4 sm:gap-5 md:gap-6">
-              <Image src="/smile.png" alt="Smile Logo" width={120} height={120} className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 object-contain drop-shadow-lg" />
-              <div className="w-px h-16 sm:h-20 md:h-24 bg-slate-300 dark:bg-slate-600"></div>
-              <Image src="/sad.png" alt="Sad Logo" width={120} height={120} className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 object-contain drop-shadow-lg" />
-            </div>
+            <Image src="/sad.png" alt="Sad Logo" width={120} height={120} className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 object-contain drop-shadow-lg" />
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-slate-200">
               {isAlreadyUsed ? "Invitation Already Used" : "Invalid or Expired Invitation"}
             </h1>
@@ -505,13 +430,22 @@ export default function AcceptInvitation() {
           return;
         }
 
+        if (!name.trim() || !surname.trim()) {
+          setError("First name and last name are required.");
+          setLoading(false);
+          return;
+        }
+
+        if (surname.trim().toLowerCase() === emailToUse.toLowerCase()) {
+          setSurname("");
+          setError("Please enter your last name in the Last Name field.");
+          setLoading(false);
+          return;
+        }
+
         formData.set("flow", "signUp");
-        if (name) {
-          formData.set("name", name);
-        }
-        if (surname) {
-          formData.set("surname", surname);
-        }
+        formData.set("name", name.trim());
+        formData.set("surname", surname.trim());
 
         // CRITICAL: Clear selected organization before signup
         // This prevents the manager/view page from signing us out during the signup process
@@ -606,18 +540,14 @@ export default function AcceptInvitation() {
 
             if (!userId) {
               // Auth not ready yet - set flags and let useEffect automatically continue when ready
-              console.log("[accept-invitation] userId not ready after 2s wait, setting waitingForAuth=true");
-              setWaitingForAuth(true);
+setWaitingForAuth(true);
               pendingTokenRef.current = token;
               // Keep loading state active - don't clear loading or loadingMessage
               // The useEffect will automatically continue when currentUserId becomes available
               return; // Exit early - useEffect will handle continuation automatically
             }
-            console.log("[accept-invitation] userId ready after 2s wait:", userId);
-            
             // Auth is ready, continue with invitation acceptance
             setLoadingMessage("Adding you to the organization...");
-            console.log("[accept-invitation] direct sign-in path calling acceptInvitationForExistingUser:", { token: token?.slice(0, 8) + "...", userId });
 
             try {
               // For existing users, use acceptInvitationForExistingUser (checks email matching)
@@ -625,44 +555,16 @@ export default function AcceptInvitation() {
               
               // Check if user already has access
               if (result?.alreadyHasAccess) {
-                const roleDisplayName = result.existingRole === "owner" ? "Owner" : 
+                const roleDisplayName = result.existingRole === "owner" ? "Owner" :
                                        result.existingRole === "editor" ? "Editor" : "Viewer";
                 setLoadingMessage(null);
                 setError(`You already have ${roleDisplayName} access to this organization.`);
                 setLoading(false);
                 return;
               }
-              
-              // After accepting invitation, wait for organizations query to update
-              // Poll until we get the updated organization list
-              let orgs: Array<{ organisation: string }> | undefined = undefined;
-              const initialCount = userOrganizations?.length || 0;
-              
-              // Wait for the query to update (should show one more organization than before)
-              for (let i = 0; i < 30; i++) {
-                await new Promise(resolve => setTimeout(resolve, 200));
-                // Check if organizations have updated (count increased or we have at least 1)
-                if (userOrganizations) {
-                  const currentCount = userOrganizations.length;
-                  // If count increased or we now have at least 1 org, use it
-                  if (currentCount > initialCount || currentCount >= 1) {
-                    orgs = userOrganizations;
-                    break;
-                  }
-                }
-              }
-              
-              // If still no orgs, try one more time with the current query result
-              if (!orgs && userOrganizations) {
-                orgs = userOrganizations;
-              }
-              
-              // Auto-select first organization if available, then redirect to manager view
-              if (orgs && orgs.length > 0) {
-                const org = orgs[0];
-                localStorage.setItem("selectedOrganization", org.organisation);
-              }
-              // Show success message before redirecting
+
+              // Membership created — redirect immediately, manager layout handles org selection
+              localStorage.setItem("selectedOrganization", invitation?.organisation || "");
               setLoadingMessage(null);
               setSuccessMessage(`Successfully joined ${invitation?.organisation || 'the organization'}!`);
               await new Promise(resolve => setTimeout(resolve, 1500));
@@ -706,55 +608,6 @@ export default function AcceptInvitation() {
         // Return early to prevent outer try-catch from continuing
         return;
       }
-
-      // For signup mode, handle redirect after accepting invitation
-      // After accepting invitation, wait for organizations query to update
-      // Poll until we get the updated organization list
-      setLoadingMessage("Finalizing access...");
-      let orgs: Array<{ organisation: string }> | undefined = undefined;
-      const initialCount = userOrganizations?.length || 0;
-      
-      // Wait longer for the query to update - database might need time to propagate
-      // Poll for up to 20 seconds (40 iterations * 500ms)
-      for (let i = 0; i < 40; i++) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        // Check if organizations have updated (count increased or we have at least 1)
-        if (userOrganizations) {
-          const currentCount = userOrganizations!.length;
-          // If count increased or we now have at least 1 org, use it
-          if (currentCount > initialCount || currentCount >= 1) {
-            orgs = userOrganizations;
-            break;
-          }
-        }
-      }
-      
-      // If still no orgs, try one more time with the current query result
-      if (!orgs && userOrganizations) {
-        orgs = userOrganizations;
-      }
-      
-      // If still no orgs after waiting, the membership was created but query hasn't updated yet
-      // In this case, just redirect - the membership exists in the database
-      // The user will see their organization when they get to the manager page
-      if (!orgs || orgs!.length === 0) {
-        // Don't throw error - just redirect and let the manager page handle it
-        // The membership is in the database, the query just needs more time
-        isSigningUpRef.current = false;
-        setLoadingMessage(null);
-        router.push("/manager/view");
-        return;
-      }
-
-      // Auto-select first organization if available, then redirect to manager view
-      const org = orgs![0];
-      localStorage.setItem("selectedOrganization", org.organisation);
-
-      // Reset signup flag before redirecting
-      isSigningUpRef.current = false;
-
-      // Always redirect to manager view (sidebar will show all orgs)
-      router.push("/manager/view");
     } catch (err: unknown) {
       // Reset signup flag on error
       isSigningUpRef.current = false;
@@ -923,6 +776,30 @@ export default function AcceptInvitation() {
           className="flex flex-col gap-4 w-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm p-4 sm:p-6 md:p-8 rounded-2xl shadow-xl border border-slate-200/50 dark:border-slate-700/50"
           onSubmit={handleSubmit}
         >
+        {isSignupMode && (
+          <>
+            <input
+              className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="First Name"
+              autoComplete="given-name"
+              required
+            />
+            <input
+              className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
+              type="text"
+              value={surname}
+              onChange={(e) => setSurname(e.target.value)}
+              onFocus={(e) => e.currentTarget.removeAttribute("readonly")}
+              placeholder="Last Name"
+              autoComplete="off"
+              readOnly
+              required
+            />
+          </>
+        )}
           <input
             className={`bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 ${emailToCheck ? 'cursor-not-allowed opacity-60' : 'focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all'} placeholder:text-slate-400`}
             type="email"
@@ -932,48 +809,62 @@ export default function AcceptInvitation() {
             disabled={!!emailToCheck}
             required
           />
-        {isSignupMode && (
-          <>
-            <input
-              className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="First Name"
-              required
-            />
-            <input
-              className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
-              type="text"
-              value={surname}
-              onChange={(e) => setSurname(e.target.value)}
-              placeholder="Last Name"
-              required
-            />
-          </>
-        )}
-        <div className="flex flex-col gap-1">
+        <div className="relative">
           <input
-            className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
-            type="password"
+            className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 pr-10 w-full border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
+            type={showPassword ? "text" : "password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
             minLength={8}
             required
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors"
+            tabIndex={-1}
+          >
+            {showPassword ? (
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+              </svg>
+            )}
+          </button>
         </div>
         {isSignupMode && (
-          <div className="flex flex-col gap-1">
+          <div className="relative">
             <input
-              className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
-              type="password"
+              className="bg-white dark:bg-slate-900 text-foreground rounded-lg p-3 pr-10 w-full border border-slate-300 dark:border-slate-600 focus:border-slate-500 dark:focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 outline-none transition-all placeholder:text-slate-400"
+              type={showConfirmPassword ? "text" : "password"}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Confirm Password"
               minLength={8}
               required
             />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors"
+              tabIndex={-1}
+            >
+              {showConfirmPassword ? (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                </svg>
+              )}
+            </button>
           </div>
         )}
         {error && (
