@@ -13,6 +13,7 @@ const schema = defineSchema({
     surname: v.optional(v.string()),
     email: v.optional(v.string()),
     isAnonymous: v.optional(v.boolean()),
+    emailVerificationTime: v.optional(v.number()),
   }).index("email", ["email"]),
   // Organization memberships - links users to organizations with roles
   organizationMemberships: defineTable({

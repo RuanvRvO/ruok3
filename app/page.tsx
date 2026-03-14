@@ -64,9 +64,9 @@ export default function LandingPage() {
         <div className="relative max-w-3xl mx-auto text-center">
           {/* Logo */}
           <div className="flex justify-center items-center gap-6 mb-8">
-            <Image src="/smile.png" alt="Smile" width={80} height={80} className="object-contain drop-shadow-lg" />
+            <Image src="/smile.png" alt="Smile" width={80} height={80} loading="eager" className="object-contain drop-shadow-lg" style={{ width: "auto" }} />
             <div className="w-px h-16 bg-slate-300 dark:bg-slate-600"></div>
-            <Image src="/sad.png" alt="Concerned" width={80} height={80} className="object-contain drop-shadow-lg" />
+            <Image src="/sad.png" alt="Concerned" width={80} height={80} className="object-contain drop-shadow-lg" style={{ width: "auto" }} />
           </div>
 
           <h1 className="text-4xl sm:text-5xl font-bold text-slate-900 dark:text-slate-100 mb-4">
@@ -276,7 +276,7 @@ export default function LandingPage() {
       <footer className="bg-slate-900 dark:bg-slate-950 py-10 px-4">
         <div className="max-w-6xl mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-3">
-            <Image src="/smile.png" alt="R u OK Logo" width={28} height={28} className="object-contain" />
+            <Image src="/smile.png" alt="R u OK Logo" width={28} height={28} className="object-contain" style={{ width: "auto" }} />
             <span className="font-semibold text-white">R u OK?</span>
           </div>
           <p className="text-sm text-slate-500">

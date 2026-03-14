@@ -688,7 +688,6 @@ const CHECKIN_MESSAGES: Array<{
   greeting: string;
   subtext: string;
   subject: string;
-  encouragement: string;
   verse: string;
   verseRef: string;
 }> = [
@@ -696,7 +695,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "Hey {name}, how are you really doing today?",
     subtext: "Take a moment to check in with yourself. Your wellbeing matters.",
     subject: "A moment for you: How are you feeling?",
-    encouragement: "Remember, you are never alone in whatever you're facing. Each day is a new opportunity.",
     verse: "The Lord is close to the brokenhearted and saves those who are crushed in spirit.",
     verseRef: "Psalm 34:18"
   },
@@ -704,7 +702,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "Good afternoon, {name}! How's your day going?",
     subtext: "We genuinely care about how you're doing. Let us know.",
     subject: "Checking in: How's your day?",
-    encouragement: "Whatever today brings, know that you have the strength to face it.",
     verse: "I can do all things through Christ who strengthens me.",
     verseRef: "Philippians 4:13"
   },
@@ -712,7 +709,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "{name}, just checking in on you 💙",
     subtext: "Your mental health is important. How are things going?",
     subject: "We're thinking of you",
-    encouragement: "You are valued and loved, exactly as you are today.",
     verse: "See what great love the Father has lavished on us, that we should be called children of God!",
     verseRef: "1 John 3:1"
   },
@@ -720,7 +716,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "Hi {name}, how are you feeling right now?",
     subtext: "This is your space to be honest about where you're at today.",
     subject: "Daily check-in: How are you?",
-    encouragement: "It's okay to not be okay. Your feelings are valid and you matter.",
     verse: "Cast all your anxiety on him because he cares for you.",
     verseRef: "1 Peter 5:7"
   },
@@ -728,7 +723,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "Hey {name}, we wanted to see how you're doing",
     subtext: "Taking a moment to pause and reflect can make a difference.",
     subject: "How are you today?",
-    encouragement: "Peace is possible even in the busiest of days. Take a breath.",
     verse: "Peace I leave with you; my peace I give you. Do not let your hearts be troubled and do not be afraid.",
     verseRef: "John 14:27"
   },
@@ -736,7 +730,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "{name}, how's everything going for you today?",
     subtext: "Your team wants to make sure you're doing okay.",
     subject: "Touching base: How are things?",
-    encouragement: "You're part of a community that cares. You don't have to carry burdens alone.",
     verse: "Carry each other's burdens, and in this way you will fulfill the law of Christ.",
     verseRef: "Galatians 6:2"
   },
@@ -744,7 +737,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "Hi there {name}! How are you holding up?",
     subtext: "Whether it's a great day or a tough one, we're here for you.",
     subject: "Checking in on you",
-    encouragement: "Difficult seasons don't last forever. Brighter days are ahead.",
     verse: "Weeping may stay for the night, but rejoicing comes in the morning.",
     verseRef: "Psalm 30:5"
   },
@@ -752,7 +744,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "{name}, taking a moment to check in with you",
     subtext: "Your feelings are valid. Let us know how you're doing.",
     subject: "A quick check-in",
-    encouragement: "You were created with purpose. Your life has meaning and value.",
     verse: "For we are God's handiwork, created in Christ Jesus to do good works.",
     verseRef: "Ephesians 2:10"
   },
@@ -760,7 +751,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "Hey {name}, how's life treating you today?",
     subtext: "We hope you're doing well. Let us know either way.",
     subject: "How's your day going?",
-    encouragement: "No matter what today holds, there is always hope for tomorrow.",
     verse: "For I know the plans I have for you, declares the Lord, plans to prosper you and not to harm you, plans to give you hope and a future.",
     verseRef: "Jeremiah 29:11"
   },
@@ -768,7 +758,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "{name}, just wanted to ask – how are you?",
     subtext: "Sometimes it helps to pause and reflect. We're listening.",
     subject: "R u OK today?",
-    encouragement: "When life feels overwhelming, remember you don't have to figure it all out today.",
     verse: "Therefore do not worry about tomorrow, for tomorrow will worry about itself.",
     verseRef: "Matthew 6:34"
   },
@@ -776,7 +765,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "Good afternoon {name}! How are you feeling?",
     subtext: "Your wellbeing is a priority. Take a moment to check in.",
     subject: "Afternoon check-in",
-    encouragement: "Rest is not a weakness – it's how we find renewal and strength.",
     verse: "Come to me, all you who are weary and burdened, and I will give you rest.",
     verseRef: "Matthew 11:28"
   },
@@ -784,7 +772,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "Hi {name}, hope you're having a good day!",
     subtext: "Let us know how you're really doing today.",
     subject: "How are you doing?",
-    encouragement: "You are stronger than you know. Keep going, one step at a time.",
     verse: "But those who hope in the Lord will renew their strength. They will soar on wings like eagles.",
     verseRef: "Isaiah 40:31"
   },
@@ -792,7 +779,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "{name}, we care about how you're doing",
     subtext: "Your mental health matters to us. How are things?",
     subject: "We care: How are you?",
-    encouragement: "You are worthy of love and care, especially from yourself.",
     verse: "The Lord your God is with you, the Mighty Warrior who saves. He will take great delight in you.",
     verseRef: "Zephaniah 3:17"
   },
@@ -800,7 +786,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "Hey {name}, how's your energy today?",
     subtext: "Whether you're thriving or surviving, we want to know.",
     subject: "Energy check: How are you?",
-    encouragement: "Even when you feel weak, there is strength available to you.",
     verse: "My grace is sufficient for you, for my power is made perfect in weakness.",
     verseRef: "2 Corinthians 12:9"
   },
@@ -808,7 +793,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "{name}, time for your daily wellbeing check",
     subtext: "A quick moment to reflect on how you're feeling.",
     subject: "Your daily wellbeing check",
-    encouragement: "Today is a gift. Be gentle with yourself as you navigate it.",
     verse: "This is the day that the Lord has made; let us rejoice and be glad in it.",
     verseRef: "Psalm 118:24"
   },
@@ -816,7 +800,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "{name}, we're thinking of you today",
     subtext: "How are you feeling? We're here to listen.",
     subject: "You're on our minds",
-    encouragement: "In moments of doubt, remember that you are seen and known.",
     verse: "You have searched me, Lord, and you know me. You know when I sit and when I rise.",
     verseRef: "Psalm 139:1-2"
   },
@@ -824,7 +807,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "Hi {name}, just reaching out to check on you",
     subtext: "Your wellbeing is important to us.",
     subject: "Reaching out to you",
-    encouragement: "Courage doesn't mean you're not afraid – it means you keep going anyway.",
     verse: "Be strong and courageous. Do not be afraid; do not be discouraged, for the Lord your God will be with you wherever you go.",
     verseRef: "Joshua 1:9"
   },
@@ -832,7 +814,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "{name}, how is your heart today?",
     subtext: "Sometimes we need to pause and check in with ourselves.",
     subject: "A heart check-in",
-    encouragement: "Your heart matters. Take time to nurture it today.",
     verse: "Above all else, guard your heart, for everything you do flows from it.",
     verseRef: "Proverbs 4:23"
   },
@@ -840,7 +821,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "Hey {name}, sending you good thoughts today",
     subtext: "We hope today is treating you well.",
     subject: "Sending you good thoughts",
-    encouragement: "Love surrounds you, even when you can't see it. You are not forgotten.",
     verse: "And surely I am with you always, to the very end of the age.",
     verseRef: "Matthew 28:20"
   },
@@ -848,7 +828,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "{name}, checking in – how are things?",
     subtext: "We value you and want to know how you're doing.",
     subject: "Quick check-in",
-    encouragement: "Every challenge you face is making you stronger and more resilient.",
     verse: "Consider it pure joy, my brothers and sisters, whenever you face trials of many kinds, because you know that the testing of your faith produces perseverance.",
     verseRef: "James 1:2-3"
   },
@@ -856,7 +835,6 @@ const CHECKIN_MESSAGES: Array<{
     greeting: "Good day {name}! How's everything with you?",
     subtext: "Take a moment to reflect on how you're feeling.",
     subject: "How's everything?",
-    encouragement: "There is beauty in every day, even in the small moments. Look for it today.",
     verse: "He has made everything beautiful in its time.",
     verseRef: "Ecclesiastes 3:11"
   }
@@ -867,7 +845,6 @@ const FOLLOWUP_ENCOURAGEMENT_MESSAGES: Array<{
   greeting: string;
   subtext: string;
   subject: string;
-  encouragement: string;
   verse: string;
   verseRef: string;
 }> = [
@@ -875,7 +852,6 @@ const FOLLOWUP_ENCOURAGEMENT_MESSAGES: Array<{
     greeting: "{name}, we've been thinking about you 💙",
     subtext: "Yesterday was tough, and we wanted to check in on how you're doing today.",
     subject: "We're here for you",
-    encouragement: "It takes courage to be honest about struggling. We're proud of you for sharing.",
     verse: "The Lord is my light and my salvation—whom shall I fear? The Lord is the stronghold of my life—of whom shall I be afraid?",
     verseRef: "Psalm 27:1"
   },
@@ -883,7 +859,6 @@ const FOLLOWUP_ENCOURAGEMENT_MESSAGES: Array<{
     greeting: "Hi {name}, hoping today is a little brighter",
     subtext: "We noticed yesterday was difficult. How are you feeling now?",
     subject: "Hoping you're doing better",
-    encouragement: "Hard days don't define you. Every sunrise brings new possibilities.",
     verse: "Because of the Lord's great love we are not consumed, for his compassions never fail. They are new every morning.",
     verseRef: "Lamentations 3:22-23"
   },
@@ -891,7 +866,6 @@ const FOLLOWUP_ENCOURAGEMENT_MESSAGES: Array<{
     greeting: "{name}, just wanted you to know you're not alone",
     subtext: "We care about how you're doing, especially after a challenging day.",
     subject: "You're not alone",
-    encouragement: "You don't have to face difficult times by yourself. Reach out – people care.",
     verse: "Two are better than one... If either of them falls down, one can help the other up.",
     verseRef: "Ecclesiastes 4:9-10"
   },
@@ -899,7 +873,6 @@ const FOLLOWUP_ENCOURAGEMENT_MESSAGES: Array<{
     greeting: "Hey {name}, checking in with extra care today",
     subtext: "We know yesterday was hard. How are you holding up?",
     subject: "Checking in with care",
-    encouragement: "Even in the darkest valleys, you are never walking alone.",
     verse: "Even though I walk through the darkest valley, I will fear no evil, for you are with me.",
     verseRef: "Psalm 23:4"
   },
@@ -907,7 +880,6 @@ const FOLLOWUP_ENCOURAGEMENT_MESSAGES: Array<{
     greeting: "{name}, sending you strength today",
     subtext: "After a tough day, we wanted to make sure you're okay.",
     subject: "Sending you strength",
-    encouragement: "Your struggles do not diminish your worth. You are incredibly valuable.",
     verse: "Are not five sparrows sold for two pennies? Yet not one of them is forgotten by God... you are worth more than many sparrows.",
     verseRef: "Luke 12:6-7"
   },
@@ -915,7 +887,6 @@ const FOLLOWUP_ENCOURAGEMENT_MESSAGES: Array<{
     greeting: "Hi {name}, we hope today feels a bit lighter",
     subtext: "Yesterday was rough, and we're here to support you.",
     subject: "Here to support you",
-    encouragement: "Healing takes time. Be patient and kind to yourself today.",
     verse: "He heals the brokenhearted and binds up their wounds.",
     verseRef: "Psalm 147:3"
   },
@@ -923,7 +894,6 @@ const FOLLOWUP_ENCOURAGEMENT_MESSAGES: Array<{
     greeting: "{name}, your wellbeing matters deeply to us",
     subtext: "We're following up because we genuinely care about you.",
     subject: "Your wellbeing matters",
-    encouragement: "It's okay to ask for help. Reaching out is a sign of strength, not weakness.",
     verse: "God is our refuge and strength, an ever-present help in trouble.",
     verseRef: "Psalm 46:1"
   }
@@ -1312,7 +1282,6 @@ const DAILY_VERSES: Array<{ verse: string; verseRef: string }> = [
   { verse: "And my God will supply every need of yours according to his riches in glory in Christ Jesus.", verseRef: "Philippians 4:19" },
 ];
 
-// Get today's message based on the date and whether employee needs extra encouragement (fallback)
 // Deterministic hash of a string to a non-negative integer (djb2 variant)
 function hashString(str: string): number {
   let hash = 5381;
@@ -1326,7 +1295,7 @@ function getFallbackMessage(
   employeeName: string,
   needsExtraEncouragement: boolean,
   employeeId?: string
-): { greeting: string; subtext: string; subject: string; encouragement: string; verse: string; verseRef: string } {
+): { greeting: string; subtext: string; subject: string; verse: string; verseRef: string } {
   // Use the day of the year to rotate through messages
   const now = new Date();
   const start = new Date(now.getFullYear(), 0, 0);
@@ -1349,7 +1318,6 @@ function getFallbackMessage(
     greeting: message.greeting.replace("{name}", employeeName),
     subtext: message.subtext,
     subject: message.subject,
-    encouragement: message.encouragement,
     verse: dailyVerse.verse,
     verseRef: dailyVerse.verseRef
   };
@@ -1360,7 +1328,7 @@ async function generateAIMessage(
   employeeName: string,
   needsExtraEncouragement: boolean,
   geminiApiKey: string
-): Promise<{ greeting: string; subtext: string; subject: string; encouragement: string; verse: string; verseRef: string } | null> {
+): Promise<{ greeting: string; subtext: string; subject: string; verse: string; verseRef: string } | null> {
   try {
     const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
     
@@ -1379,8 +1347,7 @@ Respond ONLY with valid JSON (no markdown code blocks, no extra text):
   "greeting": "A warm, personal greeting using their name",
   "subtext": "A brief caring message about checking in on their wellbeing (1-2 sentences)",
   "subject": "A short, warm email subject line (under 50 characters)",
-  "encouragement": "An encouraging thought or message that feels genuine and uplifting (2-3 sentences)",
-  "verse": "A Bible verse that relates to the encouragement (just the verse text, no reference)",
+  "verse": "A Bible verse that relates to the message (just the verse text, no reference)",
   "verseRef": "The verse reference (e.g., Psalm 23:4 or Philippians 4:13)"
 }
 
@@ -1449,16 +1416,14 @@ Be creative and vary your responses. Avoid clichés. The tone should be caring a
       greeting: string;
       subtext: string;
       subject: string;
-      encouragement: string;
       verse: string;
       verseRef: string;
     };
-    
+
     return {
       greeting: messageData.greeting,
       subtext: messageData.subtext,
       subject: messageData.subject,
-      encouragement: messageData.encouragement,
       verse: messageData.verse,
       verseRef: messageData.verseRef
     };
@@ -1532,7 +1497,7 @@ export const sendDailyEmails = internalAction({
       // GEMINI_API_KEY not configured - using fallback static messages
     }
 
-    // Get last mood for all employees in batch to check who needs extra encouragement
+    // Get last mood for all employees in batch
     const employeeIds = employees.map(e => e._id as Id<"employees">);
     const lastMoods = await ctx.runQuery(internal.moodCheckins.getLastMoodsForEmployees, { employeeIds });
 
@@ -1567,12 +1532,11 @@ export const sendDailyEmails = internalAction({
         const amberUrl = `${baseUrl}/mood-response?employeeId=${employee._id}&mood=amber&token=${checkinToken}`;
         const redUrl = `${baseUrl}/mood-response?employeeId=${employee._id}&mood=red&token=${checkinToken}`;
 
-        // Check if employee's last response was red (needs extra encouragement)
         const lastMood = lastMoods[employee._id as string];
         const needsExtraEncouragement = lastMood === "red";
 
         // Try to generate AI message, fall back to static if it fails
-        let todaysMessage: { greeting: string; subtext: string; subject: string; encouragement: string; verse: string; verseRef: string };
+        let todaysMessage: { greeting: string; subtext: string; subject: string; verse: string; verseRef: string };
         
         if (useAI) {
           const aiMessage = await generateAIMessage(employee.firstName, needsExtraEncouragement, geminiApiKey);
@@ -1603,11 +1567,9 @@ export const sendDailyEmails = internalAction({
         ${todaysMessage.subtext}
       </p>
 
-      <!-- Encouraging message with Bible verse -->
+      <!-- Daily verse -->
       <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px; margin: 0 0 32px 0;">
-        <p style="color: #1e40af; font-size: 15px; line-height: 1.6; margin: 0 0 12px 0; font-style: italic;">
-          💙 ${todaysMessage.encouragement}
-        </p>
+        <p style="color: #3b82f6; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px 0;">Daily verse</p>
         <p style="color: #1e3a8a; font-size: 14px; line-height: 1.5; margin: 0;">
           <em>"${todaysMessage.verse}"</em><br>
           <span style="color: #3b82f6; font-weight: 600;">— ${todaysMessage.verseRef}</span>
