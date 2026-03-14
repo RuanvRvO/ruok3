@@ -173,13 +173,15 @@ export const getTrends = query({
       const nextDayStart = new Date(dateStr);
       nextDayStart.setDate(nextDayStart.getDate() + 1);
       const dayEndTimestamp = nextDayStart.getTime();
+      // Emails are sent at 1pm UTC (3pm SAST) — only count employees active at send time
+      const emailSendTimestamp = dayStartTimestamp + 13 * 60 * 60 * 1000;
 
       // Count employees that existed on this day (should match how many got emails):
-      // - Created before the day ended
-      // - Either not deleted, or deleted on/after this day started (so they got the email)
+      // - Created before the email was sent
+      // - Either not deleted, or deleted on/after the email send time (so they got the email)
       const employeeCountOnDay = allEmployees.filter(emp => {
-        const wasCreated = emp.createdAt < dayEndTimestamp;
-        const wasNotDeleted = !emp.deletedAt || emp.deletedAt >= dayStartTimestamp;
+        const wasCreated = emp.createdAt < emailSendTimestamp;
+        const wasNotDeleted = !emp.deletedAt || emp.deletedAt >= emailSendTimestamp;
         return wasCreated && wasNotDeleted;
       }).length;
 
@@ -546,23 +548,24 @@ export const getGroupTrends = query({
       const nextDayStart = new Date(dateStr);
       nextDayStart.setDate(nextDayStart.getDate() + 1);
       const dayEndTimestamp = nextDayStart.getTime();
+      // Emails are sent at 1pm UTC (3pm SAST) — only count employees active at send time
+      const emailSendTimestamp = dayStartTimestamp + 13 * 60 * 60 * 1000;
 
       // Calculate group member count on this day (should match how many got emails)
-      // Count memberships that were created before the next day started,
-      // employees that weren't deleted yet, and memberships that weren't removed yet
+      // Count memberships where employee was active at email send time
       const memberCountOnDay = memberships.filter(m => {
         const employee = employeeMap.get(m.employeeId);
         if (!employee) return false;
 
         // If membership has createdAt, use it; otherwise fall back to employee's createdAt
         const effectiveCreatedAt = m.createdAt || employee.createdAt;
-        const wasCreated = effectiveCreatedAt < dayEndTimestamp;
+        const wasCreated = effectiveCreatedAt < emailSendTimestamp;
 
-        // Check if employee was not deleted or was deleted on/after this day started
-        const wasNotDeleted = !employee.deletedAt || employee.deletedAt >= dayStartTimestamp;
+        // Check if employee was not deleted or was deleted on/after the email send time
+        const wasNotDeleted = !employee.deletedAt || employee.deletedAt >= emailSendTimestamp;
 
-        // Check if membership was not removed or was removed on/after this day started
-        const wasNotRemoved = !m.removedAt || m.removedAt >= dayStartTimestamp;
+        // Check if membership was not removed or was removed on/after the email send time
+        const wasNotRemoved = !m.removedAt || m.removedAt >= emailSendTimestamp;
 
         return wasCreated && wasNotDeleted && wasNotRemoved;
       }).length;
@@ -587,13 +590,13 @@ export const getGroupTrends = query({
 
         // If membership has createdAt, use it; otherwise fall back to employee's createdAt
         const effectiveCreatedAt = membership.createdAt || employee.createdAt;
-        const wasCreated = effectiveCreatedAt < dayEndTimestamp;
+        const wasCreated = effectiveCreatedAt < emailSendTimestamp;
 
-        // Check if employee was not deleted or was deleted on/after this day started
-        const wasNotDeleted = !employee.deletedAt || employee.deletedAt >= dayStartTimestamp;
+        // Check if employee was not deleted or was deleted on/after the email send time
+        const wasNotDeleted = !employee.deletedAt || employee.deletedAt >= emailSendTimestamp;
 
-        // Check if membership was not removed or was removed on/after this day started
-        const wasNotRemoved = !membership.removedAt || membership.removedAt >= dayStartTimestamp;
+        // Check if membership was not removed or was removed on/after the email send time
+        const wasNotRemoved = !membership.removedAt || membership.removedAt >= emailSendTimestamp;
 
         return wasCreated && wasNotDeleted && wasNotRemoved;
       });
