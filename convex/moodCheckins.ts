@@ -67,14 +67,19 @@ export const hasSubmittedToday = query({
 // Mutation to update an existing check-in with additional details
 export const updateDetails = mutation({
   args: {
-    employeeId: v.id("employees"),
+    employeeId: v.string(),
     token: v.string(),
     note: v.optional(v.string()),
     isAnonymous: v.optional(v.boolean()),
   },
   returns: v.id("moodCheckins"),
   handler: async (ctx, args) => {
-    const employee = await ctx.db.get(args.employeeId);
+    let employee;
+    try {
+      employee = await ctx.db.get(args.employeeId as Id<"employees">);
+    } catch {
+      throw new Error("Invalid check-in link. Please check your email for the correct link.");
+    }
     if (!employee) {
       throw new Error("Employee not found");
     }
@@ -121,7 +126,7 @@ export const updateDetails = mutation({
 // Mutation to record a mood check-in
 export const record = mutation({
   args: {
-    employeeId: v.id("employees"),
+    employeeId: v.string(),
     token: v.string(),
     mood: v.union(v.literal("green"), v.literal("amber"), v.literal("red")),
     note: v.optional(v.string()),
@@ -129,7 +134,12 @@ export const record = mutation({
   },
   returns: v.id("moodCheckins"),
   handler: async (ctx, args) => {
-    const employee = await ctx.db.get(args.employeeId);
+    let employee;
+    try {
+      employee = await ctx.db.get(args.employeeId as Id<"employees">);
+    } catch {
+      throw new Error("Invalid check-in link. Please check your email for the correct link.");
+    }
 
     if (!employee) {
       throw new Error("Employee not found");
