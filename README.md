@@ -36,3 +36,10 @@ After the initial setup (<2 minutes) you'll have a working full-stack app using:
 - ✅ When signed in, landing page shows "waiting for approval" message if user has no organizations
 - ✅ 3 wrong password timeout - shows clear message with 15 minute wait time and option to reset password
 - ✅ Fixed stuck loading when creating org with new account (now redirects immediately after creation)
+
+
+
+                                                                                        
+  Each subagent has its own context window, custom system prompt, and specific tools.
+
+  Try creating: Code Reviewer, Code Simplifier, Security Reviewer, Tech Lead, or UX Reviewer.

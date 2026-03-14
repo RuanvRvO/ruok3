@@ -3,6 +3,9 @@ import { convexAuth } from "@convex-dev/auth/server";
 import { passwordCrypto } from "./passwordCrypto";
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
+  session: {
+    totalDurationMs: 1000 * 60 * 60 * 24, // 1 day
+  },
   providers: [
     Password({
       profile(params) {
