@@ -230,9 +230,6 @@ export const getTrends = query({
 
       // Calculate timestamps for this day
       const dayStartTimestamp = new Date(dateStr).getTime();
-      const nextDayStart = new Date(dateStr);
-      nextDayStart.setDate(nextDayStart.getDate() + 1);
-      const dayEndTimestamp = nextDayStart.getTime();
       // Emails are sent at 1pm UTC (3pm SAST) — only count employees active at send time
       const emailSendTimestamp = dayStartTimestamp + 13 * 60 * 60 * 1000;
 
@@ -605,9 +602,6 @@ export const getGroupTrends = query({
 
       // Calculate timestamps for this day
       const dayStartTimestamp = new Date(dateStr).getTime();
-      const nextDayStart = new Date(dateStr);
-      nextDayStart.setDate(nextDayStart.getDate() + 1);
-      const dayEndTimestamp = nextDayStart.getTime();
       // Emails are sent at 1pm UTC (3pm SAST) — only count employees active at send time
       const emailSendTimestamp = dayStartTimestamp + 13 * 60 * 60 * 1000;
 

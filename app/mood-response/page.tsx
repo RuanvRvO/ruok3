@@ -76,7 +76,7 @@ export default function MoodResponsePage() {
     };
 
     saveMood();
-  }, [employeeId, mood, recordMood, autoSaved, hasSubmittedToday]);
+  }, [employeeId, mood, token, recordMood, autoSaved, hasSubmittedToday]);
 
   const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
