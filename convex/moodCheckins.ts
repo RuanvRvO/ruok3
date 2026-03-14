@@ -1,8 +1,38 @@
 import { v } from "convex/values";
-import { mutation, query, internalAction, internalQuery } from "./_generated/server";
+import { mutation, query, internalAction, internalQuery, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { Id } from "./_generated/dataModel";
+
+// Internal mutation to store a mood check-in token for an employee (called by sendDailyEmails)
+export const createCheckinToken = internalMutation({
+  args: {
+    employeeId: v.id("employees"),
+    token: v.string(),
+    date: v.string(),
+    expiresAt: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Remove any stale tokens for this employee+date before inserting new one
+    const existing = await ctx.db
+      .query("moodCheckinTokens")
+      .withIndex("by_employee_and_date", (q) =>
+        q.eq("employeeId", args.employeeId).eq("date", args.date)
+      )
+      .collect();
+    for (const t of existing) {
+      await ctx.db.delete(t._id);
+    }
+    await ctx.db.insert("moodCheckinTokens", {
+      employeeId: args.employeeId,
+      token: args.token,
+      date: args.date,
+      expiresAt: args.expiresAt,
+    });
+    return null;
+  },
+});
 
 // Query to check if employee has already submitted today
 export const hasSubmittedToday = query({
@@ -33,6 +63,7 @@ export const hasSubmittedToday = query({
 export const updateDetails = mutation({
   args: {
     employeeId: v.id("employees"),
+    token: v.string(),
     note: v.optional(v.string()),
     isAnonymous: v.optional(v.boolean()),
   },
@@ -44,6 +75,20 @@ export const updateDetails = mutation({
     }
 
     const today = new Date().toISOString().split("T")[0];
+
+    // Validate the check-in token from the email link
+    const checkinToken = await ctx.db
+      .query("moodCheckinTokens")
+      .withIndex("by_token", (q) => q.eq("token", args.token))
+      .first();
+    if (
+      !checkinToken ||
+      checkinToken.employeeId !== args.employeeId ||
+      checkinToken.date !== today ||
+      checkinToken.expiresAt < Date.now()
+    ) {
+      throw new Error("Invalid or expired check-in link. Please check your email for the correct link.");
+    }
 
     // Find today's check-in
     const existingCheckin = await ctx.db
@@ -72,6 +117,7 @@ export const updateDetails = mutation({
 export const record = mutation({
   args: {
     employeeId: v.id("employees"),
+    token: v.string(),
     mood: v.union(v.literal("green"), v.literal("amber"), v.literal("red")),
     note: v.optional(v.string()),
     isAnonymous: v.optional(v.boolean()),
@@ -89,6 +135,20 @@ export const record = mutation({
     }
 
     const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+
+    // Validate the check-in token from the email link
+    const checkinToken = await ctx.db
+      .query("moodCheckinTokens")
+      .withIndex("by_token", (q) => q.eq("token", args.token))
+      .first();
+    if (
+      !checkinToken ||
+      checkinToken.employeeId !== args.employeeId ||
+      checkinToken.date !== today ||
+      checkinToken.expiresAt < Date.now()
+    ) {
+      throw new Error("Invalid or expired check-in link. Please check your email for the correct link.");
+    }
 
     // Check if employee already submitted today
     const existingCheckin = await ctx.db
@@ -1492,9 +1552,20 @@ export const sendDailyEmails = internalAction({
         // Generate unique response URLs for each mood option
         const baseUrl = process.env.SITE_URL || "http://localhost:3000";
 
-        const greenUrl = `${baseUrl}/mood-response?employeeId=${employee._id}&mood=green`;
-        const amberUrl = `${baseUrl}/mood-response?employeeId=${employee._id}&mood=amber`;
-        const redUrl = `${baseUrl}/mood-response?employeeId=${employee._id}&mood=red`;
+        // Generate a daily check-in token for this employee and store it
+        const checkinToken = crypto.randomUUID().replace(/-/g, "");
+        const today = new Date().toISOString().split("T")[0];
+        const tokenExpiry = Date.now() + 36 * 60 * 60 * 1000; // 36 hours
+        await ctx.runMutation(internal.moodCheckins.createCheckinToken, {
+          employeeId: employee._id,
+          token: checkinToken,
+          date: today,
+          expiresAt: tokenExpiry,
+        });
+
+        const greenUrl = `${baseUrl}/mood-response?employeeId=${employee._id}&mood=green&token=${checkinToken}`;
+        const amberUrl = `${baseUrl}/mood-response?employeeId=${employee._id}&mood=amber&token=${checkinToken}`;
+        const redUrl = `${baseUrl}/mood-response?employeeId=${employee._id}&mood=red&token=${checkinToken}`;
 
         // Check if employee's last response was red (needs extra encouragement)
         const lastMood = lastMoods[employee._id as string];

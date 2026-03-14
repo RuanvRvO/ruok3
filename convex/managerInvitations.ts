@@ -250,7 +250,6 @@ export const getInvitationByToken = query({
       organisation: v.string(),
       role: v.union(v.literal("editor"), v.literal("viewer")),
       invitedBy: v.id("users"),
-      token: v.string(),
       status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("expired")),
       invitationType: v.optional(v.union(v.literal("email"), v.literal("link"))),
       createdAt: v.number(),
@@ -268,12 +267,21 @@ export const getInvitationByToken = query({
       return null;
     }
 
-    // Check if expired
-    if (invitation.expiresAt < Date.now()) {
-      return { ...invitation, isExpired: true };
-    }
-
-    return { ...invitation, isExpired: false };
+    // Return invitation details without echoing back the token (caller already has it)
+    const isExpired = invitation.expiresAt < Date.now();
+    return {
+      _id: invitation._id,
+      _creationTime: invitation._creationTime,
+      email: invitation.email,
+      organisation: invitation.organisation,
+      role: invitation.role,
+      invitedBy: invitation.invitedBy,
+      status: invitation.status,
+      invitationType: invitation.invitationType,
+      createdAt: invitation.createdAt,
+      expiresAt: invitation.expiresAt,
+      isExpired,
+    };
   },
 });
 
@@ -307,24 +315,15 @@ export const acceptInvitation = mutation({
     // Allow reuse of invitations - only check if expired, not if already used
     // Invitations can be used by multiple people until they expire
 
-    // Get user to get their email
-    // Wait a bit for user record to be fully created (especially for new signups)
-    // Increase wait time and attempts for new signups which may take longer
-    let user = await ctx.db.get(args.userId);
-    let attempts = 0;
-    const maxAttempts = 30; // Increased from 10 to 30
-    while ((!user || !user.email) && attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 200)); // Increased from 100ms to 200ms
-      user = await ctx.db.get(args.userId);
-      attempts++;
-    }
-    
+    // Get user to verify their email
+    const user = await ctx.db.get(args.userId);
+
     if (!user) {
-      throw new Error(`User not found with ID: ${args.userId}. The user record may not have been created yet.`);
+      throw new Error("User not found. Please try signing in again.");
     }
-    
+
     if (!user.email) {
-      throw new Error(`User found but email is not set. User ID: ${args.userId}. Please wait a moment and try again.`);
+      throw new Error("User email is not set. Please try signing in again.");
     }
 
     // Auto-approve any pending access requests for this invitation and email
@@ -350,7 +349,31 @@ export const acceptInvitation = mutation({
       });
     }
 
-    // Enforce single-use for email-based invitations
+    // Check if user already has a membership BEFORE enforcing single-use rules.
+    const existingMembership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", args.userId).eq("organisation", invitation.organisation)
+      )
+      .first();
+
+    if (existingMembership) {
+      const existingRoleLevel = ROLE_HIERARCHY[existingMembership.role] || 0;
+      const invitationRoleLevel = ROLE_HIERARCHY[invitation.role] || 0;
+
+      if (existingRoleLevel >= invitationRoleLevel) {
+        return {
+          success: true,
+          alreadyHasAccess: true,
+          existingRole: existingMembership.role,
+        };
+      }
+
+      await ctx.db.patch(existingMembership._id, { role: invitation.role });
+      return { success: true, upgraded: true };
+    }
+
+    // Enforce email matching for email-based invitations (only when user lacks membership)
     if (invitation.invitationType === "email") {
       const invitationEmail = invitation.email?.toLowerCase().trim();
 
@@ -362,41 +385,11 @@ export const acceptInvitation = mutation({
         throw new Error("This invitation is for a different email address");
       }
 
-      if (invitation.status === "accepted") {
-        throw new Error("This invitation has already been used");
-      }
+      // Do NOT block on invitation.status === "accepted" here.
+      // Email match already proves this invitation is for this specific user.
     }
 
-    // Check if user already has a membership for this organization
-    const existingMembership = await ctx.db
-      .query("organizationMemberships")
-      .withIndex("by_user_and_org", (q) =>
-        q.eq("userId", args.userId).eq("organisation", invitation.organisation)
-      )
-      .first();
-
-    if (existingMembership) {
-      const existingRoleLevel = ROLE_HIERARCHY[existingMembership.role] || 0;
-      const invitationRoleLevel = ROLE_HIERARCHY[invitation.role] || 0;
-      
-      // Check if user already has equal or higher access
-      if (existingRoleLevel >= invitationRoleLevel) {
-        // Return success but with a message indicating they already have access
-        // Don't throw an error - just return gracefully
-        return { 
-          success: true, 
-          alreadyHasAccess: true,
-          existingRole: existingMembership.role 
-        };
-      }
-      
-      // User has lower access, upgrade their role
-      await ctx.db.patch(existingMembership._id, {
-        role: invitation.role,
-      });
-      
-      return { success: true, upgraded: true };
-    } else {
+    {
       // Create organization membership for the user
       const membershipId = await ctx.db.insert("organizationMemberships", {
         userId: args.userId,
@@ -476,7 +469,34 @@ export const acceptInvitationForExistingUser = mutation({
       });
     }
 
-    // Enforce single-use for email-based invitations
+    // Check if user already has access BEFORE enforcing single-use rules.
+    // If they're already a member (e.g. they accepted before and are re-clicking
+    // the link), just return gracefully instead of throwing.
+    const existingMembership = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user_and_org", (q) =>
+        q.eq("userId", userId).eq("organisation", invitation.organisation)
+      )
+      .first();
+
+    if (existingMembership) {
+      const existingRoleLevel = ROLE_HIERARCHY[existingMembership.role] || 0;
+      const invitationRoleLevel = ROLE_HIERARCHY[invitation.role] || 0;
+
+      if (existingRoleLevel >= invitationRoleLevel) {
+        return {
+          success: true,
+          alreadyHasAccess: true,
+          existingRole: existingMembership.role,
+        };
+      }
+
+      // Upgrade to the higher role granted by the invitation
+      await ctx.db.patch(existingMembership._id, { role: invitation.role });
+      return { success: true, upgraded: true };
+    }
+
+    // Enforce email matching for email-based invitations (only when user lacks membership)
     if (invitation.invitationType === "email") {
       const invitationEmail = invitation.email?.toLowerCase().trim();
 
@@ -488,40 +508,9 @@ export const acceptInvitationForExistingUser = mutation({
         throw new Error("This invitation is for a different email address");
       }
 
-      if (invitation.status === "accepted") {
-        throw new Error("This invitation has already been used");
-      }
-    }
-
-    // Check if user already has access to this organization
-    const existingMembership = await ctx.db
-      .query("organizationMemberships")
-      .withIndex("by_user_and_org", (q) =>
-        q.eq("userId", userId).eq("organisation", invitation.organisation)
-      )
-      .first();
-
-    if (existingMembership) {
-      const existingRoleLevel = ROLE_HIERARCHY[existingMembership.role] || 0;
-      const invitationRoleLevel = ROLE_HIERARCHY[invitation.role] || 0;
-      
-      // Check if user already has equal or higher access
-      if (existingRoleLevel >= invitationRoleLevel) {
-        // Return success but with a message indicating they already have access
-        // Don't throw an error - just return gracefully
-        return { 
-          success: true, 
-          alreadyHasAccess: true,
-          existingRole: existingMembership.role 
-        };
-      }
-      
-      // User has lower access, upgrade their role
-      await ctx.db.patch(existingMembership._id, {
-        role: invitation.role,
-      });
-      
-      return { success: true, upgraded: true };
+      // Do NOT block on invitation.status === "accepted" here.
+      // The email match above already proves this invitation is for this specific user.
+      // Blocking on status would prevent re-acceptance after account deletion removes membership.
     }
 
     // Create organization membership for this user

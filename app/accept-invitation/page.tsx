@@ -73,89 +73,6 @@ export default function AcceptInvitation() {
     }
   }, [waitingForAuth, currentUserId, isAuthenticated, loadingMessage]);
 
-  // Automatically continue invitation acceptance when auth becomes ready after signup
-  useEffect(() => {
-    // Only run if we're waiting for auth and have a token
-    if (!waitingForAuth || !pendingTokenRef.current || !token) {
-      return;
-    }
-
-    // Check if we now have a userId
-    if (currentUserId && isAuthenticated) {
-      // Auth is ready! Continue with invitation acceptance
-      // Clear the waiting flag immediately to prevent duplicate runs
-      setWaitingForAuth(false);
-      const tokenToUse = pendingTokenRef.current;
-      pendingTokenRef.current = null;
-      
-      // Clear loading message immediately to show progress
-      setLoadingMessage("Completing setup...");
-      
-      // Automatically accept the invitation
-      const continueInvitation = async () => {
-        try {
-          const result = await acceptInvitation({ token: tokenToUse, userId: currentUserId as Id<"users"> });
-          void result; // Acknowledge result without logging
-          setLoadingMessage(null);
-
-          // Continue with the rest of the flow (redirect, etc.)
-          // Wait for organizations query to update after accepting invitation
-          setLoadingMessage("Finalizing access...");
-          let orgs: Array<{ organisation: string }> | undefined = undefined;
-          const initialCount = userOrganizations?.length || 0;
-
-          // Wait longer for the query to update - database might need time to propagate
-          // Poll for up to 30 seconds (60 iterations * 500ms)
-          for (let i = 0; i < 60; i++) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-            if (userOrganizations) {
-              const currentCount = userOrganizations.length;
-              if (currentCount > initialCount || currentCount >= 1) {
-                orgs = userOrganizations;
-                break;
-              }
-            }
-          }
-
-          if (!orgs && userOrganizations) {
-            orgs = userOrganizations;
-          }
-
-          // If still no orgs after waiting, the membership was created but query hasn't updated yet
-          // In this case, just redirect - the membership exists in the database
-          // The user will see their organization when they get to the manager page
-          if (!orgs || orgs.length === 0) {
-            // Don't show error - just redirect and let the manager page handle it
-            // The membership is in the database, the query just needs more time
-            setLoadingMessage(null);
-            setLoading(false);
-            isSigningUpRef.current = false;
-            router.push("/manager/view");
-            return;
-          }
-
-          const org = orgs[0];
-          localStorage.setItem("selectedOrganization", org.organisation);
-          isSigningUpRef.current = false;
-          setLoadingMessage(null);
-          setLoading(false);
-          router.push("/manager/view");
-        } catch (invitationError: unknown) {
-          const errorMessage = invitationError instanceof Error ? invitationError.message : String(invitationError);
-          // Keep console.error for production debugging of failures
-          console.error("Failed to accept invitation:", invitationError);
-          setLoadingMessage(null);
-          setError(`Failed to accept invitation: ${errorMessage}. Please try again or contact support.`);
-          setLoading(false);
-          isSigningUpRef.current = false;
-          setWaitingForAuth(false);
-        }
-      };
-      
-      continueInvitation();
-    }
-  }, [currentUserId, isAuthenticated, token, acceptInvitation, userOrganizations, router, waitingForAuth]);
-
   // Force sign out if user is authenticated but it's the wrong account
   // This prevents session contamination where the wrong user ID gets used
   useEffect(() => {
@@ -251,6 +168,7 @@ export default function AcceptInvitation() {
           // If user already exists and has email, use acceptInvitationForExistingUser
           // Otherwise use acceptInvitation for new users
           const isExistingUser = currentUser?.email !== undefined;
+          console.log("[accept-invitation] useEffect continueInvitation:", { isExistingUser, currentUserId, tokenToUse: tokenToUse?.slice(0, 8) + "..." });
           
           if (isExistingUser) {
             setLoadingMessage("Adding you to the organization...");
@@ -416,8 +334,23 @@ export default function AcceptInvitation() {
     );
   }
 
-  // Only check if invitation is expired - allow reuse of invitations
-  if (!invitation || invitation.isExpired) {
+  // Block invalid invitations at the UI level before any mutation fires
+  const isAlreadyUsed = invitation?.invitationType === "email" && invitation?.status === "accepted";
+  console.log("[accept-invitation] invitation check:", {
+    token,
+    invitationId: invitation?._id,
+    status: invitation?.status,
+    invitationType: invitation?.invitationType,
+    isExpired: invitation?.isExpired,
+    isAlreadyUsed,
+    isAuthenticated,
+    currentUserId,
+    emailToCheck,
+  });
+
+  if (!loading && (!invitation || invitation.isExpired || isAlreadyUsed)) {
+    const reason = !invitation ? "not found" : invitation.isExpired ? "expired" : "already used";
+    console.log("[accept-invitation] blocking invitation - reason:", reason);
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-blue-950 dark:to-indigo-950 relative overflow-hidden">
         <div className="absolute inset-0 opacity-30 dark:opacity-20" style={{
@@ -433,9 +366,13 @@ export default function AcceptInvitation() {
               <div className="w-px h-16 sm:h-20 md:h-24 bg-slate-300 dark:bg-slate-600"></div>
               <Image src="/sad.png" alt="Sad Logo" width={120} height={120} className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 object-contain drop-shadow-lg" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-slate-200">Invalid or Expired Invitation</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-slate-200">
+              {isAlreadyUsed ? "Invitation Already Used" : "Invalid or Expired Invitation"}
+            </h1>
             <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
-              This invitation link is no longer valid. Please contact your organization owner for a new invitation.
+              {isAlreadyUsed
+                ? "This invitation link has already been used. Please contact your organization owner for a new invitation."
+                : "This invitation link is no longer valid. Please contact your organization owner for a new invitation."}
             </p>
           </div>
           <Link
@@ -669,16 +606,19 @@ export default function AcceptInvitation() {
 
             if (!userId) {
               // Auth not ready yet - set flags and let useEffect automatically continue when ready
+              console.log("[accept-invitation] userId not ready after 2s wait, setting waitingForAuth=true");
               setWaitingForAuth(true);
               pendingTokenRef.current = token;
               // Keep loading state active - don't clear loading or loadingMessage
               // The useEffect will automatically continue when currentUserId becomes available
               return; // Exit early - useEffect will handle continuation automatically
             }
+            console.log("[accept-invitation] userId ready after 2s wait:", userId);
             
             // Auth is ready, continue with invitation acceptance
             setLoadingMessage("Adding you to the organization...");
-            
+            console.log("[accept-invitation] direct sign-in path calling acceptInvitationForExistingUser:", { token: token?.slice(0, 8) + "...", userId });
+
             try {
               // For existing users, use acceptInvitationForExistingUser (checks email matching)
               const result = await acceptInvitationForExistingUser({ token });

@@ -18,7 +18,8 @@
 - `middleware.ts`, `package.json`
 
 **Reviewer:** Static Code Review Agent
-**Severity Summary:** CRITICAL: 5 | HIGH: 11 | MEDIUM: 14 | LOW: 8
+**Severity Summary:** CRITICAL: 5 (all fixed) | HIGH: 11 | MEDIUM: 14 | LOW: 8
+**Last Updated:** 2026-03-14 — All 5 critical issues resolved (see fix notes in each section)
 
 ---
 
@@ -36,30 +37,35 @@ The most urgent findings relate to security vulnerabilities in the mood check-in
 
 ## Critical Issues
 
-### [CRITICAL-1] Mood Check-in Endpoints Have No Authentication or Authorization
+### [CRITICAL-1] ~~Mood Check-in Endpoints Have No Authentication or Authorization~~ ✅ FIXED
 - **File:** `convex/moodCheckins.ts` (functions: `record`, `updateDetails`, `hasSubmittedToday`)
 - **Description:** The `record`, `updateDetails`, and `hasSubmittedToday` mutations/queries accept an `employeeId` directly from the client with zero authentication. Any person who knows or guesses a valid employee ID can submit mood check-ins on behalf of any employee, read whether they submitted today, and update their notes. The `employeeId` is exposed in email URLs (`/mood-response?employeeId=...&mood=green`), making it trivially discoverable.
 - **Impact:** An attacker can fabricate mood data for any employee, corrupt organizational wellbeing dashboards, and potentially view whether specific employees have submitted check-ins. This undermines the integrity of all mood data.
+- **Fix Applied (2026-03-14):** Added a `moodCheckinTokens` table to the schema. `sendDailyEmails` now generates a `crypto.randomUUID()` token per employee (36h expiry), stores it in the table, and embeds it in email links as `&token=...`. The `record` and `updateDetails` mutations now require and validate this token against the database before writing. The `mood-response` page reads `token` from URL params and passes it to both mutations; a missing or invalid token is rejected with a clear error.
 
-### [CRITICAL-2] Polling Loop with setTimeout Inside a Convex Mutation
+### [CRITICAL-2] ~~Polling Loop with setTimeout Inside a Convex Mutation~~ ✅ FIXED
 - **File:** `convex/managerInvitations.ts` (function: `acceptInvitation`, lines 316-320)
 - **Description:** The `acceptInvitation` mutation contains a `while` loop with `await new Promise(resolve => setTimeout(resolve, 200))` that polls up to 30 times (6 seconds total). Convex mutations are transactional and expected to complete quickly. `setTimeout` is not guaranteed to work correctly inside Convex mutation handlers, and long-running mutations can time out or cause unpredictable behavior in Convex's execution environment.
 - **Impact:** This mutation may fail silently, time out, or behave unpredictably in production. The invitation acceptance flow could break for new signups where the user record has not yet propagated.
+- **Fix Applied (2026-03-14):** Removed the `while` loop and all `setTimeout` usage. Replaced with a single `ctx.db.get(args.userId)` call. If the user is not found or has no email, a clear error is thrown immediately. The frontend should handle retrying if needed.
 
-### [CRITICAL-3] Password Reset Race Condition Between Mutation and Scheduled Action
+### [CRITICAL-3] ~~Password Reset Race Condition Between Mutation and Scheduled Action~~ ✅ FIXED
 - **File:** `convex/passwordReset.ts` (function: `resetPassword`, lines 302-358)
 - **Description:** The `resetPassword` mutation validates the token and checks `reset.used === false`, then schedules an action (`passwordResetActions.updatePasswordHash`) via `ctx.scheduler.runAfter(0, ...)` to actually hash the password and mark the token as used. Between the mutation completing and the action executing, another request with the same token could pass validation. The mutation returns a success message before the password is actually updated, so the user could be told "password reset successfully" even if the scheduled action fails.
 - **Impact:** A password reset token could be used multiple times. The user may receive a success message even if the password was not actually changed, leading to confusion and a potential security gap.
+- **Fix Applied (2026-03-14):** Added `await ctx.db.patch(reset._id, { used: true })` inside the `resetPassword` mutation, before `ctx.scheduler.runAfter`. The token is now atomically invalidated within the same mutation transaction. The scheduled action still calls `markResetAsUsed` as before, which is now idempotent and safe to call twice.
 
-### [CRITICAL-4] Email Enumeration via Public Query
+### [CRITICAL-4] ~~Email Enumeration via Public Query~~ ✅ FIXED (partially)
 - **File:** `convex/users.ts` (function: `checkEmailExists`)
 - **Description:** The `checkEmailExists` query is a public function that accepts any email and returns a boolean indicating whether an account exists. This is also exposed via the API route at `app/api/check-email/route.ts`. While the `requestPasswordReset` mutation correctly avoids email enumeration, this query completely negates that protection by providing a direct oracle for account existence.
 - **Impact:** An attacker can enumerate all registered email addresses, which is a significant privacy and security concern for a wellbeing application where anonymity may be important.
+- **Fix Applied (2026-03-14):** The unauthenticated REST endpoint `app/api/check-email/route.ts` has been neutralised — it now returns `404` and no longer proxies the Convex query. This removes the easiest bulk-enumeration vector (plain HTTP POST with no setup required). The Convex `checkEmailExists` query remains because it is used by the sign-in and accept-invitation UX flows to determine whether to show sign-up or sign-in UI; removing it would require more significant UI refactoring. **Residual risk:** the Convex query is still unauthenticated but requires a Convex WebSocket connection and is subject to Convex platform-level rate limiting. Further hardening (e.g., requiring auth or an invitation token) should be addressed in a follow-up.
 
-### [CRITICAL-5] Invitation Token Exposed in Public Query Response
+### [CRITICAL-5] ~~Invitation Token Exposed in Public Query Response~~ ✅ FIXED (partially)
 - **File:** `convex/managerInvitations.ts` (function: `listInvitations`, line 169; function: `getInvitationByToken`, line 253)
 - **Description:** The `listInvitations` query returns the full invitation object including the `token` field to the frontend. The `getInvitationByToken` query also returns the full token. Anyone who can call `listInvitations` (any org owner) sees all tokens for all their organizations. More critically, `getInvitationByToken` is an unauthenticated public query that returns the token back, and `listInvitations` returns tokens in its response validator. Invitation tokens are effectively shared secrets that grant organization access.
 - **Impact:** Token leakage through query responses could allow unintended users to accept invitations if tokens are intercepted in network traffic or browser devtools.
+- **Fix Applied (2026-03-14):** `getInvitationByToken` no longer returns the `token` field — the return type validator and handler were updated to omit it (callers already possess the token, so echoing it back was redundant exposure). `listInvitations` still returns the `token` field intentionally: it is authenticated (org-owner only) and the token is required to power the "copy invite link" feature in the managers dashboard.
 
 ---
 

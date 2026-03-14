@@ -11,6 +11,7 @@ export default function MoodResponsePage() {
   const searchParams = useSearchParams();
   const employeeId = searchParams.get("employeeId");
   const mood = searchParams.get("mood") as "green" | "amber" | "red" | null;
+  const token = searchParams.get("token") ?? "";
 
   const [note, setNote] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -29,7 +30,7 @@ export default function MoodResponsePage() {
   // Check if already submitted and auto-save mood
   useEffect(() => {
     // Early validation - use queueMicrotask to avoid synchronous setState
-    if (!employeeId || !mood || !["green", "amber", "red"].includes(mood)) {
+    if (!employeeId || !mood || !token || !["green", "amber", "red"].includes(mood)) {
       queueMicrotask(() => {
         setError("Invalid link. Please check your email for the correct link.");
       });
@@ -53,6 +54,7 @@ export default function MoodResponsePage() {
       try {
         await recordMood({
           employeeId: employeeId as Id<"employees">,
+          token,
           mood: mood,
         });
         setAutoSaved(true);
@@ -84,6 +86,7 @@ export default function MoodResponsePage() {
     try {
       await updateDetails({
         employeeId: employeeId as Id<"employees">,
+        token,
         note: note.trim() || undefined,
         isAnonymous: isAnonymous,
       });

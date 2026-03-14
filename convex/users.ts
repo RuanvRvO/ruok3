@@ -60,6 +60,50 @@ export const getCurrentUserId = query({
 });
 
 
+// Mutation to permanently delete the current user's account and all associated data
+export const deleteAccount = mutation({
+  args: {},
+  returns: v.object({ success: v.literal(true) }),
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    // Delete all organization memberships
+    const memberships = await ctx.db
+      .query("organizationMemberships")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const membership of memberships) {
+      await ctx.db.delete(membership._id);
+    }
+
+    // Delete all password reset tokens for this user
+    const passwordResets = await ctx.db
+      .query("passwordResets")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const reset of passwordResets) {
+      await ctx.db.delete(reset._id);
+    }
+
+    // Delete auth accounts (removes stored password credentials)
+    const authAccounts = await ctx.db
+      .query("authAccounts")
+      .withIndex("userIdAndProvider", (q) => q.eq("userId", userId))
+      .collect();
+    for (const account of authAccounts) {
+      await ctx.db.delete(account._id);
+    }
+
+    // Delete the user record last
+    await ctx.db.delete(userId);
+
+    return { success: true as const };
+  },
+});
+
 // Mutation to update user account details (name, surname only)
 export const updateAccount = mutation({
   args: {

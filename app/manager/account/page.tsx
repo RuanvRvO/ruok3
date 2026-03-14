@@ -4,12 +4,17 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Save } from "lucide-react";
+import { Save, Trash2, AlertTriangle } from "lucide-react";
+import { useAuthActions } from "@convex-dev/auth/react";
+import { useRouter } from "next/navigation";
 
 export default function AccountSettingsPage() {
   const user = useQuery(api.users.getCurrentUser);
   const organizations = useQuery(api.organizationMemberships.getUserOrganizations);
   const updateAccount = useMutation(api.users.updateAccount);
+  const deleteAccount = useMutation(api.users.deleteAccount);
+  const { signOut } = useAuthActions();
+  const router = useRouter();
 
   const [name, setName] = useState("");
   const [surname, setSurname] = useState("");
@@ -20,6 +25,11 @@ export default function AccountSettingsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Populate form when user data loads
   useEffect(() => {
@@ -72,6 +82,20 @@ export default function AccountSettingsPage() {
       setError(message);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteAccount({});
+      await signOut();
+      router.push("/");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to delete account";
+      setDeleteError(message);
+      setIsDeleting(false);
     }
   };
 
@@ -242,6 +266,97 @@ export default function AccountSettingsPage() {
           )}
         </form>
       </div>
+
+      {/* Danger Zone */}
+      <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-red-200 dark:border-red-900/50 rounded-xl p-6 shadow-sm">
+        <h2 className="font-semibold text-xl text-red-600 dark:text-red-400 mb-2">
+          Danger Zone
+        </h2>
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">
+          Permanently delete your account and all associated data. This action cannot be undone.
+        </p>
+        <Button
+          type="button"
+          onClick={() => {
+            setDeleteConfirmText("");
+            setDeleteError(null);
+            setShowDeleteDialog(true);
+          }}
+          className="bg-red-600 hover:bg-red-700 text-white flex items-center gap-2"
+        >
+          <Trash2 className="size-4" />
+          Delete Account
+        </Button>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => !isDeleting && setShowDeleteDialog(false)}
+          />
+
+          {/* Dialog */}
+          <div className="relative bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 w-full max-w-md p-6 flex flex-col gap-5">
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <AlertTriangle className="size-5 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg text-slate-900 dark:text-slate-100">
+                  Delete your account?
+                </h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                  This will permanently remove your account, all organization memberships, and login credentials. <strong>This cannot be undone.</strong>
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Type <span className="font-mono font-bold text-red-600 dark:text-red-400">I am sure</span> to confirm
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="I am sure"
+                disabled={isDeleting}
+                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 disabled:opacity-50"
+                autoFocus
+              />
+            </div>
+
+            {deleteError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="flex gap-3 justify-end">
+              <Button
+                type="button"
+                onClick={() => setShowDeleteDialog(false)}
+                disabled={isDeleting}
+                className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-900 dark:text-slate-100"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirmText !== "I am sure" || isDeleting}
+                className="bg-red-600 hover:bg-red-700 text-white flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Trash2 className="size-4" />
+                {isDeleting ? "Deleting..." : "Delete Account"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

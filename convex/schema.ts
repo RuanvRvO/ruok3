@@ -99,6 +99,15 @@ const schema = defineSchema({
     .index("by_organisation", ["organisation"])
     .index("by_status", ["status"])
     .index("by_organisation_and_status", ["organisation", "status"]),
+  // One-time tokens included in daily email links to authenticate mood check-ins
+  moodCheckinTokens: defineTable({
+    employeeId: v.id("employees"),
+    token: v.string(),
+    date: v.string(), // YYYY-MM-DD
+    expiresAt: v.number(),
+  })
+    .index("by_token", ["token"])
+    .index("by_employee_and_date", ["employeeId", "date"]),
 });
 
 export default schema;

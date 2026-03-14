@@ -345,8 +345,12 @@ export const resetPassword = mutation({
       throw new Error("Authentication account not found");
     }
 
-    // Call internal action to hash the new password with bcrypt (requires Node.js)
-    // The action will update the password hash and mark the token as used.
+    // Mark the token as used immediately within this atomic mutation to prevent
+    // race conditions where the same token is used twice before the action runs.
+    await ctx.db.patch(reset._id, { used: true });
+
+    // Call internal action to hash the new password with bcrypt (requires Node.js).
+    // The action will also call markResetAsUsed (idempotent — safe to call twice).
     await ctx.scheduler.runAfter(0, internal.passwordResetActions.updatePasswordHash, {
       accountId: authAccount._id,
       newPassword: args.newPassword,

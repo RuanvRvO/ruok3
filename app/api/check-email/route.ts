@@ -1,19 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { fetchQuery } from "convex/nextjs";
-import { api } from "../../../convex/_generated/api";
+import { NextResponse } from "next/server";
 
-export async function POST(request: NextRequest) {
-  try {
-    const { email } = await request.json();
-
-    if (!email) {
-      return NextResponse.json({ exists: false }, { status: 400 });
-    }
-
-    const exists = await fetchQuery(api.users.checkEmailExists, { email });
-
-    return NextResponse.json({ exists });
-  } catch {
-    return NextResponse.json({ exists: false }, { status: 500 });
-  }
+// This endpoint has been removed to prevent unauthenticated email enumeration.
+// Email existence checks now go through Convex directly with rate limiting applied
+// by the Convex platform. See convex/users.ts checkEmailExists query.
+export async function POST() {
+  return NextResponse.json({ exists: false }, { status: 404 });
 }

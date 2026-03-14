@@ -85,8 +85,11 @@ export default function SignIn() {
           localStorage.setItem("selectedOrganization", org.organisation);
         }
 
-        // Always redirect to manager view (sidebar will show all orgs)
-        router.push("/manager/view");
+        // Always redirect to manager view (sidebar will show all orgs).
+        // Use window.location.replace instead of router.push so the browser
+        // sends a fresh HTTP request — this ensures the ConvexAuth session
+        // cookie is fully set before the new page reads auth state.
+        window.location.replace("/manager/view");
       } catch (err) {
         const message =
           (err as Error)?.message?.toString().trim() ||
@@ -327,7 +330,7 @@ export default function SignIn() {
 
                 // Redirect to returnTo URL if present
                 if (returnTo) {
-                  router.push(returnTo);
+                  window.location.replace(returnTo);
                   return;
                 }
 
@@ -352,8 +355,9 @@ export default function SignIn() {
                   localStorage.setItem("selectedOrganization", org.organisation);
                 }
 
-                // Always redirect to manager view (sidebar will show all orgs)
-                router.push("/manager/view");
+                // Use window.location.replace so the browser sends a fresh HTTP
+                // request with the session cookie properly set.
+                window.location.replace("/manager/view");
               });
           }}
         >
