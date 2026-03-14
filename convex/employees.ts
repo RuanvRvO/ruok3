@@ -54,6 +54,10 @@ export const add = mutation({
     email: v.string(),
     organisation: v.string(),
   },
+  returns: v.union(
+    v.object({ success: v.literal(false), error: v.string() }),
+    v.object({ success: v.literal(true), employeeId: v.id("employees") })
+  ),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -109,6 +113,7 @@ export const remove = mutation({
     employeeId: v.id("employees"),
     organisation: v.string(),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -157,6 +162,8 @@ export const remove = mutation({
     await ctx.db.patch(args.employeeId, {
       deletedAt: Date.now(),
     });
+
+    return null;
   },
 });
 

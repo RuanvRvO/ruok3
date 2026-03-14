@@ -19,7 +19,9 @@ function generateToken(): string {
 export const requestPasswordReset = mutation({
   args: {
     email: v.string(),
+    baseUrl: v.optional(v.string()),
   },
+  returns: v.object({ success: v.literal(true), message: v.string() }),
   handler: async (ctx, args) => {
     // Find user by email
     const user = await ctx.db
@@ -34,13 +36,14 @@ export const requestPasswordReset = mutation({
     }
 
     // Check if there's a recent password reset request (within last 5 minutes)
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
     const recentReset = await ctx.db
       .query("passwordResets")
       .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .filter((q) => 
+      .filter((q) =>
         q.and(
           q.eq(q.field("used"), false),
-          q.gt(q.field("expiresAt"), Date.now())
+          q.gt(q.field("createdAt"), fiveMinutesAgo)
         )
       )
       .first();
@@ -67,6 +70,7 @@ export const requestPasswordReset = mutation({
     await ctx.scheduler.runAfter(0, internal.passwordReset.sendPasswordResetEmail, {
       email: args.email.toLowerCase().trim(),
       token,
+      baseUrl: args.baseUrl,
     });
 
     return { success: true, message: "If an account with this email exists, a password reset link has been sent." };
@@ -78,6 +82,7 @@ export const sendPasswordResetEmail = internalAction({
   args: {
     email: v.string(),
     token: v.string(),
+    baseUrl: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ success: boolean; error?: string }> => {
     const resendApiKey = process.env.RESEND_API_KEY;
@@ -85,8 +90,8 @@ export const sendPasswordResetEmail = internalAction({
       return { success: false, error: "Resend API key not configured" };
     }
 
-    // Remove trailing slash from baseUrl if present
-    let baseUrl = process.env.SITE_URL || "http://localhost:3000";
+    // Priority: caller-provided baseUrl > SITE_URL env var > localhost fallback
+    let baseUrl = args.baseUrl || process.env.SITE_URL || "http://localhost:3000";
     if (baseUrl.endsWith('/')) {
       baseUrl = baseUrl.slice(0, -1);
     }
@@ -164,7 +169,6 @@ export const getAuthAccount = internalQuery({
   args: {
     accountId: v.id("authAccounts"),
   },
-  returns: v.union(v.null(), v.any()),
   handler: async (ctx, args) => {
     return await ctx.db.get(args.accountId);
   },
@@ -300,6 +304,7 @@ export const resetPassword = mutation({
     token: v.string(),
     newPassword: v.string(),
   },
+  returns: v.object({ success: v.literal(true), message: v.string() }),
   handler: async (ctx, args) => {
     // Validate password length
     if (args.newPassword.length < 8) {
@@ -316,20 +321,11 @@ export const resetPassword = mutation({
       throw new Error("Invalid reset token");
     }
 
-    // Check if token is already used - but allow retry if password update failed
-    // We'll check again in the action to prevent race conditions
     if (reset.used) {
-      // Give a small delay to check if action is still processing
-      // This handles the case where the action marked it as used but password update failed
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const resetCheck = await ctx.db.get(reset._id);
-      if (resetCheck?.used) {
-        throw new Error("This password reset link has already been used");
-      }
+      throw new Error("This password reset link has already been used");
     }
 
     if (reset.expiresAt < Date.now()) {
-      await ctx.db.patch(reset._id, { used: true });
       throw new Error("This password reset link has expired");
     }
 
@@ -339,56 +335,24 @@ export const resetPassword = mutation({
       throw new Error("User not found");
     }
 
-    // Get the auth account for this user
-    // Convex Auth stores accounts in authAccounts table
-    // The userId field links to the user's _id
+    // Get the auth account for this user using the userIdAndProvider index
     const authAccount = await ctx.db
       .query("authAccounts")
-      .filter((q) => q.eq(q.field("userId"), reset.userId))
+      .withIndex("userIdAndProvider", (q) => q.eq("userId", reset.userId))
       .first();
 
     if (!authAccount) {
       throw new Error("Authentication account not found");
     }
 
-    // Convex Auth Password provider stores the password hash in the account's data
-    // We need to update the password hash directly
-    // The Password provider uses bcrypt to hash passwords
-    // We'll need to import bcrypt and hash the new password
-    
-    // Import bcrypt (we'll need to add it to package.json if not already there)
-    // For now, let's use a workaround: we'll use the auth system's ability to update
-    // Actually, the best approach is to use the Password provider's internal methods
-    
-    // Since we can't directly access the Password provider's hash function,
-    // we'll use a workaround: delete the old account and the user will need to sign up again
-    // But that's not ideal. Let me try a different approach:
-    
-    // We can use the store.updateAccount method from Convex Auth
-    // But that requires the account object
-    
-    // Actually, the simplest solution is to use bcrypt to hash the password
-    // and update it directly in the authAccounts table
-    // But we need to ensure we're using the same hashing method as Convex Auth
-    
-    // For now, let's implement a solution that uses Node's crypto or bcrypt
-    // We'll need to hash the password the same way Convex Auth does
-    
-    // Let me use a simpler approach: we'll call an internal action that can use bcrypt
-    // to hash the password and update the account
-    
-    // Call internal action to update the password hash
-    // We need to use an action because we need bcrypt which requires Node.js
-    // The action will mark the token as used after successfully updating the password
+    // Call internal action to hash the new password with bcrypt (requires Node.js)
+    // The action will update the password hash and mark the token as used.
     await ctx.scheduler.runAfter(0, internal.passwordResetActions.updatePasswordHash, {
       accountId: authAccount._id,
       newPassword: args.newPassword,
       resetId: reset._id,
     });
-    
-    // Return success immediately - the action will handle marking the token as used
-    // Note: The password update happens asynchronously, but we return success
-    // to provide immediate feedback. If the update fails, the token won't be marked as used.
+
     return { success: true, message: "Password has been reset successfully. Please sign in with your new password." };
   },
 });

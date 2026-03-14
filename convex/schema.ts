@@ -69,6 +69,7 @@ const schema = defineSchema({
     date: v.string(), // YYYY-MM-DD format for easy querying
   })
     .index("by_employee", ["employeeId"])
+    .index("by_employee_and_date", ["employeeId", "date"])
     .index("by_organisation", ["organisation"])
     .index("by_date", ["date"])
     .index("by_organisation_and_date", ["organisation", "date"]),

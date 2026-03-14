@@ -20,10 +20,9 @@ export const hasSubmittedToday = query({
 
     const existingCheckin = await ctx.db
       .query("moodCheckins")
-      .withIndex("by_organisation_and_date", (q) =>
-        q.eq("organisation", employee.organisation).eq("date", today)
+      .withIndex("by_employee_and_date", (q) =>
+        q.eq("employeeId", args.employeeId).eq("date", today)
       )
-      .filter((q) => q.eq(q.field("employeeId"), args.employeeId))
       .first();
 
     return existingCheckin !== null;
@@ -37,6 +36,7 @@ export const updateDetails = mutation({
     note: v.optional(v.string()),
     isAnonymous: v.optional(v.boolean()),
   },
+  returns: v.id("moodCheckins"),
   handler: async (ctx, args) => {
     const employee = await ctx.db.get(args.employeeId);
     if (!employee) {
@@ -48,10 +48,9 @@ export const updateDetails = mutation({
     // Find today's check-in
     const existingCheckin = await ctx.db
       .query("moodCheckins")
-      .withIndex("by_organisation_and_date", (q) =>
-        q.eq("organisation", employee.organisation).eq("date", today)
+      .withIndex("by_employee_and_date", (q) =>
+        q.eq("employeeId", args.employeeId).eq("date", today)
       )
-      .filter((q) => q.eq(q.field("employeeId"), args.employeeId))
       .first();
 
     if (!existingCheckin) {
@@ -77,6 +76,7 @@ export const record = mutation({
     note: v.optional(v.string()),
     isAnonymous: v.optional(v.boolean()),
   },
+  returns: v.id("moodCheckins"),
   handler: async (ctx, args) => {
     const employee = await ctx.db.get(args.employeeId);
 
@@ -84,15 +84,18 @@ export const record = mutation({
       throw new Error("Employee not found");
     }
 
+    if (employee.deletedAt) {
+      throw new Error("Employee is no longer active");
+    }
+
     const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
 
     // Check if employee already submitted today
     const existingCheckin = await ctx.db
       .query("moodCheckins")
-      .withIndex("by_organisation_and_date", (q) =>
-        q.eq("organisation", employee.organisation).eq("date", today)
+      .withIndex("by_employee_and_date", (q) =>
+        q.eq("employeeId", args.employeeId).eq("date", today)
       )
-      .filter((q) => q.eq(q.field("employeeId"), args.employeeId))
       .first();
 
     if (existingCheckin) {
@@ -209,12 +212,35 @@ export const getTrends = query({
   },
 });
 
+const checkinWithEmployeeValidator = v.object({
+  _id: v.id("moodCheckins"),
+  _creationTime: v.number(),
+  employeeId: v.id("employees"),
+  organisation: v.string(),
+  mood: v.union(v.literal("green"), v.literal("amber"), v.literal("red")),
+  note: v.optional(v.string()),
+  isAnonymous: v.optional(v.boolean()),
+  timestamp: v.number(),
+  date: v.string(),
+  employeeName: v.optional(v.string()),
+  employeeEmail: v.optional(v.string()),
+  employee: v.object({
+    _id: v.id("employees"),
+    _creationTime: v.number(),
+    firstName: v.string(),
+    email: v.string(),
+    organisation: v.string(),
+    createdAt: v.number(),
+    deletedAt: v.optional(v.number()),
+  }),
+});
+
 // Query to get check-ins from the last 24 hours for an organization
 export const getTodayCheckins = query({
   args: {
     organisation: v.string(),
   },
-  returns: v.array(v.any()),
+  returns: v.array(checkinWithEmployeeValidator),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -277,7 +303,9 @@ export const getTodayCheckins = query({
 
     // Keep all check-ins (including from deleted employees) for recent check-ins view
     // Only filter out if employee record is missing (data integrity)
-    return checkinsWithEmployees.filter(c => c.employee);
+    return checkinsWithEmployees
+      .filter(c => c.employee !== null)
+      .map(c => ({ ...c, employee: c.employee! }));
   },
 });
 
@@ -287,7 +315,7 @@ export const getGroupTodayCheckins = query({
     groupId: v.id("groups"),
     organisation: v.string(),
   },
-  returns: v.array(v.any()),
+  returns: v.array(checkinWithEmployeeValidator),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -367,7 +395,9 @@ export const getGroupTodayCheckins = query({
 
     // Keep all check-ins (including from deleted employees) for recent check-ins view
     // Only filter out if employee record is missing (data integrity)
-    return checkinsWithEmployees.filter(c => c.employee);
+    return checkinsWithEmployees
+      .filter(c => c.employee !== null)
+      .map(c => ({ ...c, employee: c.employee! }));
   },
 });
 
@@ -377,7 +407,7 @@ export const getHistoricalCheckins = query({
     days: v.optional(v.number()), // Number of days to look back, default 30
     organisation: v.string(),
   },
-  returns: v.array(v.any()),
+  returns: v.array(checkinWithEmployeeValidator),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -399,26 +429,30 @@ export const getHistoricalCheckins = query({
     const organisation = args.organisation;
 
     const days = args.days || 30;
-    const allCheckins = [];
 
-    // Get check-ins from the past N days, excluding today
-    for (let i = 1; i <= days; i++) {
+    // Build date strings for the past N days, excluding today
+    const dateStrings = Array.from({ length: days }, (_, i) => {
       const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split("T")[0];
+      date.setDate(date.getDate() - (i + 1));
+      return date.toISOString().split("T")[0];
+    });
 
-      const checkins = await ctx.db
-        .query("moodCheckins")
-        .withIndex("by_organisation_and_date", (q) =>
-          q.eq("organisation", organisation).eq("date", dateStr)
-        )
-        .collect();
+    // Fetch all days in parallel
+    const checkinsByDay = await Promise.all(
+      dateStrings.map((dateStr) =>
+        ctx.db
+          .query("moodCheckins")
+          .withIndex("by_organisation_and_date", (q) =>
+            q.eq("organisation", organisation).eq("date", dateStr)
+          )
+          .collect()
+      )
+    );
 
-      // Only include check-ins with notes
-      const checkinsWithNotes = checkins.filter((c) => c.note && c.note.trim().length > 0);
-
-      allCheckins.push(...checkinsWithNotes);
-    }
+    // Flatten and keep only check-ins with notes
+    const allCheckins = checkinsByDay
+      .flat()
+      .filter((c) => c.note && c.note.trim().length > 0);
 
     // Get employee details for each check-in
     const checkinsWithEmployees = await Promise.all(
@@ -436,7 +470,8 @@ export const getHistoricalCheckins = query({
     // Keep all historical check-ins (including from deleted employees) and sort by most recent first
     // Only filter out if employee record is missing (data integrity)
     return checkinsWithEmployees
-      .filter(c => c.employee)
+      .filter(c => c.employee !== null)
+      .map(c => ({ ...c, employee: c.employee! }))
       .sort((a, b) => b.timestamp - a.timestamp);
   },
 });

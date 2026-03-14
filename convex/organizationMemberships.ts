@@ -7,6 +7,7 @@ export const createOrganization = mutation({
   args: {
     name: v.string(),
   },
+  returns: v.object({ membershipId: v.id("organizationMemberships"), organisation: v.string() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -16,8 +17,7 @@ export const createOrganization = mutation({
     // Check if organization name already exists
     const existingOrg = await ctx.db
       .query("organizationMemberships")
-      .withIndex("by_organisation")
-      .filter((q) => q.eq(q.field("organisation"), args.name))
+      .withIndex("by_organisation", (q) => q.eq("organisation", args.name))
       .first();
 
     if (existingOrg) {
@@ -94,6 +94,7 @@ export const removeOrganizationMember = mutation({
   args: {
     membershipId: v.id("organizationMemberships"),
   },
+  returns: v.object({ success: v.literal(true) }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -119,13 +120,13 @@ export const removeOrganizationMember = mutation({
 
     // Don't allow owner to remove themselves if they're the only owner
     if (membership.userId === userId) {
-      const owners = await ctx.db
+      const allOrgMembers = await ctx.db
         .query("organizationMemberships")
         .withIndex("by_organisation", (q) =>
           q.eq("organisation", membership.organisation)
         )
-        .filter((q) => q.eq(q.field("role"), "owner"))
         .collect();
+      const owners = allOrgMembers.filter((m) => m.role === "owner");
 
       if (owners.length <= 1) {
         throw new Error("Cannot remove the last owner from the organization");

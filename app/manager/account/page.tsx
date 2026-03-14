@@ -49,6 +49,12 @@ export default function AccountSettingsPage() {
     setError(null);
     setSuccess(null);
 
+    if (!name.trim() || !surname.trim()) {
+      setError("Name and surname cannot be empty");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       await updateAccount({
         name: name.trim(),

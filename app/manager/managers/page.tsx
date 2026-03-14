@@ -6,20 +6,23 @@ import { Id } from "../../../convex/_generated/dataModel";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Trash2, UserPlus, Mail, Eye, Edit2, Clock } from "lucide-react";
-import { useAuthActions } from "@convex-dev/auth/react";
 import { useRouter } from "next/navigation";
 
 export default function ManageManagersPage() {
   const user = useQuery(api.users.getCurrentUser);
-  const { signOut } = useAuthActions();
   const router = useRouter();
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
 
-  // Get selected organization from localStorage
+  // Get selected organization from localStorage and listen for changes
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const org = localStorage.getItem("selectedOrganization");
-      setSelectedOrg(org);
+      const updateSelectedOrg = () => {
+        const org = localStorage.getItem("selectedOrganization");
+        setSelectedOrg(org);
+      };
+      updateSelectedOrg();
+      window.addEventListener("organizationChanged", updateSelectedOrg);
+      return () => window.removeEventListener("organizationChanged", updateSelectedOrg);
     }
   }, []);
 
@@ -28,19 +31,13 @@ export default function ManageManagersPage() {
     selectedOrg ? { organisation: selectedOrg } : "skip"
   );
 
-  // Handle access denial - if user doesn't have access to the org, sign them out
+  // Handle access denial - clear invalid org and redirect to org selection
   useEffect(() => {
-    // Only check if we have a selected org and the query has completed
     if (selectedOrg && userRole !== undefined && userRole === null) {
-      // Clear the invalid organization from localStorage
       localStorage.removeItem("selectedOrganization");
-
-      // Sign out and redirect to homepage
-      void signOut().then(() => {
-        router.push("/");
-      });
+      router.push("/select-organization");
     }
-  }, [selectedOrg, userRole, signOut, router]);
+  }, [selectedOrg, userRole, router]);
 
   const members = useQuery(
     api.users.getOrganizationMembersWithDetails,

@@ -2,23 +2,20 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { useConvexAuth } from "convex/react";
 
 export default function ViewerDashboard() {
   const router = useRouter();
+  const { isAuthenticated, isLoading } = useConvexAuth();
 
   useEffect(() => {
-    // Check if viewer is logged in
-    const viewerSession = localStorage.getItem("viewerSession");
-
-    if (!viewerSession) {
-      // Redirect to sign in if no session
-      router.push("/signin?viewer=true");
+    if (isLoading) return;
+    if (!isAuthenticated) {
+      router.replace("/signin");
       return;
     }
-
-    // Redirect to manager view page (viewers use the same view page)
-    router.push("/manager/view");
-  }, [router]);
+    router.replace("/manager/view");
+  }, [isAuthenticated, isLoading, router]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-blue-950 dark:to-indigo-950 relative overflow-hidden">

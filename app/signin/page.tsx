@@ -21,7 +21,10 @@ export default function SignIn() {
   const invitationEmail = searchParams.get("email");
   const messageType = searchParams.get("message");
   const orgName = searchParams.get("org");
-  const organizations = useQuery(api.organizationMemberships.getUserOrganizations);
+  const organizations = useQuery(
+    api.organizationMemberships.getUserOrganizations,
+    isAuthenticated ? {} : "skip"
+  );
   const [flow, setFlow] = useState<"signIn" | "signUp" | "forgotPassword">(initialFlow);
   const [error, setError] = useState<string | null>(null);
   // Initialize success message from URL parameter
@@ -121,6 +124,7 @@ export default function SignIn() {
               width={120}
               height={120}
               className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 object-contain drop-shadow-lg"
+              priority
             />
 
             <div className="w-px h-16 sm:h-20 md:h-24 bg-slate-300 dark:bg-slate-600"></div>
@@ -169,7 +173,7 @@ export default function SignIn() {
             }
 
             try {
-              const result = await requestPasswordReset({ email: email.toLowerCase().trim() });
+              const result = await requestPasswordReset({ email: email.toLowerCase().trim(), baseUrl: window.location.origin });
               setSuccess(result.message || "If an account with this email exists, a password reset link has been sent.");
               setCooldownSeconds(60);
             } catch (err: unknown) {

@@ -1,5 +1,3 @@
-//add ability to dynamically add view only managers and other super users to organization
-
 "use client";
 
 import { useQuery, useMutation } from "convex/react";
@@ -8,21 +6,24 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Id } from "../../../convex/_generated/dataModel";
-import { useAuthActions } from "@convex-dev/auth/react";
 import { useRouter } from "next/navigation";
 
 export default function EditOrganizationPage() {
   const user = useQuery(api.users.getCurrentUser);
   const viewer = user?.name ?? user?.email ?? null;
-  const { signOut } = useAuthActions();
   const router = useRouter();
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
 
-  // Get selected organization from localStorage
+  // Get selected organization from localStorage and listen for changes
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const org = localStorage.getItem("selectedOrganization");
-      setSelectedOrg(org);
+      const updateSelectedOrg = () => {
+        const org = localStorage.getItem("selectedOrganization");
+        setSelectedOrg(org);
+      };
+      updateSelectedOrg();
+      window.addEventListener("organizationChanged", updateSelectedOrg);
+      return () => window.removeEventListener("organizationChanged", updateSelectedOrg);
     }
   }, []);
 
@@ -32,19 +33,13 @@ export default function EditOrganizationPage() {
     selectedOrg ? { organisation: selectedOrg } : "skip"
   );
 
-  // Handle access denial - if user doesn't have access to the org, sign them out
+  // Handle access denial - clear invalid org and redirect to org selection
   useEffect(() => {
-    // Only check if we have a selected org and the query has completed
     if (selectedOrg && userRole !== undefined && userRole === null) {
-      // Clear the invalid organization from localStorage
       localStorage.removeItem("selectedOrganization");
-
-      // Sign out and redirect to homepage
-      void signOut().then(() => {
-        router.push("/");
-      });
+      router.push("/select-organization");
     }
-  }, [selectedOrg, userRole, signOut, router]);
+  }, [selectedOrg, userRole, router]);
 
   const employees = useQuery(
     api.employees.list,
@@ -194,7 +189,7 @@ export default function EditOrganizationPage() {
       });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "";
-      alert(msg || "Could not add member. Please verify the employee and try again.");
+      setErrorMessage(msg || "Could not add member. Please verify the employee and try again.");
     }
   };
 
@@ -208,7 +203,7 @@ export default function EditOrganizationPage() {
       });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "";
-      alert(msg || "Could not remove member. Please refresh and try again.");
+      setErrorMessage(msg || "Could not remove member. Please refresh and try again.");
     }
   };
 

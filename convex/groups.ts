@@ -71,6 +71,7 @@ export const getMembers = query({
     const members = await Promise.all(
       activeMemberships.map(async (membership) => {
         const employee = await ctx.db.get(membership.employeeId);
+        if (!employee || employee.deletedAt) return null;
         return {
           membershipId: membership._id,
           ...employee,
@@ -88,6 +89,10 @@ export const add = mutation({
     name: v.string(),
     organisation: v.string(),
   },
+  returns: v.union(
+    v.object({ success: v.literal(false), error: v.string() }),
+    v.object({ success: v.literal(true), groupId: v.id("groups") })
+  ),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -136,6 +141,7 @@ export const remove = mutation({
     groupId: v.id("groups"),
     organisation: v.string(),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -187,6 +193,7 @@ export const addMember = mutation({
     employeeId: v.id("employees"),
     organisation: v.string(),
   },
+  returns: v.id("groupMembers"),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -250,6 +257,7 @@ export const removeMember = mutation({
     membershipId: v.id("groupMembers"),
     organisation: v.string(),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -277,7 +285,7 @@ export const removeMember = mutation({
     const group = await ctx.db.get(groupMembership.groupId);
 
     // Verify the group belongs to the organization
-    if (group?.organisation !== args.organisation) {
+    if (!group || group.organisation !== args.organisation) {
       throw new Error("Not authorized");
     }
 

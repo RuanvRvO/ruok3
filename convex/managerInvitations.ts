@@ -32,6 +32,10 @@ export const createInvitation = mutation({
     email: v.optional(v.string()),
     baseUrl: v.optional(v.string()), // Frontend can pass the current URL
   },
+  returns: v.union(
+    v.object({ success: v.literal(true), invitationId: v.id("managerInvitations"), mode: v.literal("email"), message: v.string() }),
+    v.object({ success: v.literal(true), invitationId: v.id("managerInvitations"), token: v.string(), mode: v.literal("link") })
+  ),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -174,24 +178,24 @@ export const listInvitations = query({
     }
 
     // Get all organizations where user is owner
-    const ownedOrgs = await ctx.db
+    const allMemberships = await ctx.db
       .query("organizationMemberships")
       .withIndex("by_user", (q) => q.eq("userId", userId))
-      .filter((q) => q.eq(q.field("role"), "owner"))
       .collect();
+    const orgNames = allMemberships
+      .filter((m) => m.role === "owner")
+      .map((m) => m.organisation);
 
-    // Get organization names
-    const orgNames = ownedOrgs.map((m) => m.organisation);
-
-    // Return only invitations for organizations the user owns
-    const allInvitations = await ctx.db
-      .query("managerInvitations")
-      .collect();
-
-    // Filter to only include invitations for owned organizations
-    const invitations = allInvitations.filter((inv) =>
-      orgNames.includes(inv.organisation)
+    // Fetch invitations per owned org (avoids full-table scan)
+    const invitationSets = await Promise.all(
+      orgNames.map((org) =>
+        ctx.db
+          .query("managerInvitations")
+          .withIndex("by_organisation", (q) => q.eq("organisation", org))
+          .collect()
+      )
     );
+    const invitations = invitationSets.flat();
 
     return invitations;
   },
@@ -202,6 +206,7 @@ export const revokeInvitation = mutation({
   args: {
     invitationId: v.id("managerInvitations"),
   },
+  returns: v.object({ success: v.literal(true) }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {

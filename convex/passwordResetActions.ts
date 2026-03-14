@@ -33,48 +33,21 @@ export const updatePasswordHash = internalAction({
       throw new Error("Password hash verification failed");
     }
     
-    try {
-      // Update the account's password hash
-      await ctx.runMutation(internal.passwordReset.updateAuthAccountPassword, {
-        accountId: args.accountId,
-        passwordHash: hashedPassword,
-      });
+    // Update the account's password hash
+    await ctx.runMutation(internal.passwordReset.updateAuthAccountPassword, {
+      accountId: args.accountId,
+      passwordHash: hashedPassword,
+    });
 
-      // Wait for the database to update
-      await new Promise(resolve => setTimeout(resolve, 500));
+    // Mark the reset token as used
+    await ctx.runMutation(internal.passwordReset.markResetAsUsed, {
+      resetId: args.resetId,
+    });
 
-      // Verify the update
-      const updatedAccount = await ctx.runQuery(internal.passwordReset.getAuthAccount, {
-        accountId: args.accountId,
-      });
-
-      if (!updatedAccount) {
-        throw new Error("Failed to verify password update");
-      }
-
-      const storedSecret = (updatedAccount as { secret?: string }).secret;
-      if (storedSecret !== hashedPassword) {
-        throw new Error("Password hash was not updated correctly");
-      }
-
-      // Verify the stored hash can authenticate the password
-      const canVerify = await bcrypt.compare(args.newPassword, storedSecret);
-      if (!canVerify) {
-        throw new Error("Stored password hash cannot verify the password");
-      }
-
-      // Mark the reset token as used
-      await ctx.runMutation(internal.passwordReset.markResetAsUsed, {
-        resetId: args.resetId,
-      });
-
-      return {
-        success: true,
-        message: "Password has been reset successfully. Please sign in with your new password."
-      };
-    } catch (error) {
-      throw error;
-    }
+    return {
+      success: true,
+      message: "Password has been reset successfully. Please sign in with your new password."
+    };
   },
 });
 

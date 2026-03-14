@@ -17,6 +17,7 @@ export default function MoodResponsePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [autoSaved, setAutoSaved] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   const recordMood = useMutation(api.moodCheckins.record);
   const updateDetails = useMutation(api.moodCheckins.updateDetails);
@@ -86,7 +87,7 @@ export default function MoodResponsePage() {
         note: note.trim() || undefined,
         isAnonymous: isAnonymous,
       });
-      // Close the tab after successful submission
+      setSubmitted(true);
       window.close();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "";
@@ -102,6 +103,7 @@ export default function MoodResponsePage() {
   };
 
   const handleExit = () => {
+    setSubmitted(true);
     window.close();
   };
 
@@ -118,6 +120,23 @@ export default function MoodResponsePage() {
     if (mood === "red") return "from-red-500 to-red-600";
     return "from-slate-500 to-slate-600";
   };
+
+  if (submitted) {
+    return (
+      <div className={`min-h-screen bg-gradient-to-br ${getMoodColor()} flex items-center justify-center p-4`}>
+        <div className="bg-white rounded-2xl p-6 sm:p-10 md:p-12 max-w-md text-center shadow-2xl">
+          <div className="text-6xl mb-6">✅</div>
+          <h1 className="text-3xl font-bold text-slate-800 mb-4">Response Recorded</h1>
+          <p className="text-lg text-slate-600 mb-4">
+            Thank you for checking in today!
+          </p>
+          <p className="text-sm text-slate-500">
+            You can close this tab.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (error === "ALREADY_SUBMITTED") {
     return (
@@ -167,6 +186,7 @@ export default function MoodResponsePage() {
                 rows={5}
                 className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 resize-none text-slate-700"
                 placeholder="Share any thoughts or concerns (optional)..."
+                maxLength={500}
                 disabled={isSubmitting}
               />
             </div>

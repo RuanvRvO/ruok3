@@ -10,35 +10,13 @@ export const checkEmailExists = query({
   },
   returns: v.boolean(),
   handler: async (ctx, args) => {
-    // Check users table first
+    // Convex Auth creates a users record with email for every password-authenticated user
     const existingUser = await ctx.db
       .query("users")
       .withIndex("email", (q) => q.eq("email", args.email.toLowerCase().trim()))
       .first();
 
-    if (existingUser) {
-      return true;
-    }
-
-    // Also check authAccounts table (Convex Auth stores accounts here)
-    // The email is stored in the account data
-    const authAccounts = await ctx.db
-      .query("authAccounts")
-      .collect();
-
-    // Check if any auth account has this email
-    // Note: authAccounts structure may vary, but typically email is in account data
-    for (const account of authAccounts) {
-      // The account data structure depends on Convex Auth implementation
-      // Typically email might be in account.email or account.profile.email
-      const accountEmail = (account as { email?: string; profile?: { email?: string } }).email ||
-        (account as { email?: string; profile?: { email?: string } }).profile?.email;
-      if (accountEmail && accountEmail.toLowerCase().trim() === args.email.toLowerCase().trim()) {
-        return true;
-      }
-    }
-
-    return false;
+    return existingUser !== null;
   },
 });
 
@@ -88,6 +66,7 @@ export const updateAccount = mutation({
     name: v.string(),
     surname: v.string(),
   },
+  returns: v.object({ success: v.literal(true) }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
