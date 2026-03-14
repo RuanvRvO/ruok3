@@ -84,7 +84,7 @@ export const updateAccount = mutation({
       surname: args.surname,
     });
 
-    return { success: true };
+    return { success: true as const };
   },
 });
 

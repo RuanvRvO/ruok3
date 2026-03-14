@@ -32,7 +32,7 @@ export const requestPasswordReset = mutation({
     // Always return success to prevent email enumeration
     // Don't reveal whether the email exists or not
     if (!user) {
-      return { success: true, message: "If an account with this email exists, a password reset link has been sent." };
+      return { success: true as const, message: "If an account with this email exists, a password reset link has been sent." };
     }
 
     // Check if there's a recent password reset request (within last 5 minutes)
@@ -49,7 +49,7 @@ export const requestPasswordReset = mutation({
       .first();
 
     if (recentReset) {
-      return { success: true, message: "A password reset email was recently sent. Please check your inbox." };
+      return { success: true as const, message: "A password reset email was recently sent. Please check your inbox." };
     }
 
     // Generate token and expiration (1 hour from now)
@@ -73,7 +73,7 @@ export const requestPasswordReset = mutation({
       baseUrl: args.baseUrl,
     });
 
-    return { success: true, message: "If an account with this email exists, a password reset link has been sent." };
+    return { success: true as const, message: "If an account with this email exists, a password reset link has been sent." };
   },
 });
 
@@ -353,7 +353,7 @@ export const resetPassword = mutation({
       resetId: reset._id,
     });
 
-    return { success: true, message: "Password has been reset successfully. Please sign in with your new password." };
+    return { success: true as const, message: "Password has been reset successfully. Please sign in with your new password." };
   },
 });
 

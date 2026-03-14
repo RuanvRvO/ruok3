@@ -93,7 +93,7 @@ export const add = mutation({
     );
 
     if (duplicateEmployee) {
-      return { success: false, error: "This employee is already added" };
+      return { success: false as const, error: "This employee is already added" };
     }
 
     const employeeId = await ctx.db.insert("employees", {
@@ -103,7 +103,7 @@ export const add = mutation({
       createdAt: Date.now(),
     });
 
-    return { success: true, employeeId };
+    return { success: true as const, employeeId };
   },
 });
 

@@ -134,7 +134,7 @@ export const removeOrganizationMember = mutation({
     }
 
     await ctx.db.delete(args.membershipId);
-    return { success: true };
+    return { success: true as const };
   },
 });
 

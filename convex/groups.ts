@@ -122,7 +122,7 @@ export const add = mutation({
     );
 
     if (duplicateGroup) {
-      return { success: false, error: "This group name is already in use" };
+      return { success: false as const, error: "This group name is already in use" };
     }
 
     const groupId = await ctx.db.insert("groups", {
@@ -131,7 +131,7 @@ export const add = mutation({
       createdAt: Date.now(),
     });
 
-    return { success: true, groupId };
+    return { success: true as const, groupId };
   },
 });
 

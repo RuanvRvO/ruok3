@@ -138,7 +138,7 @@ export const createInvitation = mutation({
       });
 
       return {
-        success: true,
+        success: true as const,
         invitationId,
         mode: "email" as const,
         message: `Invitation email sent to ${args.email}`
@@ -147,7 +147,7 @@ export const createInvitation = mutation({
 
     // Return token for link-based invitations
     return {
-      success: true,
+      success: true as const,
       invitationId,
       token,
       mode: "link" as const
@@ -232,7 +232,7 @@ export const revokeInvitation = mutation({
 
     await ctx.db.delete(args.invitationId);
 
-    return { success: true };
+    return { success: true as const };
   },
 });
 
