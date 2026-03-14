@@ -23,6 +23,36 @@
 
 ---
 
+## Changelog — Post-Review Fixes & Changes (2026-03-14)
+
+### Schema
+- Added `emailVerificationTime: v.optional(v.number())` to `users` table to match field written by Convex Auth, fixing prod deploy schema validation failure.
+
+### `convex/moodCheckins.ts`
+- Removed `encouragement` field entirely from `CHECKIN_MESSAGES`, `FOLLOWUP_ENCOURAGEMENT_MESSAGES`, `getFallbackMessage`, `generateAIMessage`, and `todaysMessage` type — field was unused.
+- Removed two unused `dayEndTimestamp` variables (lines ~235, ~610) — ESLint `no-unused-vars` warnings.
+- Changed email layout: mood buttons now appear **before** the daily verse (previously verse was above buttons).
+- Changed email heading from rotating `todaysMessage.greeting` to fixed `"How are you feeling today, {firstName}?"`.
+- Fixed `BUG-1` (partially): Changed `v.id("employees")` to `v.string()` with internal try/catch cast on `hasSubmittedToday`, `record`, and `updateDetails` — invalid/wrong-table IDs now return `false` or throw a user-friendly error instead of crashing with an `ArgumentValidationError`. Also added `as Id<"employees">` casts on index queries and insert to satisfy TypeScript.
+
+### `app/mood-response/page.tsx`
+- Added `token` to `useEffect` dependency array (ESLint `react-hooks/exhaustive-deps` warning).
+- `useQuery` for `hasSubmittedToday` now skips when `employeeId` is null (was already implemented, confirmed correct).
+
+### `app/page.tsx`
+- Added `loading="eager"` to LCP image (`/smile.png` above the fold).
+- Added `style={{ width: "auto" }}` to `/smile.png` and `/sad.png` at the top of the page.
+- Added `style={{ width: "auto" }}` to `/smile.png` in the footer (line ~279).
+
+### `middleware.ts` → `proxy.ts`
+- Renamed `middleware.ts` to `proxy.ts` and changed `export const middleware` to `export default` to comply with Next.js 16 deprecation of the `middleware` file convention.
+
+### `package.json`
+- `convex` moved back to `dependencies` (had been accidentally moved to `devDependencies` by `npm install --save-dev`).
+- Convex updated to `1.33.1`; also installed globally to silence CLI update warning.
+
+---
+
 ## Overview
 
 The R u OK codebase is a workplace wellbeing check-in application with a Convex backend and Next.js 16 frontend. The overall architecture is sound: multi-tenant organization memberships, soft deletion patterns, role-based access control, and a clear separation between authenticated manager views and unauthenticated employee mood-response pages.
