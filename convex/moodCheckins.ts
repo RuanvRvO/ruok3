@@ -104,7 +104,7 @@ export const updateDetails = mutation({
     const existingCheckin = await ctx.db
       .query("moodCheckins")
       .withIndex("by_employee_and_date", (q) =>
-        q.eq("employeeId", args.employeeId).eq("date", today)
+        q.eq("employeeId", args.employeeId as Id<"employees">).eq("date", today)
       )
       .first();
 
@@ -169,7 +169,7 @@ export const record = mutation({
     const existingCheckin = await ctx.db
       .query("moodCheckins")
       .withIndex("by_employee_and_date", (q) =>
-        q.eq("employeeId", args.employeeId).eq("date", today)
+        q.eq("employeeId", args.employeeId as Id<"employees">).eq("date", today)
       )
       .first();
 
@@ -180,7 +180,7 @@ export const record = mutation({
 
     // Create new check-in
     const checkinId = await ctx.db.insert("moodCheckins", {
-      employeeId: args.employeeId,
+      employeeId: args.employeeId as Id<"employees">,
       organisation: employee.organisation,
       mood: args.mood,
       note: args.note,
