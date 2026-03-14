@@ -37,11 +37,16 @@ export const createCheckinToken = internalMutation({
 // Query to check if employee has already submitted today
 export const hasSubmittedToday = query({
   args: {
-    employeeId: v.id("employees"),
+    employeeId: v.string(),
   },
   returns: v.boolean(),
   handler: async (ctx, args) => {
-    const employee = await ctx.db.get(args.employeeId);
+    let employee;
+    try {
+      employee = await ctx.db.get(args.employeeId as Id<"employees">);
+    } catch {
+      return false;
+    }
     if (!employee) {
       return false;
     }
@@ -51,7 +56,7 @@ export const hasSubmittedToday = query({
     const existingCheckin = await ctx.db
       .query("moodCheckins")
       .withIndex("by_employee_and_date", (q) =>
-        q.eq("employeeId", args.employeeId).eq("date", today)
+        q.eq("employeeId", args.employeeId as Id<"employees">).eq("date", today)
       )
       .first();
 
