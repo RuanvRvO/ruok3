@@ -17,7 +17,8 @@
       "Bash(npx eslint:*)",
       "Bash(grep:*)",
       "Bash(git checkout:*)",
-      "Bash(tasklist:*)"
+      "Bash(tasklist:*)",
+      "Bash(cd:*)"
     ],
     "deny": [],
     "ask": []

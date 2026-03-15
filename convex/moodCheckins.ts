@@ -685,23 +685,12 @@ export const getGroupTrends = query({
 
       const checkins = checkinsByDate.get(dateStr) ?? [];
 
-      // Filter to only include employees in this group (who were members on that day)
-      const groupCheckinsOnDay = checkins.filter((c) => {
-        if (!employeeIdSet.has(c.employeeId as string)) return false;
-
-        const employee = employeeMap.get(c.employeeId);
-        if (!employee) return false;
-
-        const membership = memberships.find(m => m.employeeId === c.employeeId);
-        if (!membership) return false;
-
-        const effectiveCreatedAt = membership.createdAt || employee.createdAt;
-        const wasCreated = effectiveCreatedAt < emailSendTimestamp;
-        const wasNotDeleted = !employee.deletedAt || employee.deletedAt >= emailSendTimestamp;
-        const wasNotRemoved = !membership.removedAt || membership.removedAt >= emailSendTimestamp;
-
-        return wasCreated && wasNotDeleted && wasNotRemoved;
-      });
+      // Filter to only include check-ins from employees in this group.
+      // No timing filter here — consistent with getTrends which counts all check-ins directly.
+      // The timing filter only applies to memberCountOnDay (how many emails were sent).
+      const groupCheckinsOnDay = checkins.filter((c) =>
+        employeeIdSet.has(c.employeeId as string)
+      );
 
       const green = groupCheckinsOnDay.filter((c) => c.mood === "green").length;
       const amber = groupCheckinsOnDay.filter((c) => c.mood === "amber").length;

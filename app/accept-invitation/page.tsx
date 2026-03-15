@@ -185,7 +185,7 @@ export default function AcceptInvitation() {
             localStorage.setItem("selectedOrganization", invitation?.organisation || "");
             setSuccessMessage(`Successfully joined ${invitation?.organisation || 'the organization'}!`);
             await new Promise(resolve => setTimeout(resolve, 1000));
-            router.push("/manager/view");
+            window.location.replace("/manager/view");
           } else {
             // New user signup flow
             setLoadingMessage("Completing setup...");
@@ -195,7 +195,7 @@ export default function AcceptInvitation() {
             localStorage.setItem("selectedOrganization", invitation?.organisation || "");
             isSigningUpRef.current = false;
             setLoadingMessage(null);
-            router.push("/manager/view");
+            window.location.replace("/manager/view");
           }
         } catch (err: unknown) {
           const errorMessage = err instanceof Error ? err.message : String(err);
@@ -568,7 +568,7 @@ setWaitingForAuth(true);
               setSuccessMessage(`Successfully joined ${invitation?.organisation || 'the organization'}!`);
               await new Promise(resolve => setTimeout(resolve, 1500));
               setSuccessMessage(null);
-              router.push("/manager/view");
+              window.location.replace("/manager/view");
             } catch (err: unknown) {
               const errorMessage = err instanceof Error ? err.message : String(err);
               const lower = errorMessage.toLowerCase();
