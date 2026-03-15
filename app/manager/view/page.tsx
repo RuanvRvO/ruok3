@@ -5,6 +5,7 @@ import { api } from "../../../convex/_generated/api";
 import { useState, useMemo, useEffect } from "react";
 import { Id } from "../../../convex/_generated/dataModel";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useRouter } from "next/navigation";
 
 export default function ViewOrganizationPage() {
@@ -922,12 +923,7 @@ function OrganizationMoodGraph({ days, timeRange, organisation }: { days: number
     return (
       <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-6 mx-auto shadow-sm" style={{ width: "600px", height: "480px" }}>
         <div className="flex items-center justify-center h-full">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-            <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
-            <div className="w-2 h-2 bg-slate-600 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
-            <p className="ml-2 text-slate-600 dark:text-slate-400">Loading...</p>
-          </div>
+          <LoadingSpinner message="Loading..." />
         </div>
       </div>
     );
@@ -1030,12 +1026,7 @@ function GroupMoodGraph({ groupId, groupName, days, timeRange, organisation }: {
     return (
       <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-6 mx-auto shadow-sm" style={{ width: "600px", height: "480px" }}>
         <div className="flex items-center justify-center h-full">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-            <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
-            <div className="w-2 h-2 bg-slate-600 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
-            <p className="ml-2 text-slate-600 dark:text-slate-400">Loading...</p>
-          </div>
+          <LoadingSpinner message="Loading..." />
         </div>
       </div>
     );

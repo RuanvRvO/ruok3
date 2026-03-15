@@ -171,14 +171,16 @@ export const remove = mutation({
       throw new Error("Not authorized to remove this group");
     }
 
-    // Remove all group memberships first
+    // Soft-delete all active group memberships to preserve historical data
     const memberships = await ctx.db
       .query("groupMembers")
       .withIndex("by_group", (q) => q.eq("groupId", args.groupId))
       .collect();
 
     for (const membership of memberships) {
-      await ctx.db.delete(membership._id);
+      if (!membership.removedAt) {
+        await ctx.db.patch(membership._id, { removedAt: Date.now() });
+      }
     }
 
     // Remove the group
@@ -228,13 +230,13 @@ export const addMember = mutation({
     }
 
     // Check if already an active member (not removed)
-    const existing = await ctx.db
+    const existingMembers = await ctx.db
       .query("groupMembers")
       .withIndex("by_group_and_employee", (q) =>
         q.eq("groupId", args.groupId).eq("employeeId", args.employeeId)
       )
-      .filter((q) => q.eq(q.field("removedAt"), undefined))
-      .first();
+      .collect();
+    const existing = existingMembers.find((m) => !m.removedAt);
 
     if (existing) {
       throw new Error("Employee is already a member of this group");

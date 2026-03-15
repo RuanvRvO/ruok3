@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { api } from "../convex/_generated/api";
 import { useAuthActions } from "@convex-dev/auth/react";
 
@@ -37,12 +38,7 @@ export default function LandingPage() {
           <div className="w-px h-12 sm:h-16 md:h-20 bg-slate-300 dark:bg-slate-600"></div>
           <Image src="/sad.png" alt="Sad Logo" width={90} height={90} className="w-14 h-14 sm:w-16 sm:h-16 md:w-[90px] md:h-[90px] object-contain" />
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-          <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
-          <div className="w-2 h-2 bg-slate-600 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
-          <p className="ml-2 text-slate-600 dark:text-slate-400">Loading...</p>
-        </div>
+        <LoadingSpinner message="Loading..." />
       </div>
     );
   }
@@ -280,7 +276,7 @@ export default function LandingPage() {
             <span className="font-semibold text-white">R u OK?</span>
           </div>
           <p className="text-sm text-slate-500">
-            © 2025 R u OK. All rights reserved.
+            © {new Date().getFullYear()} R u OK. All rights reserved.
           </p>
         </div>
       </footer>

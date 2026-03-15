@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Id } from "../../convex/_generated/dataModel";
 
 export default function MoodResponsePage() {
@@ -243,10 +244,8 @@ export default function MoodResponsePage() {
       <div className="bg-white rounded-2xl p-6 sm:p-10 md:p-12 max-w-md text-center shadow-2xl">
         <div className="text-6xl mb-6">{getMoodEmoji()}</div>
         <h1 className="text-3xl font-bold text-slate-800 mb-4">Recording your response...</h1>
-        <div className="flex items-center justify-center gap-2">
-          <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-          <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
-          <div className="w-2 h-2 bg-slate-600 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+        <div className="flex items-center justify-center">
+          <LoadingSpinner />
         </div>
       </div>
     </div>

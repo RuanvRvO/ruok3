@@ -37,16 +37,13 @@ export const requestPasswordReset = mutation({
 
     // Check if there's a recent password reset request (within last 5 minutes)
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-    const recentReset = await ctx.db
+    const userResets = await ctx.db
       .query("passwordResets")
       .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("used"), false),
-          q.gt(q.field("createdAt"), fiveMinutesAgo)
-        )
-      )
-      .first();
+      .collect();
+    const recentReset = userResets.find(
+      (r) => !r.used && r.createdAt > fiveMinutesAgo
+    );
 
     if (recentReset) {
       return { success: true as const, message: "A password reset email was recently sent. Please check your inbox." };

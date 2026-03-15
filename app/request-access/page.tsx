@@ -6,6 +6,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import Image from "next/image";
 import Link from "next/link";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 export default function RequestAccessPage() {
   const searchParams = useSearchParams();
@@ -37,12 +38,7 @@ export default function RequestAccessPage() {
         <div className="absolute top-20 left-10 w-64 h-64 bg-green-400/20 dark:bg-green-500/10 rounded-full blur-3xl"></div>
         <div className="absolute bottom-20 right-10 w-72 h-72 bg-blue-400/20 dark:bg-blue-500/10 rounded-full blur-3xl"></div>
         <div className="relative z-10 flex flex-col gap-8 w-full max-w-lg mx-auto min-h-screen justify-center items-center px-4">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-            <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
-            <div className="w-2 h-2 bg-slate-600 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
-            <p className="ml-2 text-slate-600 dark:text-slate-400">Loading...</p>
-          </div>
+          <LoadingSpinner message="Loading..." />
         </div>
       </div>
     );

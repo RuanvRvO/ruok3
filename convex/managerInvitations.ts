@@ -68,17 +68,15 @@ export const createInvitation = mutation({
       const emailLower = validateAndNormalizeEmail(args.email!);
 
       // Check for existing pending invitation to same email for same org
-      const existingInvitation = await ctx.db
+      const invitationsForEmailAndOrg = await ctx.db
         .query("managerInvitations")
-        .withIndex("by_email", (q) => q.eq("email", emailLower))
-        .filter((q) =>
-          q.and(
-            q.eq(q.field("organisation"), args.organisation),
-            q.eq(q.field("status"), "pending"),
-            q.gt(q.field("expiresAt"), now)
-          )
+        .withIndex("by_email_and_organisation", (q) =>
+          q.eq("email", emailLower).eq("organisation", args.organisation)
         )
-        .first();
+        .collect();
+      const existingInvitation = invitationsForEmailAndOrg.find(
+        (inv) => inv.status === "pending" && inv.expiresAt > now
+      );
 
       if (existingInvitation) {
         throw new Error("An invitation has already been sent to this email address for this organization");
@@ -296,6 +294,12 @@ export const acceptInvitation = mutation({
     token: v.string(),
     userId: v.id("users"),
   },
+  returns: v.object({
+    success: v.literal(true),
+    alreadyHasAccess: v.optional(v.boolean()),
+    existingRole: v.optional(v.string()),
+    upgraded: v.optional(v.boolean()),
+  }),
   handler: async (ctx, args) => {
     const invitation = await ctx.db
       .query("managerInvitations")
@@ -329,16 +333,13 @@ export const acceptInvitation = mutation({
     // Auto-approve any pending access requests for this invitation and email
     // This handles the case where user went through request-access flow
     const userEmail = user.email.toLowerCase().trim();
-    const pendingRequest = await ctx.db
+    const requestsForEmail = await ctx.db
       .query("accessRequests")
       .withIndex("by_email", (q) => q.eq("requestedEmail", userEmail))
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("invitationId"), invitation._id),
-          q.eq(q.field("status"), "pending")
-        )
-      )
-      .first();
+      .collect();
+    const pendingRequest = requestsForEmail.find(
+      (r) => r.invitationId === invitation._id && r.status === "pending"
+    );
 
     if (pendingRequest) {
       // Auto-approve the access request since they verified their email
@@ -363,14 +364,14 @@ export const acceptInvitation = mutation({
 
       if (existingRoleLevel >= invitationRoleLevel) {
         return {
-          success: true,
+          success: true as const,
           alreadyHasAccess: true,
           existingRole: existingMembership.role,
         };
       }
 
       await ctx.db.patch(existingMembership._id, { role: invitation.role });
-      return { success: true, upgraded: true };
+      return { success: true as const, upgraded: true };
     }
 
     // Enforce email matching for email-based invitations (only when user lacks membership)
@@ -397,7 +398,7 @@ export const acceptInvitation = mutation({
         role: invitation.role,
         createdAt: Date.now(),
       });
-      
+
       // Verify the membership was created
       const createdMembership = await ctx.db.get(membershipId);
       if (!createdMembership) {
@@ -411,7 +412,7 @@ export const acceptInvitation = mutation({
       await ctx.db.patch(invitation._id, { status: "accepted" });
     }
 
-    return { success: true };
+    return { success: true as const };
   },
 });
 
@@ -420,6 +421,12 @@ export const acceptInvitationForExistingUser = mutation({
   args: {
     token: v.string(),
   },
+  returns: v.object({
+    success: v.literal(true),
+    alreadyHasAccess: v.optional(v.boolean()),
+    existingRole: v.optional(v.string()),
+    upgraded: v.optional(v.boolean()),
+  }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -449,16 +456,13 @@ export const acceptInvitationForExistingUser = mutation({
     // Auto-approve any pending access requests for this invitation and email
     // This handles the case where user went through request-access flow
     const userEmail = user.email.toLowerCase().trim();
-    const pendingRequest = await ctx.db
+    const existingRequestsForEmail = await ctx.db
       .query("accessRequests")
       .withIndex("by_email", (q) => q.eq("requestedEmail", userEmail))
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("invitationId"), invitation._id),
-          q.eq(q.field("status"), "pending")
-        )
-      )
-      .first();
+      .collect();
+    const pendingRequest = existingRequestsForEmail.find(
+      (r) => r.invitationId === invitation._id && r.status === "pending"
+    );
 
     if (pendingRequest) {
       // Auto-approve the access request since they verified their email
@@ -485,7 +489,7 @@ export const acceptInvitationForExistingUser = mutation({
 
       if (existingRoleLevel >= invitationRoleLevel) {
         return {
-          success: true,
+          success: true as const,
           alreadyHasAccess: true,
           existingRole: existingMembership.role,
         };
@@ -493,7 +497,7 @@ export const acceptInvitationForExistingUser = mutation({
 
       // Upgrade to the higher role granted by the invitation
       await ctx.db.patch(existingMembership._id, { role: invitation.role });
-      return { success: true, upgraded: true };
+      return { success: true as const, upgraded: true };
     }
 
     // Enforce email matching for email-based invitations (only when user lacks membership)
@@ -527,7 +531,7 @@ export const acceptInvitationForExistingUser = mutation({
       await ctx.db.patch(invitation._id, { status: "accepted" });
     }
 
-    return { success: true };
+    return { success: true as const };
   },
 });
 
@@ -647,6 +651,10 @@ export const fixOrphanedInvitation = mutation({
   args: {
     token: v.string(),
   },
+  returns: v.object({
+    success: v.literal(true),
+    message: v.string(),
+  }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -665,6 +673,17 @@ export const fixOrphanedInvitation = mutation({
 
     if (!invitation) {
       throw new Error("Invalid invitation token");
+    }
+
+    // Check if invitation is expired
+    if (invitation.expiresAt < Date.now()) {
+      await ctx.db.patch(invitation._id, { status: "expired" });
+      throw new Error("This invitation has expired");
+    }
+
+    // Block revoked/expired status invitations
+    if (invitation.status === "expired") {
+      throw new Error("This invitation has expired");
     }
 
     const userEmail = user.email; // TypeScript now knows this is definitely a string
@@ -691,7 +710,7 @@ export const fixOrphanedInvitation = mutation({
       .first();
 
     if (existingMembership) {
-      return { success: true, message: "Membership already exists" };
+      return { success: true as const, message: "Membership already exists" };
     }
 
     // Create the missing membership
@@ -702,6 +721,6 @@ export const fixOrphanedInvitation = mutation({
       createdAt: Date.now(),
     });
 
-    return { success: true, message: "Membership created" };
+    return { success: true as const, message: "Membership created" };
   },
 });

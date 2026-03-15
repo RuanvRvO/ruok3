@@ -38,7 +38,8 @@ const schema = defineSchema({
   })
     .index("by_email", ["email"])
     .index("by_token", ["token"])
-    .index("by_organisation", ["organisation"]),
+    .index("by_organisation", ["organisation"])
+    .index("by_email_and_organisation", ["email", "organisation"]),
   employees: defineTable({
     firstName: v.string(),
     email: v.string(),
@@ -99,7 +100,8 @@ const schema = defineSchema({
     .index("by_email", ["requestedEmail"])
     .index("by_organisation", ["organisation"])
     .index("by_status", ["status"])
-    .index("by_organisation_and_status", ["organisation", "status"]),
+    .index("by_organisation_and_status", ["organisation", "status"])
+    .index("by_email_and_organisation", ["requestedEmail", "organisation"]),
   // One-time tokens included in daily email links to authenticate mood check-ins
   moodCheckinTokens: defineTable({
     employeeId: v.id("employees"),

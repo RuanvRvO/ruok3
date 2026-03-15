@@ -10,6 +10,7 @@ export const createAccessRequest = mutation({
     invitationId: v.id("managerInvitations"),
     requestedEmail: v.string(),
   },
+  returns: v.object({ success: v.literal(true), requestId: v.id("accessRequests") }),
   handler: async (ctx, args) => {
     // Get the invitation to verify it exists and get org/role info
     const invitation = await ctx.db.get(args.invitationId);
@@ -87,7 +88,7 @@ export const createAccessRequest = mutation({
       role: invitation.role,
     });
 
-    return { success: true, requestId };
+    return { success: true as const, requestId };
   },
 });
 
@@ -150,6 +151,7 @@ export const approveAccessRequest = mutation({
   args: {
     requestId: v.id("accessRequests"),
   },
+  returns: v.object({ success: v.literal(true) }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -224,7 +226,7 @@ export const approveAccessRequest = mutation({
       hasAccount: !!existingUser,
     });
 
-    return { success: true };
+    return { success: true as const };
   },
 });
 
@@ -233,6 +235,7 @@ export const declineAccessRequest = mutation({
   args: {
     requestId: v.id("accessRequests"),
   },
+  returns: v.object({ success: v.literal(true) }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
@@ -273,7 +276,7 @@ export const declineAccessRequest = mutation({
       organisation: request.organisation,
     });
 
-    return { success: true };
+    return { success: true as const };
   },
 });
 
@@ -301,16 +304,15 @@ export const checkApprovedAccessRequest = query({
   handler: async (ctx, args) => {
     const emailLower = args.email.toLowerCase().trim();
 
-    const approvedRequest = await ctx.db
+    const requestsForEmailAndOrg = await ctx.db
       .query("accessRequests")
-      .withIndex("by_email", (q) => q.eq("requestedEmail", emailLower))
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("organisation"), args.organisation),
-          q.eq(q.field("status"), "approved")
-        )
+      .withIndex("by_email_and_organisation", (q) =>
+        q.eq("requestedEmail", emailLower).eq("organisation", args.organisation)
       )
-      .first();
+      .collect();
+    const approvedRequest = requestsForEmailAndOrg.find(
+      (req) => req.status === "approved"
+    ) ?? null;
 
     return approvedRequest;
   },

@@ -88,7 +88,6 @@ export const add = mutation({
 
     const duplicateEmployee = existingEmployees.find(
       emp => emp.email.toLowerCase() === args.email.toLowerCase() &&
-             emp.firstName.toLowerCase() === args.firstName.toLowerCase() &&
              !emp.deletedAt // Only check active employees
     );
 

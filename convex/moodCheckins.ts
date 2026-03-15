@@ -4,6 +4,17 @@ import { internal } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { Id } from "./_generated/dataModel";
 
+/** Returns today's date as YYYY-MM-DD in SAST (UTC+2). */
+function getSASTDateString(now: Date = new Date()): string {
+  const utcMs = now.getTime() + now.getTimezoneOffset() * 60_000;
+  const sastMs = utcMs + 2 * 60 * 60_000;
+  const sast = new Date(sastMs);
+  const y = sast.getFullYear();
+  const m = String(sast.getMonth() + 1).padStart(2, "0");
+  const d = String(sast.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 // Internal mutation to store a mood check-in token for an employee (called by sendDailyEmails)
 export const createCheckinToken = internalMutation({
   args: {
@@ -51,7 +62,7 @@ export const hasSubmittedToday = query({
       return false;
     }
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = getSASTDateString();
 
     const existingCheckin = await ctx.db
       .query("moodCheckins")
@@ -84,7 +95,7 @@ export const updateDetails = mutation({
       throw new Error("Employee not found");
     }
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = getSASTDateString();
 
     // Validate the check-in token from the email link
     const checkinToken = await ctx.db
@@ -149,7 +160,7 @@ export const record = mutation({
       throw new Error("Employee is no longer active");
     }
 
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    const today = getSASTDateString();
 
     // Validate the check-in token from the email link
     const checkinToken = await ctx.db
@@ -230,7 +241,15 @@ export const getTrends = query({
     const organisation = args.organisation;
 
     const days = args.days || 7;
-    const trends = [];
+
+    // Build date strings for the requested range
+    const dateStrings: string[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      dateStrings.push(getSASTDateString(date));
+    }
+    const dateSet = new Set(dateStrings);
 
     // Get all employees for this organization (including soft-deleted ones for historical accuracy)
     const allEmployees = await ctx.db
@@ -238,38 +257,43 @@ export const getTrends = query({
       .withIndex("by_organisation", (q) => q.eq("organisation", organisation))
       .collect();
 
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split("T")[0];
+    // Batch-fetch all check-ins for the org in the date range using the org index,
+    // then group by date in JavaScript (avoids N+1 per-day queries)
+    const allCheckins = await ctx.db
+      .query("moodCheckins")
+      .withIndex("by_organisation", (q) => q.eq("organisation", organisation))
+      .collect();
+    const checkinsByDate = new Map<string, typeof allCheckins>();
+    for (const c of allCheckins) {
+      if (!dateSet.has(c.date)) continue;
+      const bucket = checkinsByDate.get(c.date);
+      if (bucket) {
+        bucket.push(c);
+      } else {
+        checkinsByDate.set(c.date, [c]);
+      }
+    }
 
+    const trends = dateStrings.map((dateStr) => {
       // Calculate timestamps for this day
       const dayStartTimestamp = new Date(dateStr).getTime();
       // Emails are sent at 1pm UTC (3pm SAST) — only count employees active at send time
       const emailSendTimestamp = dayStartTimestamp + 13 * 60 * 60 * 1000;
 
-      // Count employees that existed on this day (should match how many got emails):
-      // - Created before the email was sent
-      // - Either not deleted, or deleted on/after the email send time (so they got the email)
+      // Count employees that existed on this day (should match how many got emails)
       const employeeCountOnDay = allEmployees.filter(emp => {
         const wasCreated = emp.createdAt < emailSendTimestamp;
         const wasNotDeleted = !emp.deletedAt || emp.deletedAt >= emailSendTimestamp;
         return wasCreated && wasNotDeleted;
       }).length;
 
-      const checkins = await ctx.db
-        .query("moodCheckins")
-        .withIndex("by_organisation_and_date", (q) =>
-          q.eq("organisation", organisation).eq("date", dateStr)
-        )
-        .collect();
-
+      const checkins = checkinsByDate.get(dateStr) ?? [];
       const green = checkins.filter((c) => c.mood === "green").length;
       const amber = checkins.filter((c) => c.mood === "amber").length;
       const red = checkins.filter((c) => c.mood === "red").length;
       const total = checkins.length;
 
-      trends.push({
+      return {
         date: dateStr,
         green,
         amber,
@@ -279,8 +303,8 @@ export const getTrends = query({
         greenPercent: total > 0 ? Math.round((green / total) * 100) : 0,
         amberPercent: total > 0 ? Math.round((amber / total) * 100) : 0,
         redPercent: total > 0 ? Math.round((red / total) * 100) : 0,
-      });
-    }
+      };
+    });
 
     return trends;
   },
@@ -339,8 +363,9 @@ export const getTodayCheckins = query({
     const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
 
     // Get today and yesterday's dates to query both
-    const today = new Date().toISOString().split("T")[0];
-    const yesterday = new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString().split("T")[0];
+    const today = getSASTDateString();
+    const yesterdayDate = new Date(Date.now() - (24 * 60 * 60 * 1000));
+    const yesterday = getSASTDateString(yesterdayDate);
 
     // Fetch check-ins from both today and yesterday
     const [todayCheckins, yesterdayCheckins] = await Promise.all([
@@ -426,8 +451,9 @@ export const getGroupTodayCheckins = query({
     const employeeIds = relevantMemberships.map((m) => m.employeeId);
 
     // Get today and yesterday's dates to query both
-    const today = new Date().toISOString().split("T")[0];
-    const yesterday = new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString().split("T")[0];
+    const today = getSASTDateString();
+    const yesterdayDate = new Date(Date.now() - (24 * 60 * 60 * 1000));
+    const yesterday = getSASTDateString(yesterdayDate);
 
     // Fetch check-ins from both today and yesterday
     const [todayCheckins, yesterdayCheckins] = await Promise.all([
@@ -480,6 +506,7 @@ export const getHistoricalCheckins = query({
   args: {
     days: v.optional(v.number()), // Number of days to look back, default 30
     organisation: v.string(),
+    notesOnly: v.optional(v.boolean()), // When true (default), only return check-ins with notes
   },
   returns: v.array(checkinWithEmployeeValidator),
   handler: async (ctx, args) => {
@@ -508,7 +535,7 @@ export const getHistoricalCheckins = query({
     const dateStrings = Array.from({ length: days }, (_, i) => {
       const date = new Date();
       date.setDate(date.getDate() - (i + 1));
-      return date.toISOString().split("T")[0];
+      return getSASTDateString(date);
     });
 
     // Fetch all days in parallel
@@ -523,10 +550,11 @@ export const getHistoricalCheckins = query({
       )
     );
 
-    // Flatten and keep only check-ins with notes
-    const allCheckins = checkinsByDay
-      .flat()
-      .filter((c) => c.note && c.note.trim().length > 0);
+    // Flatten and optionally keep only check-ins with notes (default behavior)
+    const shouldFilterNotes = args.notesOnly !== false;
+    const allCheckins = shouldFilterNotes
+      ? checkinsByDay.flat().filter((c) => c.note && c.note.trim().length > 0)
+      : checkinsByDay.flat();
 
     // Get employee details for each check-in
     const checkinsWithEmployees = await Promise.all(
@@ -608,63 +636,68 @@ export const getGroupTrends = query({
     );
 
     const days = args.days || 7;
-    const trends = [];
 
+    // Build date strings for the requested range
+    const dateStrings: string[] = [];
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split("T")[0];
+      dateStrings.push(getSASTDateString(date));
+    }
 
+    // Batch-fetch all check-ins for the org and group by date in JS
+    const employeeIdSet = new Set(employeeIds.map(id => id as string));
+    const allOrgCheckins = await ctx.db
+      .query("moodCheckins")
+      .withIndex("by_organisation", (q) => q.eq("organisation", organisation))
+      .collect();
+
+    const dateSet = new Set(dateStrings);
+    const checkinsByDate = new Map<string, typeof allOrgCheckins>();
+    for (const c of allOrgCheckins) {
+      if (!dateSet.has(c.date)) continue;
+      const bucket = checkinsByDate.get(c.date);
+      if (bucket) {
+        bucket.push(c);
+      } else {
+        checkinsByDate.set(c.date, [c]);
+      }
+    }
+
+    const trends = dateStrings.map((dateStr) => {
       // Calculate timestamps for this day
       const dayStartTimestamp = new Date(dateStr).getTime();
       // Emails are sent at 1pm UTC (3pm SAST) — only count employees active at send time
       const emailSendTimestamp = dayStartTimestamp + 13 * 60 * 60 * 1000;
 
       // Calculate group member count on this day (should match how many got emails)
-      // Count memberships where employee was active at email send time
       const memberCountOnDay = memberships.filter(m => {
         const employee = employeeMap.get(m.employeeId);
         if (!employee) return false;
 
-        // If membership has createdAt, use it; otherwise fall back to employee's createdAt
         const effectiveCreatedAt = m.createdAt || employee.createdAt;
         const wasCreated = effectiveCreatedAt < emailSendTimestamp;
-
-        // Check if employee was not deleted or was deleted on/after the email send time
         const wasNotDeleted = !employee.deletedAt || employee.deletedAt >= emailSendTimestamp;
-
-        // Check if membership was not removed or was removed on/after the email send time
         const wasNotRemoved = !m.removedAt || m.removedAt >= emailSendTimestamp;
 
         return wasCreated && wasNotDeleted && wasNotRemoved;
       }).length;
 
-      const checkins = await ctx.db
-        .query("moodCheckins")
-        .withIndex("by_organisation_and_date", (q) =>
-          q.eq("organisation", organisation).eq("date", dateStr)
-        )
-        .collect();
+      const checkins = checkinsByDate.get(dateStr) ?? [];
 
       // Filter to only include employees in this group (who were members on that day)
       const groupCheckinsOnDay = checkins.filter((c) => {
-        if (!employeeIds.includes(c.employeeId)) return false;
+        if (!employeeIdSet.has(c.employeeId as string)) return false;
 
         const employee = employeeMap.get(c.employeeId);
         if (!employee) return false;
 
-        // Check if this employee was a member on this day
         const membership = memberships.find(m => m.employeeId === c.employeeId);
         if (!membership) return false;
 
-        // If membership has createdAt, use it; otherwise fall back to employee's createdAt
         const effectiveCreatedAt = membership.createdAt || employee.createdAt;
         const wasCreated = effectiveCreatedAt < emailSendTimestamp;
-
-        // Check if employee was not deleted or was deleted on/after the email send time
         const wasNotDeleted = !employee.deletedAt || employee.deletedAt >= emailSendTimestamp;
-
-        // Check if membership was not removed or was removed on/after the email send time
         const wasNotRemoved = !membership.removedAt || membership.removedAt >= emailSendTimestamp;
 
         return wasCreated && wasNotDeleted && wasNotRemoved;
@@ -675,7 +708,7 @@ export const getGroupTrends = query({
       const red = groupCheckinsOnDay.filter((c) => c.mood === "red").length;
       const total = groupCheckinsOnDay.length;
 
-      trends.push({
+      return {
         date: dateStr,
         green,
         amber,
@@ -685,8 +718,8 @@ export const getGroupTrends = query({
         greenPercent: total > 0 ? Math.round((green / total) * 100) : 0,
         amberPercent: total > 0 ? Math.round((amber / total) * 100) : 0,
         redPercent: total > 0 ? Math.round((red / total) * 100) : 0,
-      });
-    }
+      };
+    });
 
     return trends;
   },
@@ -1517,18 +1550,27 @@ export const sendDailyEmails = internalAction({
     // Helper function to delay execution (respect rate limits)
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+    // Pre-generate AI messages per encouragement type to avoid per-employee API calls
+    const aiMessageCache: Record<string, { greeting: string; subtext: string; subject: string; verse: string; verseRef: string } | null> = {};
+    if (useAI) {
+      const regularMsg = await generateAIMessage("friend", false, geminiApiKey);
+      aiMessageCache["regular"] = regularMsg;
+      const encourageMsg = await generateAIMessage("friend", true, geminiApiKey);
+      aiMessageCache["encourage"] = encourageMsg;
+    }
+
     for (const employee of employees) {
       try {
-        // Rate limit: 2 emails per second = 500ms delay between emails
+        // Rate limit: ~5 emails per second (Resend free tier allows 10/sec)
         if (sentCount > 0) {
-          await delay(500);
+          await delay(200);
         }
         // Generate unique response URLs for each mood option
         const baseUrl = process.env.SITE_URL || "http://localhost:3000";
 
         // Generate a daily check-in token for this employee and store it
         const checkinToken = crypto.randomUUID().replace(/-/g, "");
-        const today = new Date().toISOString().split("T")[0];
+        const today = getSASTDateString();
         const tokenExpiry = Date.now() + 36 * 60 * 60 * 1000; // 36 hours
         await ctx.runMutation(internal.moodCheckins.createCheckinToken, {
           employeeId: employee._id,
@@ -1544,16 +1586,19 @@ export const sendDailyEmails = internalAction({
         const lastMood = lastMoods[employee._id as string];
         const needsExtraEncouragement = lastMood === "red";
 
-        // Try to generate AI message, fall back to static if it fails
+        // Use cached AI message, personalizing the greeting with the employee name
         let todaysMessage: { greeting: string; subtext: string; subject: string; verse: string; verseRef: string };
-        
+
         if (useAI) {
-          const aiMessage = await generateAIMessage(employee.firstName, needsExtraEncouragement, geminiApiKey);
-          if (aiMessage) {
-            todaysMessage = aiMessage;
+          const cacheKey = needsExtraEncouragement ? "encourage" : "regular";
+          const cachedMsg = aiMessageCache[cacheKey];
+          if (cachedMsg) {
+            todaysMessage = {
+              ...cachedMsg,
+              greeting: cachedMsg.greeting.replace(/friend/gi, employee.firstName),
+            };
             aiGenerated++;
           } else {
-            // Fallback to static message if AI fails
             todaysMessage = getFallbackMessage(employee.firstName, needsExtraEncouragement, employee._id);
           }
         } else {
