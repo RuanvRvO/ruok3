@@ -48,6 +48,10 @@ export default function ViewOrganizationPage() {
   const [selectedGroupId, setSelectedGroupId] = useState<Id<"groups"> | null>(null);
   const [historicalMoodFilter, setHistoricalMoodFilter] = useState<"all" | "green" | "amber" | "red">("all");
 
+  // Check if user has any organization memberships (to determine if truly new)
+  // MUST be called before any conditional returns (React Hooks rules)
+  const userOrgs = useQuery(api.organizationMemberships.getUserOrganizations);
+
   // Check if user has access to the selected organization
   const userRole = useQuery(
     api.organizationMemberships.getUserRoleInOrg,
@@ -127,10 +131,6 @@ export default function ViewOrganizationPage() {
     api.moodCheckins.getHistoricalCheckins,
     selectedOrg && userRole ? { days: 30, organisation: selectedOrg } : "skip"
   );
-
-  // Check if user has any organization memberships (to determine if truly new)
-  // MUST be called before any conditional returns (React Hooks rules)
-  const userOrgs = useQuery(api.organizationMemberships.getUserOrganizations);
 
   // Auto-select first group when groups load
   useEffect(() => {
