@@ -174,12 +174,10 @@ export default function AcceptInvitation() {
             const result = await acceptInvitationForExistingUser({ token: tokenToUse });
 
             if (result?.alreadyHasAccess) {
-              const roleDisplayName = result.existingRole === "owner" ? "Owner" :
-                                     result.existingRole === "editor" ? "Editor" : "Viewer";
               setLoadingMessage(null);
               setLoading(false);
               setWaitingForAuth(false);
-              setError(`You already have ${roleDisplayName} access to this organization.`);
+              setError("User already has access");
               return;
             }
 
@@ -558,10 +556,8 @@ setWaitingForAuth(true);
               
               // Check if user already has access
               if (result?.alreadyHasAccess) {
-                const roleDisplayName = result.existingRole === "owner" ? "Owner" :
-                                       result.existingRole === "editor" ? "Editor" : "Viewer";
                 setLoadingMessage(null);
-                setError(`You already have ${roleDisplayName} access to this organization.`);
+                setError("User already has access");
                 setLoading(false);
                 return;
               }
