@@ -239,7 +239,7 @@ function SidebarToggleButton() {
 
   return (
     <div
-      className={`fixed top-4 z-50 bg-sidebar border-t border-b border-sidebar-border h-12 px-3 flex items-center transition-all duration-300 ${
+      className={`fixed top-4 z-40 bg-sidebar border-t border-b border-sidebar-border h-12 px-3 flex items-center transition-all duration-300 ${
         open ? 'left-[240px] border-r rounded-r' : 'left-0 border-r rounded-r shadow-sm'
       }`}
     >
@@ -261,7 +261,7 @@ function MobileSidebarTrigger() {
   return (
     <button
       onClick={toggleSidebar}
-      className="fixed top-4 left-4 z-50 flex items-center justify-center w-10 h-10 bg-sidebar border border-sidebar-border rounded-md shadow-sm hover:bg-sidebar-accent transition-colors"
+      className="fixed top-4 left-4 z-40 flex items-center justify-center w-10 h-10 bg-sidebar border border-sidebar-border rounded-md shadow-sm hover:bg-sidebar-accent transition-colors"
       aria-label="Toggle sidebar"
     >
       <Menu className="w-5 h-5 text-sidebar-foreground" />
@@ -458,6 +458,7 @@ function CreateOrganizationButton({
       if (result?.organisation) {
         localStorage.setItem("selectedOrganization", result.organisation);
         setSelectedOrg(result.organisation);
+        window.dispatchEvent(new Event("organizationChanged"));
         setShowForm(false);
         setOrgName("");
         router.push("/manager/view");

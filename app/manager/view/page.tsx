@@ -56,8 +56,18 @@ export default function ViewOrganizationPage() {
 
   // Handle access denial - if user doesn't have access to the org, sign them out
   useEffect(() => {
-    // Only check if we have a selected org and the query has completed
-    if (selectedOrg && userRole !== undefined && userRole === null) {
+    // Only check if we have a selected org and both queries have completed.
+    // Also confirm via userOrgs that this org is genuinely not in the user's
+    // membership list — this prevents a false-positive during the brief window
+    // after sign-up where getUserRoleInOrg may return null before Convex auth
+    // has fully propagated the new session to the backend.
+    if (
+      selectedOrg &&
+      userRole !== undefined &&
+      userRole === null &&
+      userOrgs !== undefined &&
+      !userOrgs.some((m) => m.organisation === selectedOrg)
+    ) {
       // Clear the invalid organization from localStorage
       localStorage.removeItem("selectedOrganization");
 
@@ -66,7 +76,7 @@ export default function ViewOrganizationPage() {
         router.push("/");
       });
     }
-  }, [selectedOrg, userRole, signOut, router]);
+  }, [selectedOrg, userRole, userOrgs, signOut, router]);
 
   const employees = useQuery(
     api.employees.list,
