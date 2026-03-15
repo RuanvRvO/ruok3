@@ -10,6 +10,7 @@
 
 import type * as accessRequests from "../accessRequests.js";
 import type * as auth from "../auth.js";
+import type * as authHelpers from "../authHelpers.js";
 import type * as crons from "../crons.js";
 import type * as emailValidation from "../emailValidation.js";
 import type * as employees from "../employees.js";
@@ -32,6 +33,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   accessRequests: typeof accessRequests;
   auth: typeof auth;
+  authHelpers: typeof authHelpers;
   crons: typeof crons;
   emailValidation: typeof emailValidation;
   employees: typeof employees;
