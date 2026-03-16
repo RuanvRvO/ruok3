@@ -18,7 +18,8 @@
       "Bash(grep:*)",
       "Bash(git checkout:*)",
       "Bash(tasklist:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []
