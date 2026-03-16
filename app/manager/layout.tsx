@@ -233,7 +233,7 @@ function SidebarToggleButton() {
   return (
     <div
       className={`fixed top-4 z-40 bg-sidebar border-t border-b border-sidebar-border h-12 px-3 flex items-center transition-all duration-300 ${
-        open ? 'left-[240px] border-r rounded-r' : 'left-0 border-r rounded-r shadow-sm'
+        open ? 'left-[210px] border-r rounded-r' : 'left-0 border-r rounded-r shadow-sm'
       }`}
     >
       <Switch
@@ -441,14 +441,21 @@ function OrganizationsSection({
     e.preventDefault();
     setCreating(true);
     setError(null);
+    const trimmed = orgName.trim();
+    if (organizations?.some((o) => o.organisation.toLowerCase() === trimmed.toLowerCase())) {
+      setError("Organisation name already exists.");
+      setCreating(false);
+      return;
+    }
     try {
-      const result = await createOrganization({ name: orgName.trim() });
+      const result = await createOrganization({ name: trimmed });
       if (result?.organisation) {
         localStorage.setItem("selectedOrganization", result.organisation);
         setSelectedOrg(result.organisation);
         window.dispatchEvent(new Event("organizationChanged"));
         setShowForm(false);
         setOrgName("");
+        setError(null);
         router.push("/manager/view");
         router.refresh();
       }
