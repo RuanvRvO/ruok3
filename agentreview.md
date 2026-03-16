@@ -1,25 +1,56 @@
 # Agent Code Review Report
 
-**Date:** 2026-03-14
+**Date:** 2026-03-16
 **Reviewed Files:**
 - `convex/schema.ts`, `convex/auth.config.ts`, `convex/http.ts`, `convex/crons.ts`
 - `convex/moodCheckins.ts`, `convex/employees.ts`, `convex/users.ts`, `convex/groups.ts`
 - `convex/organizationMemberships.ts`, `convex/managerInvitations.ts`
 - `convex/passwordReset.ts`, `convex/passwordResetActions.ts`
-- `convex/accessRequests.ts`, `convex/emailValidation.ts`
+- `convex/accessRequests.ts`, `convex/emailValidation.ts`, `convex/authHelpers.ts`
 - `app/layout.tsx`, `app/page.tsx`, `app/signin/page.tsx`
 - `app/manager/layout.tsx`, `app/manager/page.tsx`, `app/manager/view/page.tsx`
 - `app/manager/edit/page.tsx`, `app/manager/managers/page.tsx`, `app/manager/account/page.tsx`
 - `app/mood-response/page.tsx`, `app/viewer/dashboard/page.tsx`
 - `app/accept-invitation/page.tsx`, `app/invite/page.tsx`, `app/request-access/page.tsx`
-- `app/manager-signup/page.tsx`, `app/reset-password/page.tsx`, `app/select-organization/page.tsx`
+- `app/reset-password/page.tsx`, `app/select-organization/page.tsx`
 - `app/api/check-email/route.ts`
-- `components/ConvexClientProvider.tsx`
-- `middleware.ts`, `package.json`
+- `components/ConvexClientProvider.tsx`, `components/ui/loading-spinner.tsx`
+- `proxy.ts`, `package.json`
 
 **Reviewer:** Static Code Review Agent
-**Severity Summary:** CRITICAL: 5 (all fixed) | HIGH: 11 | MEDIUM: 14 | LOW: 8
-**Last Updated:** 2026-03-15 — All 5 critical issues + 25 non-critical issues resolved
+**Severity Summary:** CRITICAL: 5 (all fixed) | HIGH: 12 | MEDIUM: 15 | LOW: 8
+**Last Updated:** 2026-03-16
+
+---
+
+## Changelog — 2026-03-16 Update
+
+### Changes detected since 2026-03-15
+
+#### `convex/crons.ts`
+- **FIXED:** Cron expression changed from `0 14 * * 1-5` (2pm UTC / 4pm SAST) to `0 13 * * 1-5` (1pm UTC / 3pm SAST). The comment now matches both the code and CLAUDE.md documentation. Previously the code said "4pm SAST" but CLAUDE.md said "3pm SAST" — this discrepancy is now resolved.
+
+#### `proxy.ts`
+- Confirmed: `middleware.ts` was previously renamed to `proxy.ts` for Next.js 16 compatibility. File is still present and unchanged. However, `proxy.ts` now exports `convexAuthNextjsMiddleware()` as a default export, which is the correct pattern.
+
+#### `app/manager/layout.tsx`
+- Inline loading spinner still present (lines 122-132) instead of using `LoadingSpinner` component. Previously tracked as STYLE-2 partial fix.
+
+#### `app/manager/account/page.tsx`
+- Inline loading spinner still present (lines 106-116) instead of using `LoadingSpinner` component.
+
+#### `app/select-organization/page.tsx`
+- Inline loading spinner still present (lines 73-83) instead of using `LoadingSpinner` component.
+
+#### `app/signin/page.tsx`
+- Inline loading spinner still present (lines 485-491) instead of using `LoadingSpinner` component.
+
+#### New Findings
+- NEW: `getHistoricalCheckins` still issues N+1 per-day queries (lines 542-551 of moodCheckins.ts) — unlike `getTrends`/`getGroupTrends` which were batch-converted.
+- NEW: `acceptInvitation` mutation accepts `userId` as an argument without verifying it matches the authenticated user.
+- NEW: `deleteAccount` does not clean up employees, groups, invitations, or access requests associated with the user's organizations.
+- NEW: `groups.getMembers` has no authentication check.
+- NEW: `getAuthAccount` internal query is missing a `returns` validator.
 
 ---
 
@@ -95,7 +126,7 @@
 - Added `style={{ width: "auto" }}` to `/smile.png` and `/sad.png` at the top of the page.
 - Added `style={{ width: "auto" }}` to `/smile.png` in the footer (line ~279).
 
-### `middleware.ts` → `proxy.ts`
+### `middleware.ts` -> `proxy.ts`
 - Renamed `middleware.ts` to `proxy.ts` and changed `export const middleware` to `export default` to comply with Next.js 16 deprecation of the `middleware` file convention.
 
 ### `package.json`
@@ -108,256 +139,314 @@
 
 The R u OK codebase is a workplace wellbeing check-in application with a Convex backend and Next.js 16 frontend. The overall architecture is sound: multi-tenant organization memberships, soft deletion patterns, role-based access control, and a clear separation between authenticated manager views and unauthenticated employee mood-response pages.
 
-The codebase demonstrates good practices in several areas: consistent use of Convex indexes for queries, proper authentication checks in most backend functions, well-structured soft deletion, and thoughtful historical accuracy calculations in trend queries. The frontend pages follow a consistent visual design with proper dark mode support.
+The codebase has improved substantially since the initial review on 2026-03-14. All 5 critical issues have been resolved, including the unauthenticated mood check-in endpoints (now token-protected), the polling loop in the invitation mutation, the password reset race condition, email enumeration hardening, and invitation token leakage. The cron schedule has been corrected to match the documented 3pm SAST target. The `authHelpers.ts` utility has been extracted, and index-based querying has replaced most `.filter()` usages.
 
-However, the review identified several critical security concerns, notably around the mood check-in endpoint which lacks any authentication or authorization, a polling loop inside a Convex mutation that will not work as intended, use of `filter()` in Convex queries (violating project conventions), and race conditions in the password reset flow. There are also significant opportunities to reduce code duplication across frontend pages and improve type safety in several areas.
-
-The most urgent findings relate to security vulnerabilities in the mood check-in and password reset flows, and a mutation that uses `setTimeout` for polling (which is not supported in Convex mutations).
+However, several structural issues persist: the organization selection remains localStorage-based, `moodCheckins.ts` is still over 1600 lines with 365 Bible verses embedded inline, several inline loading spinners remain despite the `LoadingSpinner` component existing, and the `authHelpers.ts` helper is not yet adopted by existing functions. New issues identified in this review include a missing authentication check on `groups.getMembers`, `getHistoricalCheckins` still using N+1 per-day queries, and the `acceptInvitation` mutation not verifying that the passed `userId` matches the authenticated user.
 
 ---
 
 ## Critical Issues
 
-### [CRITICAL-1] ~~Mood Check-in Endpoints Have No Authentication or Authorization~~ ✅ FIXED
+### [CRITICAL-1] ~~Mood Check-in Endpoints Have No Authentication or Authorization~~ ✅ FIXED (2026-03-14)
 - **File:** `convex/moodCheckins.ts` (functions: `record`, `updateDetails`, `hasSubmittedToday`)
-- **Description:** The `record`, `updateDetails`, and `hasSubmittedToday` mutations/queries accept an `employeeId` directly from the client with zero authentication. Any person who knows or guesses a valid employee ID can submit mood check-ins on behalf of any employee, read whether they submitted today, and update their notes. The `employeeId` is exposed in email URLs (`/mood-response?employeeId=...&mood=green`), making it trivially discoverable.
-- **Impact:** An attacker can fabricate mood data for any employee, corrupt organizational wellbeing dashboards, and potentially view whether specific employees have submitted check-ins. This undermines the integrity of all mood data.
-- **Fix Applied (2026-03-14):** Added a `moodCheckinTokens` table to the schema. `sendDailyEmails` now generates a `crypto.randomUUID()` token per employee (36h expiry), stores it in the table, and embeds it in email links as `&token=...`. The `record` and `updateDetails` mutations now require and validate this token against the database before writing. The `mood-response` page reads `token` from URL params and passes it to both mutations; a missing or invalid token is rejected with a clear error.
+- **Description:** The `record`, `updateDetails`, and `hasSubmittedToday` mutations/queries accepted an `employeeId` directly from the client with zero authentication.
+- **Fix Applied:** Added `moodCheckinTokens` table. `sendDailyEmails` generates a `crypto.randomUUID()` token per employee (36h expiry), stores it in the table, and embeds it in email links. The `record` and `updateDetails` mutations now require and validate this token.
 
-### [CRITICAL-2] ~~Polling Loop with setTimeout Inside a Convex Mutation~~ ✅ FIXED
-- **File:** `convex/managerInvitations.ts` (function: `acceptInvitation`, lines 316-320)
-- **Description:** The `acceptInvitation` mutation contains a `while` loop with `await new Promise(resolve => setTimeout(resolve, 200))` that polls up to 30 times (6 seconds total). Convex mutations are transactional and expected to complete quickly. `setTimeout` is not guaranteed to work correctly inside Convex mutation handlers, and long-running mutations can time out or cause unpredictable behavior in Convex's execution environment.
-- **Impact:** This mutation may fail silently, time out, or behave unpredictably in production. The invitation acceptance flow could break for new signups where the user record has not yet propagated.
-- **Fix Applied (2026-03-14):** Removed the `while` loop and all `setTimeout` usage. Replaced with a single `ctx.db.get(args.userId)` call. If the user is not found or has no email, a clear error is thrown immediately. The frontend should handle retrying if needed.
+### [CRITICAL-2] ~~Polling Loop with setTimeout Inside a Convex Mutation~~ ✅ FIXED (2026-03-14)
+- **File:** `convex/managerInvitations.ts` (function: `acceptInvitation`)
+- **Description:** The `acceptInvitation` mutation contained a `while` loop with `setTimeout` polling.
+- **Fix Applied:** Removed the `while` loop and all `setTimeout` usage. Replaced with a single `ctx.db.get(args.userId)` call.
 
-### [CRITICAL-3] ~~Password Reset Race Condition Between Mutation and Scheduled Action~~ ✅ FIXED
-- **File:** `convex/passwordReset.ts` (function: `resetPassword`, lines 302-358)
-- **Description:** The `resetPassword` mutation validates the token and checks `reset.used === false`, then schedules an action (`passwordResetActions.updatePasswordHash`) via `ctx.scheduler.runAfter(0, ...)` to actually hash the password and mark the token as used. Between the mutation completing and the action executing, another request with the same token could pass validation. The mutation returns a success message before the password is actually updated, so the user could be told "password reset successfully" even if the scheduled action fails.
-- **Impact:** A password reset token could be used multiple times. The user may receive a success message even if the password was not actually changed, leading to confusion and a potential security gap.
-- **Fix Applied (2026-03-14):** Added `await ctx.db.patch(reset._id, { used: true })` inside the `resetPassword` mutation, before `ctx.scheduler.runAfter`. The token is now atomically invalidated within the same mutation transaction. The scheduled action still calls `markResetAsUsed` as before, which is now idempotent and safe to call twice.
+### [CRITICAL-3] ~~Password Reset Race Condition Between Mutation and Scheduled Action~~ ✅ FIXED (2026-03-14)
+- **File:** `convex/passwordReset.ts` (function: `resetPassword`)
+- **Description:** Race condition between mutation completing and scheduled action executing.
+- **Fix Applied:** Added `await ctx.db.patch(reset._id, { used: true })` inside the `resetPassword` mutation before scheduling the action.
 
-### [CRITICAL-4] ~~Email Enumeration via Public Query~~ ✅ FIXED (partially)
-- **File:** `convex/users.ts` (function: `checkEmailExists`)
-- **Description:** The `checkEmailExists` query is a public function that accepts any email and returns a boolean indicating whether an account exists. This is also exposed via the API route at `app/api/check-email/route.ts`. While the `requestPasswordReset` mutation correctly avoids email enumeration, this query completely negates that protection by providing a direct oracle for account existence.
-- **Impact:** An attacker can enumerate all registered email addresses, which is a significant privacy and security concern for a wellbeing application where anonymity may be important.
-- **Fix Applied (2026-03-14):** The unauthenticated REST endpoint `app/api/check-email/route.ts` has been neutralised — it now returns `404` and no longer proxies the Convex query. This removes the easiest bulk-enumeration vector (plain HTTP POST with no setup required). The Convex `checkEmailExists` query remains because it is used by the sign-in and accept-invitation UX flows to determine whether to show sign-up or sign-in UI; removing it would require more significant UI refactoring. **Residual risk:** the Convex query is still unauthenticated but requires a Convex WebSocket connection and is subject to Convex platform-level rate limiting. Further hardening (e.g., requiring auth or an invitation token) should be addressed in a follow-up.
+### [CRITICAL-4] ~~Email Enumeration via Public Query~~ ✅ FIXED (partially, 2026-03-14)
+- **File:** `convex/users.ts` (function: `checkEmailExists`), `app/api/check-email/route.ts`
+- **Description:** Public functions that reveal whether an email is registered.
+- **Fix Applied:** REST endpoint neutralized (returns 404). Convex query remains for UX flow but is subject to platform-level rate limiting. **Residual risk** remains — the query is unauthenticated.
 
-### [CRITICAL-5] ~~Invitation Token Exposed in Public Query Response~~ ✅ FIXED (partially)
-- **File:** `convex/managerInvitations.ts` (function: `listInvitations`, line 169; function: `getInvitationByToken`, line 253)
-- **Description:** The `listInvitations` query returns the full invitation object including the `token` field to the frontend. The `getInvitationByToken` query also returns the full token. Anyone who can call `listInvitations` (any org owner) sees all tokens for all their organizations. More critically, `getInvitationByToken` is an unauthenticated public query that returns the token back, and `listInvitations` returns tokens in its response validator. Invitation tokens are effectively shared secrets that grant organization access.
-- **Impact:** Token leakage through query responses could allow unintended users to accept invitations if tokens are intercepted in network traffic or browser devtools.
-- **Fix Applied (2026-03-14):** `getInvitationByToken` no longer returns the `token` field — the return type validator and handler were updated to omit it (callers already possess the token, so echoing it back was redundant exposure). `listInvitations` still returns the `token` field intentionally: it is authenticated (org-owner only) and the token is required to power the "copy invite link" feature in the managers dashboard.
+### [CRITICAL-5] ~~Invitation Token Exposed in Public Query Response~~ ✅ FIXED (partially, 2026-03-14)
+- **File:** `convex/managerInvitations.ts` (function: `getInvitationByToken`)
+- **Description:** Token field was echoed back in the response.
+- **Fix Applied:** `getInvitationByToken` no longer returns the `token` field. `listInvitations` intentionally still returns it for the "copy invite link" feature (authenticated, owner-only).
 
 ---
 
 ## Workflow / Logic Issues
 
-### [LOGIC-1] ~~`new Date().toISOString().split("T")[0]` Uses UTC, Not Local Time~~ ✅ FIXED
-- **File:** `convex/moodCheckins.ts` (functions: `hasSubmittedToday`, `updateDetails`, `record`, `getTrends`, `getTodayCheckins`)
-- **Description:** Throughout the codebase, `new Date().toISOString().split("T")[0]` is used to get "today's" date. This returns the UTC date, not the local date (SAST, UTC+2). An employee checking in at 11 PM SAST would have their check-in recorded as the next day's date in UTC. The cron job runs at 2 PM UTC (4 PM SAST), so the date boundary issue could cause employees in SAST to have their afternoon check-ins attributed to the correct date, but edge cases around midnight could produce incorrect results.
-- **Impact:** Check-ins near midnight SAST may be attributed to the wrong date, and the "one check-in per day" constraint may not work correctly across the UTC/SAST boundary.
+### [LOGIC-1] ~~`new Date().toISOString().split("T")[0]` Uses UTC, Not Local Time~~ ✅ FIXED (2026-03-15)
+- **File:** `convex/moodCheckins.ts`
+- **Description:** UTC date instead of SAST was used for date calculations.
+- **Fix Applied:** `getSASTDateString()` helper now used throughout.
 
-### [LOGIC-2] ~~Employee Duplicate Check Requires Both Name AND Email Match~~ ✅ FIXED
-- **File:** `convex/employees.ts` (function: `add`, lines 89-93)
-- **Description:** The duplicate check matches on both `email.toLowerCase() === args.email.toLowerCase()` AND `firstName.toLowerCase() === args.firstName.toLowerCase()`. This means adding two employees with the same email but different first names (e.g., "John Doe" and "Jonathan Doe" with john@company.com) would succeed, creating duplicate email entries.
-- **Impact:** The same person could receive multiple daily check-in emails and have multiple mood records, corrupting trend data.
+### [LOGIC-2] ~~Employee Duplicate Check Requires Both Name AND Email Match~~ ✅ FIXED (2026-03-15)
+- **File:** `convex/employees.ts` (function: `add`)
+- **Description:** Duplicate check previously matched on both email and name.
+- **Fix Applied:** Now checks email only.
 
-### [LOGIC-3] ~~`getHistoricalCheckins` Only Returns Check-ins With Notes~~ ✅ FIXED
-- **File:** `convex/moodCheckins.ts` (function: `getHistoricalCheckins`, line 455)
-- **Description:** The `getHistoricalCheckins` query filters to only include check-ins where `c.note && c.note.trim().length > 0`. This is a business logic decision embedded in the query with no parameter to control it, and the function name does not indicate this filtering behavior.
-- **Impact:** The dashboard may appear to show "all historical check-ins" but actually only shows those with notes, which could be misleading to managers trying to understand response rates.
+### [LOGIC-3] ~~`getHistoricalCheckins` Only Returns Check-ins With Notes~~ ✅ FIXED (2026-03-15)
+- **File:** `convex/moodCheckins.ts` (function: `getHistoricalCheckins`)
+- **Description:** Hard-coded filter for notes.
+- **Fix Applied:** Added `notesOnly` parameter (defaults to `true` for backward compatibility).
 
-### [LOGIC-4] Organization Name Used as Unique Identifier ⏭ SKIPPED
+### [LOGIC-4] Organization Name Used as Unique Identifier — STILL OPEN
+- **Severity:** HIGH
 - **File:** `convex/schema.ts`, `convex/organizationMemberships.ts`
-- **Description:** The organization is identified by its name (a plain string), not by a generated ID. The `createOrganization` mutation checks for name uniqueness by querying `organizationMemberships`, but there is no dedicated organizations table. Organization names are case-sensitive (no normalization), so "Acme Corp" and "acme corp" would be treated as different organizations.
-- **Impact:** Case-sensitive organization names could lead to duplicate organizations. Renaming an organization would require updating every record across employees, groups, moodCheckins, managerInvitations, accessRequests, and organizationMemberships tables.
+- **Description:** The organization is identified by its name (a plain string), not by a generated ID. There is no dedicated `organizations` table. The `createOrganization` mutation checks for name uniqueness by querying `organizationMemberships`, but organization names are case-sensitive (no normalization). "Acme Corp" and "acme corp" would be treated as different organizations.
+- **Impact:** Case-sensitive organization names could lead to duplicate organizations. Renaming an organization would require updating every record across employees, groups, moodCheckins, managerInvitations, accessRequests, and organizationMemberships tables. This is a fundamental data model design issue.
 
-### [LOGIC-5] ~~`fixOrphanedInvitation` Bypasses Expiration Check~~ ✅ FIXED
-- **File:** `convex/managerInvitations.ts` (function: `fixOrphanedInvitation`, lines 657-718)
-- **Description:** The `fixOrphanedInvitation` mutation does not check if the invitation is expired before creating a membership. It also does not check the invitation status. Any authenticated user with a valid token can use this to create a membership regardless of whether the invitation has expired or been revoked.
-- **Impact:** Expired or revoked invitations could still be used to gain organization access through this mutation.
+### [LOGIC-5] ~~`fixOrphanedInvitation` Bypasses Expiration Check~~ ✅ FIXED (2026-03-15)
+- **File:** `convex/managerInvitations.ts` (function: `fixOrphanedInvitation`)
+- **Description:** No expiration or status check before creating membership.
+- **Fix Applied:** Now checks `expiresAt` and `status` before proceeding.
 
-### [LOGIC-6] ~~`groups.remove` Hard-Deletes Group Members, Losing Historical Data~~ ✅ FIXED
-- **File:** `convex/groups.ts` (function: `remove`, lines 180-182)
-- **Description:** When a group is removed, all `groupMembers` records are hard-deleted with `ctx.db.delete(membership._id)`, not soft-deleted. However, the soft-deletion pattern (using `removedAt`) is used everywhere else for group members. This inconsistency means historical trend calculations that reference these memberships will lose data.
-- **Impact:** Historical group trend data may become inaccurate after a group is deleted, since the member records are gone.
+### [LOGIC-6] ~~`groups.remove` Hard-Deletes Group Members, Losing Historical Data~~ ✅ FIXED (2026-03-15)
+- **File:** `convex/groups.ts` (function: `remove`)
+- **Description:** Group members were hard-deleted on group removal.
+- **Fix Applied:** Now soft-deletes with `removedAt`.
+
+### [LOGIC-7] `acceptInvitation` Does Not Verify userId Matches Authenticated User — NEW
+- **Severity:** HIGH
+- **File:** `convex/managerInvitations.ts` (function: `acceptInvitation`, line 292)
+- **Description:** The `acceptInvitation` mutation accepts `userId: v.id("users")` as a client-provided argument. It does NOT call `getAuthUserId(ctx)` to verify the authenticated user matches the passed `userId`. A malicious caller could pass any valid user ID to create an organization membership for a different user. In contrast, `acceptInvitationForExistingUser` correctly uses `getAuthUserId(ctx)`.
+- **Impact:** An authenticated user could create organization memberships for arbitrary other users by providing their user IDs to this mutation.
+
+### [LOGIC-8] `deleteAccount` Leaves Orphaned Organization Data — NEW
+- **Severity:** MEDIUM
+- **File:** `convex/users.ts` (function: `deleteAccount`, lines 63-105)
+- **Description:** The `deleteAccount` mutation deletes the user record, organization memberships, password resets, and auth accounts. However, it does not clean up: (a) employees owned by organizations where this user was the sole owner, (b) groups in those organizations, (c) manager invitations created by this user, (d) access requests. If this user is the last owner of an organization, the organization becomes orphaned with no one able to manage it.
+- **Impact:** Orphaned organizations with employees still receiving daily emails but no manager able to access the dashboard. Invitations created by the deleted user remain active.
 
 ---
 
 ## Best Practice Violations
 
-### [BP-1] ~~Use of `filter()` in Convex Queries~~ ✅ FIXED
-- **File:** `convex/managerInvitations.ts` (lines 74-81), `convex/accessRequests.ts` (lines 307-312), `convex/passwordReset.ts` (lines 43-49)
-- **Description:** Several queries use `.filter()` after `.withIndex()`, which violates the project convention stated in CLAUDE.md: "Never use `filter` in queries - define indexes instead." Examples include filtering invitations by organisation+status+expiry, filtering access requests by organisation+status, and filtering password resets by used+createdAt.
-- **Impact:** Performance degradation as dataset grows. Every record matching the index prefix must be loaded into memory and filtered in JavaScript.
+### [BP-1] ~~Use of `filter()` in Convex Queries~~ ✅ FIXED (2026-03-15)
+- **File:** Multiple files
+- **Description:** `.filter()` replaced with index-based queries and JS filtering.
 
-### [BP-2] `employees.listAll` Performs Full Table Scan ⏭ SKIPPED
-- **File:** `convex/employees.ts` (function: `listAll`, line 183)
+### [BP-2] `employees.listAll` Performs Full Table Scan — STILL OPEN
+- **Severity:** HIGH
+- **File:** `convex/employees.ts` (function: `listAll`, line 182)
 - **Description:** The `listAll` internal query calls `ctx.db.query("employees").collect()` with no index, loading every employee record across all organizations into memory, then filtering out soft-deleted ones in JavaScript.
 - **Impact:** As the application scales, this query (called by the daily email cron) will become increasingly expensive and could hit Convex query limits.
 
-### [BP-3] ~~Missing `returns` Validator on Multiple Mutations~~ ✅ FIXED
-- **File:** `convex/managerInvitations.ts` (functions: `acceptInvitation`, `acceptInvitationForExistingUser`, `fixOrphanedInvitation`), `convex/accessRequests.ts` (functions: `createAccessRequest`, `approveAccessRequest`, `declineAccessRequest`)
-- **Description:** Several mutations are missing the `returns` validator, which is required by project conventions for all public and internal functions. Without return validators, the return types are not enforced at runtime.
-- **Impact:** Violates project conventions and reduces type safety. The return values of these functions are not validated, which could lead to unexpected behavior in the frontend.
+### [BP-3] ~~Missing `returns` Validator on Multiple Mutations~~ ✅ FIXED (2026-03-15)
+- **File:** Multiple files
+- **Description:** Missing validators added.
 
-### [BP-4] Missing `"use node"` Directive on Action Files Using Node APIs ⏭ SKIPPED
+### [BP-4] Missing `"use node"` Directive on Action Files Using Node APIs — STILL OPEN
+- **Severity:** MEDIUM
 - **File:** `convex/managerInvitations.ts` (function: `sendInvitationEmail`), `convex/accessRequests.ts` (functions: `sendAccessRequestNotification`, `sendAccessRequestApprovalEmail`, `sendAccessRequestDeclineEmail`), `convex/passwordReset.ts` (function: `sendPasswordResetEmail`)
-- **Description:** These files contain `internalAction` functions that use `process.env` and `fetch` but lack the `"use node"` directive at the top. While `fetch` is available in Convex's default runtime, `process.env` access requires the Node.js runtime. Only `convex/passwordResetActions.ts` correctly uses `"use node"`.
-- **Impact:** These actions may fail at runtime if `process.env` is not available in Convex's default (V8) runtime. The behavior depends on the Convex version and deployment configuration.
+- **Description:** These files contain `internalAction` functions that use `process.env` but lack the `"use node"` directive at the top. Only `convex/passwordResetActions.ts` correctly uses `"use node"`. While `process.env` is available in Convex actions via the `convex/server` runtime, the explicit directive is best practice and makes the Node.js requirement explicit.
+- **Impact:** These actions work currently because Convex provides `process.env` in both runtimes, but reliance on this without the directive is fragile. If the files ever use Node-specific APIs (Buffer, crypto, etc.), they will fail without the directive.
 
-### [BP-5] Inline Email HTML Templates Mixed with Business Logic ⏭ SKIPPED
+### [BP-5] Inline Email HTML Templates Mixed with Business Logic — STILL OPEN
+- **Severity:** MEDIUM
 - **File:** `convex/moodCheckins.ts`, `convex/managerInvitations.ts`, `convex/passwordReset.ts`, `convex/accessRequests.ts`
-- **Description:** Large HTML email templates are embedded as template literals directly inside action handler functions, intermixed with business logic. Some email templates exceed 50 lines of HTML.
+- **Description:** Large HTML email templates are embedded as template literals directly inside action handler functions. The mood check-in email template alone is ~50 lines of HTML (lines 1597-1648). The access request notification, approval, and decline emails each contain full HTML documents. Total inline HTML across all files exceeds 300 lines.
 - **Impact:** Reduces readability, makes email templates difficult to maintain or test in isolation, and inflates function size. Changes to email styling require modifying business logic files.
+
+### [BP-6] Missing `returns` Validator on Internal Queries/Mutations — NEW
+- **Severity:** LOW
+- **File:** `convex/passwordReset.ts` (function: `getAuthAccount`, line 165), `convex/passwordReset.ts` (function: `deleteAuthAccount`, line 196), `convex/passwordReset.ts` (function: `deleteUser`, line 206)
+- **Description:** Several internal queries and mutations are missing `returns` validators. While not strictly required for internal functions, the project convention (per CLAUDE.md) is to include `args` and `returns` validators on all public and internal functions.
+- **Impact:** Minor inconsistency with project conventions. No runtime impact.
+
+### [BP-7] `authHelpers.ts` Exists But Is Not Used Anywhere — NEW
+- **Severity:** MEDIUM
+- **File:** `convex/authHelpers.ts`
+- **Description:** The `requireOrgMembership` helper was extracted (ARCH-3 fix) but none of the existing Convex functions have been updated to use it. Every query and mutation still contains its own inline auth + membership check pattern. The helper exists but is dead code.
+- **Impact:** The original goal of reducing boilerplate and ensuring consistent access control has not been achieved. The helper is available but brings no value until adopted.
 
 ---
 
 ## Architecture / Structure Concerns
 
-### [ARCH-1] Organization State Managed via localStorage, Not URL or Server State ⏭ SKIPPED
-- **File:** `app/manager/layout.tsx`, `app/manager/edit/page.tsx`, `app/manager/managers/page.tsx`, `app/manager/view/page.tsx`
-- **Description:** The selected organization is stored in `localStorage` and communicated between components via custom `window` events (`organizationChanged`). Every page that needs the selected org independently reads from localStorage and sets up event listeners. This pattern is fragile: it does not survive across devices, is not shareable via URL, and requires manual synchronization between components.
-- **Impact:** If localStorage is cleared or corrupted, the app enters an undefined state. URLs cannot be bookmarked or shared to show a specific organization's data. The organization selection logic is duplicated across at least 4 files.
+### [ARCH-1] Organization State Managed via localStorage, Not URL or Server State — STILL OPEN
+- **Severity:** HIGH
+- **File:** `app/manager/layout.tsx`, `app/manager/edit/page.tsx`, `app/manager/managers/page.tsx`, `app/manager/view/page.tsx`, `app/select-organization/page.tsx`, `app/signin/page.tsx`
+- **Description:** The selected organization is stored in `localStorage` and communicated between components via custom `window` events (`organizationChanged`) and `storage` events. Every manager page independently reads from localStorage and sets up event listeners. Confirmed present in at least 6 files.
+- **Impact:** If localStorage is cleared or corrupted, the app enters an undefined state. URLs cannot be bookmarked or shared to show a specific organization's data. The organization selection logic is duplicated across many files.
 
-### [ARCH-2] Massive File Size: `convex/moodCheckins.ts` ⏭ SKIPPED
-- **File:** `convex/moodCheckins.ts` (~1600+ lines)
-- **Description:** This file contains query logic, mutation logic, 21 check-in message templates, 7 follow-up message templates, 365 daily Bible verses, AI message generation, and the email sending action. The static data alone accounts for over 1000 lines.
-- **Impact:** The file is extremely difficult to navigate, review, or maintain. The static message/verse data should be in separate data files. The AI generation logic should be in its own module.
+### [ARCH-2] Massive File Size: `convex/moodCheckins.ts` — STILL OPEN
+- **Severity:** HIGH
+- **File:** `convex/moodCheckins.ts` (~1686 lines)
+- **Description:** This file contains: query/mutation logic (12 exported functions), 21 check-in message templates, 7 follow-up message templates, 365 daily Bible verses, AI message generation via Gemini API, the email sending action, and two helper functions. The `DAILY_VERSES` array alone spans lines 935-1314 (379 lines). The `CHECKIN_MESSAGES` array spans lines 718-872 (154 lines).
+- **Impact:** Extremely difficult to navigate, review, or maintain. Static data should be in separate data files. The AI generation logic and email sending should be in their own modules.
 
-### [ARCH-3] ~~Duplicated Access Control Pattern~~ ✅ FIXED (partially)
+### [ARCH-3] ~~Duplicated Access Control Pattern~~ ✅ FIXED (partially, 2026-03-15)
 - **File:** All Convex query/mutation files
-- **Description:** The same authentication and organization membership check pattern is repeated in nearly every function: `getAuthUserId(ctx)` followed by a membership query with `by_user_and_org` index. This boilerplate is not extracted into a shared helper function.
-- **Impact:** Any change to the access control pattern (e.g., adding audit logging, changing error messages) would need to be applied to dozens of locations. Risk of inconsistency is high.
+- **Description:** `requireOrgMembership` helper extracted to `convex/authHelpers.ts`.
+- **Note:** The helper exists but is not yet adopted by any existing function. See BP-7.
 
-### [ARCH-4] ~~`manager-signup` Page is Dead Code~~ ✅ FIXED
-- **File:** `app/manager-signup/page.tsx`
-- **Description:** This page always redirects to `/accept-invitation` via a `useEffect`. The form it renders is never reachable because the redirect fires before the user can interact. The `handleSubmit` function simply redirects to `/signin`. This page appears to be a vestige of an earlier flow.
-- **Impact:** Dead code that could confuse developers and increases maintenance burden.
+### [ARCH-4] ~~`manager-signup` Page is Dead Code~~ ✅ FIXED (2026-03-15)
+- **File:** `app/manager-signup/page.tsx` (deleted)
+
+### [ARCH-5] `groups.getMembers` Has No Authentication or Authorization Check — NEW
+- **Severity:** HIGH
+- **File:** `convex/groups.ts` (function: `getMembers`, lines 48-83)
+- **Description:** The `getMembers` query accepts a `groupId` but does not call `getAuthUserId(ctx)` or verify organization membership. Any unauthenticated user who knows a valid group ID can retrieve the list of employees in that group, including their names and email addresses. Every other query in the codebase performs authentication and authorization checks.
+- **Impact:** Information disclosure — employee names and emails in any group can be enumerated by unauthenticated callers.
 
 ---
 
 ## Code Style and Consistency
 
-### [STYLE-1] Inconsistent Error Handling Patterns ⏭ SKIPPED
+### [STYLE-1] Inconsistent Error Handling Patterns — STILL OPEN
+- **Severity:** MEDIUM
 - **File:** Multiple frontend pages
-- **Description:** Some pages use `ConvexError` (e.g., `accessRequests.ts`), while others use plain `Error`. Frontend error handling varies: some pages check `msg.toLowerCase().includes("network")` for network errors, some do not. Error display varies between inline messages, modals, and toast-like banners.
-- **Impact:** Inconsistent user experience when errors occur. Harder to maintain a consistent error handling strategy.
+- **Description:** Some backend functions use `ConvexError` (e.g., `accessRequests.ts`), while others use plain `Error`. Frontend error handling varies: some pages check `msg.toLowerCase().includes("network")` for network errors (signin, mood-response, edit, reset-password), some do not. Error display varies between inline messages, modals, and toast-like banners.
+- **Impact:** Inconsistent user experience when errors occur. The `ConvexError` vs `Error` split means the frontend has to handle both differently.
 
-### [STYLE-2] ~~Duplicated Loading Spinner Component~~ ✅ FIXED
-- **File:** `app/signin/page.tsx`, `app/manager/layout.tsx`, `app/manager/edit/page.tsx`, `app/manager/managers/page.tsx`, `app/manager/account/page.tsx`, `app/select-organization/page.tsx`, `app/reset-password/page.tsx`, `app/mood-response/page.tsx`
-- **Description:** The same three-dot bouncing animation pattern (three divs with `animate-bounce` and staggered delays) is copy-pasted across at least 8 files. It is never extracted into a reusable component.
-- **Impact:** Any style change to the loading indicator must be replicated across all files.
+### [STYLE-2] ~~Duplicated Loading Spinner Component~~ ✅ FIXED (partially, 2026-03-15)
+- **File:** Multiple frontend pages
+- **Description:** `LoadingSpinner` component extracted and used in `app/page.tsx`, `app/mood-response/page.tsx`, `app/viewer/dashboard/page.tsx`, `app/request-access/page.tsx`, `app/manager/view/page.tsx`, `app/manager/managers/page.tsx`.
+- **Remaining:** Inline three-dot bounce spinners still exist in: `app/manager/layout.tsx` (lines 122-132), `app/manager/account/page.tsx` (lines 106-116), `app/select-organization/page.tsx` (lines 73-83), `app/signin/page.tsx` (lines 485-491). These 4 files still use the copy-pasted pattern instead of the extracted component.
 
-### [STYLE-3] Duplicated Background Pattern Markup ⏭ SKIPPED
+### [STYLE-3] Duplicated Background Pattern Markup — STILL OPEN
+- **Severity:** LOW
 - **File:** Nearly every page component
-- **Description:** The same decorative background pattern (gradient, dot pattern, decorative blobs) is copy-pasted across most pages. The gradient classes, blob sizes, and pattern configurations are identical in many places.
-- **Impact:** UI consistency changes require updating dozens of files.
+- **Description:** The same decorative background pattern (gradient, dot pattern via `radial-gradient`, decorative blobs with `blur-3xl`) is copy-pasted across most pages. Confirmed identical patterns in: `app/page.tsx`, `app/signin/page.tsx`, `app/manager/layout.tsx`, `app/reset-password/page.tsx`, `app/select-organization/page.tsx`, `app/request-access/page.tsx`, `app/invite/page.tsx`, `app/viewer/dashboard/page.tsx`.
+- **Impact:** UI consistency changes require updating many files.
 
-### [STYLE-4] Mixed Import Path Styles ⏭ SKIPPED
+### [STYLE-4] Mixed Import Path Styles — STILL OPEN
+- **Severity:** LOW
 - **File:** Various frontend files
-- **Description:** Some files use `@/components/ui/button` (path alias), while others use relative paths like `../../convex/_generated/api`. The Convex imports consistently use relative paths, which is fine, but the mix could be confusing.
+- **Description:** Some files use `@/components/ui/button` (path alias), while Convex imports use relative paths like `../../convex/_generated/api`. This is consistent within each category but the mix could be confusing.
 - **Impact:** Minor consistency issue. Not a functional problem.
+
+### [STYLE-5] Metadata Description is a Placeholder — NEW
+- **Severity:** LOW
+- **File:** `app/layout.tsx` (line 19)
+- **Description:** The metadata description is set to `"My very first website"` which appears to be a placeholder from initial project scaffolding.
+- **Impact:** This will appear in search engine results and social media previews. Should describe the actual application purpose.
 
 ---
 
 ## Global State Risks
 
-### [STATE-1] localStorage as Global State for Organization Selection ⏭ SKIPPED
-- **File:** `app/manager/layout.tsx`, `app/manager/edit/page.tsx`, `app/manager/managers/page.tsx`, `app/manager/view/page.tsx`, `app/select-organization/page.tsx`
+### [STATE-1] localStorage as Global State for Organization Selection — STILL OPEN
+- **Severity:** HIGH
+- **File:** `app/manager/layout.tsx`, `app/manager/edit/page.tsx`, `app/manager/managers/page.tsx`, `app/manager/view/page.tsx`, `app/select-organization/page.tsx`, `app/signin/page.tsx`
 - **Description:** `localStorage.getItem("selectedOrganization")` is used as the primary state source for the selected organization. Multiple components read and write to this key. Custom `window` events are dispatched to synchronize state, creating an ad-hoc pub/sub system outside React's state management.
-- **Impact:** This is a fragile global state pattern. Race conditions are possible if multiple tabs modify the selection simultaneously. There is no single source of truth within React's component tree.
+- **Impact:** Fragile global state pattern. Race conditions possible if multiple tabs modify the selection simultaneously. There is no single source of truth within React's component tree. The `app/manager/view/page.tsx` file even signs out the user if the stored org doesn't match their membership (lines 68-83), which could trigger unexpectedly if localStorage is corrupted.
 
 ---
 
 ## Dependency Observations
 
-### [DEP-1] ~~`@types/bcryptjs` in Production Dependencies~~ ✅ FIXED
-- **File:** `package.json` (line 22)
-- **Description:** `@types/bcryptjs` is listed under `dependencies` rather than `devDependencies`. Type declaration packages are only needed at build time.
-- **Impact:** Slightly inflated production bundle/install size. No functional impact.
+### [DEP-1] ~~`@types/bcryptjs` in Production Dependencies~~ ✅ FIXED (2026-03-15)
+- **File:** `package.json`
+- **Description:** Moved to `devDependencies`.
 
-### [DEP-2] ~~Unused `formData` State in `manager-signup/page.tsx`~~ ✅ FIXED
-- **File:** `app/manager-signup/page.tsx`
-- **Description:** The page maintains `formData` state with name, surname, password, and confirmPassword fields, but the `handleSubmit` function simply redirects to `/signin`. The form data is never sent anywhere because the page always redirects to `/accept-invitation` before the user can interact.
-- **Impact:** Dead code that increases cognitive load during maintenance.
+### [DEP-2] ~~Unused `formData` State in `manager-signup/page.tsx`~~ ✅ FIXED (2026-03-15)
+- **File:** `app/manager-signup/page.tsx` (deleted)
+
+### [DEP-3] `ts-prune` Package in devDependencies — NEW
+- **Severity:** LOW
+- **File:** `package.json` (line 44)
+- **Description:** `ts-prune` is listed in devDependencies but there is no npm script or configuration that uses it. It appears to be an installed-but-unused development tool.
+- **Impact:** No functional impact. Slightly increases install time.
 
 ---
 
 ## Potential Bugs
 
-### [BUG-1] ~~Mood Response Page Casts String to Convex ID Without Validation~~ ✅ FIXED (previously)
-- **File:** `app/mood-response/page.tsx` (lines 26, 54, 85)
-- **Description:** The `employeeId` from URL search params is cast directly to `Id<"employees">` with `as Id<"employees">`. If an invalid or malformed ID is provided, this will pass TypeScript compilation but may cause a runtime error in Convex when used in a query/mutation.
-- **Impact:** Invalid employee IDs from manipulated URLs could cause uncaught runtime errors rather than graceful error messages.
+### [BUG-1] ~~Mood Response Page Casts String to Convex ID Without Validation~~ ✅ FIXED (2026-03-14)
+- **File:** `convex/moodCheckins.ts`
+- **Description:** Fixed with try/catch around `ctx.db.get()` calls.
 
-### [BUG-2] ~~`getTrends` and `getGroupTrends` Issue N+1 Queries per Day~~ ✅ FIXED
-- **File:** `convex/moodCheckins.ts` (functions: `getTrends`, `getGroupTrends`)
-- **Description:** For each day in the requested range, a separate database query is issued to fetch check-ins. With a 365-day range (the "1year" option on the frontend), this results in 365 separate queries in a single Convex query function, which may exceed Convex's query budget or cause significant latency.
-- **Impact:** The "1 year" and "overall" time range options on the dashboard may be extremely slow or fail entirely due to Convex query limits.
+### [BUG-2] ~~`getTrends` and `getGroupTrends` Issue N+1 Queries per Day~~ ✅ FIXED (2026-03-15)
+- **File:** `convex/moodCheckins.ts`
+- **Description:** Now batch-fetches all check-ins via org index.
 
-### [BUG-3] `getGroupTodayCheckins` Fetches All Org Check-ins Then Filters ⏭ SKIPPED
-- **File:** `convex/moodCheckins.ts` (function: `getGroupTodayCheckins`, lines 358-401)
-- **Description:** The query fetches all check-ins for the entire organization for today and yesterday, then filters in JavaScript to only include employees in the specified group using `employeeIds.includes()`. For large organizations, this loads significantly more data than necessary.
+### [BUG-3] `getGroupTodayCheckins` Fetches All Org Check-ins Then Filters — STILL OPEN
+- **Severity:** MEDIUM
+- **File:** `convex/moodCheckins.ts` (function: `getGroupTodayCheckins`, lines 412-502)
+- **Description:** The query fetches all check-ins for the entire organization for today and yesterday, then filters in JavaScript to only include employees in the specified group using `employeeIds.includes()`. Documented as acceptable given the data model (no index combining organisation+date+employeeId).
 - **Impact:** Performance degradation proportional to organization size, not group size.
 
-### [BUG-4] ~~`acceptInvitation` Missing Return Type Validator~~ ✅ FIXED
-- **File:** `convex/managerInvitations.ts` (function: `acceptInvitation`, line 291)
-- **Description:** The `acceptInvitation` mutation returns different object shapes depending on the code path: `{ success: true, alreadyHasAccess: true, existingRole: string }`, `{ success: true, upgraded: true }`, or `{ success: true }`. There is no `returns` validator, so the frontend cannot rely on a consistent return type.
-- **Impact:** TypeScript type inference on the frontend will be weaker, and any code depending on specific return shape properties may break silently.
+### [BUG-4] ~~`acceptInvitation` Missing Return Type Validator~~ ✅ FIXED (2026-03-15)
+- **File:** `convex/managerInvitations.ts`
+- **Description:** Added `returns` validator.
 
-### [BUG-5] ~~Copyright Year Hardcoded to 2025~~ ✅ FIXED
-- **File:** `app/page.tsx` (line 283)
-- **Description:** The footer displays `2025 R u OK. All rights reserved.` with a hardcoded year.
-- **Impact:** Minor issue. The copyright year is already outdated for the current date (2026-03-14).
+### [BUG-5] ~~Copyright Year Hardcoded to 2025~~ ✅ FIXED (2026-03-15)
+- **File:** `app/page.tsx`
+- **Description:** Now uses `new Date().getFullYear()`.
+
+### [BUG-6] `getHistoricalCheckins` Still Uses N+1 Per-Day Queries — NEW
+- **Severity:** MEDIUM
+- **File:** `convex/moodCheckins.ts` (function: `getHistoricalCheckins`, lines 542-551)
+- **Description:** While `getTrends` and `getGroupTrends` were refactored (BUG-2 fix) to batch-fetch check-ins, `getHistoricalCheckins` still uses `Promise.all` over individual per-day queries with `by_organisation_and_date`. For 30 days (default), this issues 30 separate queries. For large date ranges, this could hit Convex query budgets.
+- **Impact:** For the default 30-day range, 30 queries are issued. This is less severe than the original BUG-2 (which could be 365 queries) but follows the same problematic pattern that was fixed in the trend functions.
+
+### [BUG-7] `hasSubmittedToday` Query Passes String Directly to Index — NEW
+- **Severity:** LOW
+- **File:** `convex/moodCheckins.ts` (function: `hasSubmittedToday`, line 28)
+- **Description:** The `hasSubmittedToday` query uses `employeeId: v.string()` in its args validator (to avoid crashes with invalid IDs), but at line 70 it passes `args.employeeId as Id<"employees">` directly to the `by_employee_and_date` index. While the `try/catch` around `ctx.db.get()` above protects against invalid IDs, the index query at line 70 is NOT wrapped in a try/catch and will throw if the cast is invalid. If `ctx.db.get()` happens to succeed (e.g., ID from a different table), the code proceeds to the index query which could fail.
+- **Impact:** Edge case — if `ctx.db.get()` succeeds but the ID is not a valid employee ID, the subsequent index query could throw an unhandled error.
 
 ---
 
 ## Performance Concerns
 
-### [PERF-1] ~~Daily Email Action Processes All Employees Sequentially with 500ms Delay~~ ✅ FIXED (partially)
-- **File:** `convex/moodCheckins.ts` (function: `sendDailyEmails`, lines 1483-1597)
-- **Description:** The `sendDailyEmails` action iterates through every employee across all organizations sequentially, with a 500ms delay between each email for rate limiting. For 1000 employees, this would take approximately 500 seconds (8+ minutes). Convex actions have a 10-minute timeout by default.
-- **Impact:** The daily email action will time out for organizations with more than approximately 1200 employees total. If AI message generation is enabled (Gemini API call per employee), the timeout would be reached much sooner.
+### [PERF-1] ~~Daily Email Action Processes All Employees Sequentially with 500ms Delay~~ ✅ FIXED (partially, 2026-03-15)
+- **Severity:** MEDIUM (was HIGH)
+- **File:** `convex/moodCheckins.ts` (function: `sendDailyEmails`)
+- **Description:** Delay reduced from 500ms to 200ms. For 1000 employees, this is now ~200 seconds (3.3 minutes). The 10-minute timeout is still a concern for approximately 3000+ employees. Additionally, each employee now also requires a `createCheckinToken` mutation call (line 1564), adding overhead per employee.
+- **Impact:** The daily email action will time out for very large deployments.
 
-### [PERF-2] Trend Calculations Load All Employees for Every Query ⏭ SKIPPED
+### [PERF-2] Trend Calculations Load All Employees for Every Query — STILL OPEN
+- **Severity:** MEDIUM
 - **File:** `convex/moodCheckins.ts` (functions: `getTrends`, `getGroupTrends`)
-- **Description:** Both trend functions load all employees for the organization to calculate historical employee counts. The `getGroupTrends` function additionally fetches all group members and then does `Promise.all` to load each employee individually.
+- **Description:** Both `getTrends` (line 255) and `getGroupTrends` (lines 620-631) load all employees for the organization to calculate historical employee counts. `getGroupTrends` additionally fetches each employee individually via `Promise.all` over `employeeIds.map(id => ctx.db.get(id))`.
 - **Impact:** Dashboard performance degrades linearly with organization size and the number of days requested.
 
-### [PERF-3] ~~Gemini API Called Per Employee Without Caching~~ ✅ FIXED
-- **File:** `convex/moodCheckins.ts` (function: `sendDailyEmails`, line 1504)
-- **Description:** When AI message generation is enabled, `generateAIMessage` is called for every single employee, making an HTTP request to the Gemini API each time. There is no caching or batching. For employees in the same state (not needing extra encouragement), the messages could be generated once and reused.
-- **Impact:** Unnecessary API costs and latency. For 500 employees, this is 500 Gemini API calls per day, adding significant time to the already sequential email sending loop.
+### [PERF-3] ~~Gemini API Called Per Employee Without Caching~~ ✅ FIXED (2026-03-15)
+- **File:** `convex/moodCheckins.ts`
+- **Description:** AI messages now pre-generated per encouragement type and cached for reuse.
+
+### [PERF-4] `getTrends` Loads ALL Organization Check-ins Into Memory — NEW
+- **Severity:** MEDIUM
+- **File:** `convex/moodCheckins.ts` (function: `getTrends`, lines 262-265)
+- **Description:** The batch-fetch refactoring (BUG-2 fix) changed the N+1 pattern to a single fetch, but it now loads ALL check-ins for the organization into memory at once (line 262-265: `ctx.db.query("moodCheckins").withIndex("by_organisation"...).collect()`). For an organization with 100 employees over 2 years, this could be ~50,000+ records loaded into memory. The function only needs check-ins within the requested date range, but it fetches everything.
+- **Impact:** Memory usage grows unboundedly with organization history. For long-running organizations, this could become a significant performance issue or hit Convex memory limits.
 
 ---
 
 ## Suggestions for Future Refactoring
 
-1. **Extract shared authentication/authorization helper.** Create a utility function like `requireOrgMembership(ctx, organisation, requiredRole?)` that handles the common pattern of getting the auth user ID and verifying organization membership. This would reduce boilerplate across all Convex functions and ensure consistent access control.
+1. **Adopt `requireOrgMembership` helper.** The helper exists in `convex/authHelpers.ts` but is unused. Migrating existing functions to use it would reduce boilerplate across all Convex functions and ensure consistent access control.
 
 2. **Move organization selection to URL state.** Use URL search parameters or route segments (e.g., `/manager/[orgId]/view`) instead of localStorage. This would make organization selection shareable, bookmarkable, and eliminate the custom event synchronization pattern.
 
-3. **Extract static data from `moodCheckins.ts`.** Move `CHECKIN_MESSAGES`, `FOLLOWUP_ENCOURAGEMENT_MESSAGES`, and `DAILY_VERSES` to separate data files. Move `generateAIMessage` and `getFallbackMessage` to a separate utility module.
+3. **Extract static data from `moodCheckins.ts`.** Move `CHECKIN_MESSAGES`, `FOLLOWUP_ENCOURAGEMENT_MESSAGES`, and `DAILY_VERSES` to separate data files (e.g., `convex/data/verses.ts`). Move `generateAIMessage` and `getFallbackMessage` to a separate utility module.
 
-4. **Create reusable UI components.** Extract the loading spinner, background pattern, and error display into shared components to eliminate duplication across pages.
+4. **Use `by_organisation_and_date` index with range queries.** Instead of loading all org check-ins and filtering by date in JS, use the composite index with date range bounds to only fetch relevant check-ins for `getTrends`, `getGroupTrends`, and `getHistoricalCheckins`.
 
-5. **Add authentication to mood check-in endpoints.** Consider using signed tokens in email links (e.g., HMAC-signed URLs) rather than raw employee IDs to prevent unauthorized check-in submissions.
+5. **Add an `organizations` table.** Replace the string-based organization identifier with a proper table having an auto-generated ID. This would make organization renaming feasible and improve data integrity.
 
-6. **Batch daily email sending.** Split the `sendDailyEmails` action into batches (e.g., per organization) using scheduled actions to avoid the 10-minute timeout limit.
+6. **Implement rate limiting on public endpoints.** The `getInvitationByToken` and `checkEmailExists` queries are unauthenticated and could be abused for brute-force enumeration.
 
-7. **Add an `organizations` table.** Replace the string-based organization identifier with a proper table having an auto-generated ID. This would make organization renaming feasible and improve data integrity.
+7. **Add authentication to `groups.getMembers`.** This query exposes employee data without any auth check.
 
-8. **Implement rate limiting on public endpoints.** The `getInvitationByToken` and `checkEmailExists` queries are unauthenticated and could be abused for brute-force enumeration.
+8. **Batch daily email sending.** Split the `sendDailyEmails` action into batches (e.g., per organization) using scheduled actions to avoid the 10-minute timeout limit.
+
+9. **Complete the `LoadingSpinner` migration.** Four files still use inline spinner markup instead of the extracted component.
+
+10. **Handle sole-owner deletion gracefully.** The `deleteAccount` mutation should either prevent deletion when the user is the sole owner of an organization, or cascade the cleanup properly.
 
 ---
 
 ## Review Notes
 
-- The `app/manager/view/page.tsx` file was too large to read in full (55KB). The review of this file is based on the first ~45 lines and general patterns observed in other files.
-- The `app/accept-invitation/page.tsx` file was also too large to read in full (59KB). Review is based on the first ~35 lines.
-- The `convex/moodCheckins.ts` file is approximately 1600+ lines. It was read in multiple chunks. The review covers all sections.
-- The `convex/auth.ts` file (referenced by `http.ts`) was not explicitly listed but is imported; it appears to be the Convex Auth configuration.
+- The `app/manager/view/page.tsx` file is large (~55KB). The review is based on the first ~100 lines and the patterns observed. The org-selection and auth logic at the top follows the same localStorage pattern as other manager pages.
+- The `app/accept-invitation/page.tsx` file is large (~52KB). Review is based on the persisted output summary and the first ~35 lines. It follows the same invitation flow patterns seen in the backend.
+- The `convex/moodCheckins.ts` file was read in multiple chunks across its full ~1686 lines.
+- The `proxy.ts` file correctly exports `convexAuthNextjsMiddleware()` as a default export, compatible with the expected pattern. No `middleware.ts` file exists at the project root.
+- The cron schedule discrepancy noted in the previous review (code said 2pm UTC but CLAUDE.md said 1pm UTC) has been resolved. The cron expression is now `0 13 * * 1-5` (1pm UTC = 3pm SAST), matching the CLAUDE.md documentation.
+- The `app/invite/page.tsx` was not listed in the original review scope but was found and reviewed. It serves as the entry point for shareable invitation links.
 - Several UI component files in `components/ui/` (button, input, sidebar, etc.) were not reviewed in detail as they appear to be standard Radix UI/shadcn component wrappers.
-- The `.env.example` file and `APP_WORKFLOW.md` were not reviewed as they are configuration/documentation files.
-- The comment in `crons.ts` says "4pm SAST (2pm UTC)" but CLAUDE.md says "3pm SAST (1pm UTC)". The actual cron expression `0 14 * * 1-5` runs at 2pm UTC = 4pm SAST, so the code is correct but CLAUDE.md is outdated.

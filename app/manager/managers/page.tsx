@@ -149,8 +149,9 @@ export default function ManageManagersPage() {
 
   const isOwner = userRole === "owner";
   const activeMembers = members.filter((m) => m.userId !== user._id);
+  const now = Date.now();
   const pendingInvitations = invitations.filter(
-    (inv) => inv.status === "pending" && inv.organisation === selectedOrg
+    (inv) => inv.status === "pending" && inv.organisation === selectedOrg && inv.expiresAt > now
   );
 
   // Email validation helper
