@@ -68,15 +68,17 @@ export default function ManageManagersPage() {
   const [linkRole, setLinkRole] = useState<"viewer" | "editor">("viewer"); // For shareable links
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSuccess, setEmailSuccess] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [linkSuccess, setLinkSuccess] = useState<string | null>(null);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
 
 
   const copyInviteUrl = () => {
     if (generatedUrl) {
       navigator.clipboard.writeText(generatedUrl);
-      setSuccess("Invitation URL copied to clipboard!");
+      setLinkSuccess("Invitation URL copied to clipboard!");
     }
   };
 
@@ -92,7 +94,7 @@ export default function ManageManagersPage() {
     const baseUrl = window.location.origin;
     const inviteLink = `${baseUrl}/invite?token=${encodeURIComponent(token)}`;
     navigator.clipboard.writeText(inviteLink);
-    setSuccess("Invitation link copied to clipboard!");
+    setLinkSuccess("Invitation link copied to clipboard!");
   };
 
   const handleApproveRequest = (requestId: Id<"accessRequests">, label: string) => {
@@ -109,21 +111,21 @@ export default function ManageManagersPage() {
     try {
       if (confirmDialog.action === "approve") {
         await approveAccessRequest({ requestId: confirmDialog.requestId });
-        setSuccess("Access request approved! The user will receive an email notification.");
+        setLinkSuccess("Access request approved! The user will receive an email notification.");
       } else if (confirmDialog.action === "decline") {
         await declineAccessRequest({ requestId: confirmDialog.requestId });
-        setSuccess("Access request declined.");
+        setLinkSuccess("Access request declined.");
       } else if (confirmDialog.action === "remove") {
         await removeMember({ membershipId: confirmDialog.membershipId });
-        setSuccess("User removed successfully!");
+        setLinkSuccess("User removed successfully!");
       } else if (confirmDialog.action === "revoke") {
         await revokeInvitation({ invitationId: confirmDialog.invitationId });
-        setSuccess("Invitation revoked successfully!");
+        setLinkSuccess("Invitation revoked successfully!");
       }
       setConfirmDialog(null);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to complete action";
-      setError(message);
+      setLinkError(message);
     } finally {
       setIsConfirming(false);
     }
@@ -188,17 +190,6 @@ export default function ManageManagersPage() {
             Type email of user that you want to invite
           </p>
 
-          {error && error.includes("email") && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg mb-4">
-              {error}
-            </div>
-          )}
-
-          {success && success.includes("email sent") && (
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg mb-4 break-all">
-              {success}
-            </div>
-          )}
 
           <div className="flex flex-col gap-6">
             <div>
@@ -261,25 +252,32 @@ export default function ManageManagersPage() {
                 if (!selectedOrg || !email.trim()) return;
 
                 setIsSubmitting(true);
-                setError(null);
-                setSuccess(null);
+                setEmailError(null);
+                setEmailSuccess(null);
                 setGeneratedUrl(null);
+
+                const emailLower = email.trim().toLowerCase();
+                if (members?.some((m) => m.email.toLowerCase() === emailLower)) {
+                  setEmailError("User already has access to this organization.");
+                  setIsSubmitting(false);
+                  return;
+                }
 
                 try {
                   const result = await createInvitation({
                     role,
                     organisation: selectedOrg,
                     email: email.trim(),
-                    baseUrl: window.location.origin, // Pass current deployment URL
+                    baseUrl: window.location.origin,
                   });
 
                   if (result.mode === "email") {
-                    setSuccess(`Invitation email sent to ${email}! They'll receive instructions to join.`);
+                    setEmailSuccess(`Invitation email sent to ${email}! They'll receive instructions to join.`);
                     setEmail("");
                   }
                 } catch (err: unknown) {
                   const message = err instanceof Error ? err.message : "Failed to send invitation";
-                  setError(message);
+                  setEmailError(message);
                 } finally {
                   setIsSubmitting(false);
                 }
@@ -289,6 +287,17 @@ export default function ManageManagersPage() {
             >
               {isSubmitting ? "Sending Email..." : "Send Email Invitation"}
             </button>
+
+            {emailError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
+                {emailError}
+              </div>
+            )}
+            {emailSuccess && (
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg break-all">
+                {emailSuccess}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -303,15 +312,15 @@ export default function ManageManagersPage() {
             ⚠️ Anyone with this link can request access to your organization. You will need to approve each request before they gain access.
           </div>
 
-          {error && !error.includes("email") && (
+          {linkError && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg mb-4">
-              {error}
+              {linkError}
             </div>
           )}
 
-          {success && !success.includes("email sent") && (
+          {linkSuccess && (
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg mb-4 break-all">
-              {success}
+              {linkSuccess}
             </div>
           )}
 
@@ -363,8 +372,8 @@ export default function ManageManagersPage() {
                 if (!selectedOrg) return;
 
                 setIsSubmitting(true);
-                setError(null);
-                setSuccess(null);
+                setLinkError(null);
+                setLinkSuccess(null);
                 setGeneratedUrl(null);
 
                 try {
@@ -373,17 +382,17 @@ export default function ManageManagersPage() {
                     role: linkRole,
                     organisation: selectedOrg,
                     email: undefined,
-                    baseUrl: baseUrl, // Pass current deployment URL
+                    baseUrl: baseUrl,
                   });
 
                   if (result.mode === "link") {
                     const inviteUrl = `${baseUrl}/accept-invitation?token=${encodeURIComponent(result.token)}`;
                     setGeneratedUrl(inviteUrl);
-                    setSuccess("Invitation URL generated! Copy and share it with anyone you want to invite.");
+                    setLinkSuccess("Invitation URL generated! Copy and share it with anyone you want to invite.");
                   }
                 } catch (err: unknown) {
                   const message = err instanceof Error ? err.message : "Failed to generate invitation";
-                  setError(message);
+                  setLinkError(message);
                 } finally {
                   setIsSubmitting(false);
                 }
