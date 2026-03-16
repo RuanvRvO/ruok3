@@ -145,28 +145,19 @@ export default function ManagerLayout({
     <SidebarProvider>
       <Sidebar>
         <SidebarHeader>
-          <div className="flex flex-col gap-2 p-2">
-            <div className="flex items-center gap-2.5">
-              <div className="flex items-center gap-2">
-                <Image 
-                  src="/smile.png" 
-                  alt="Smile Logo" 
-                  width={28} 
-                  height={28}
-                  className="object-contain"
-                />
-                <div className="w-px h-6 bg-slate-300 dark:bg-slate-600"></div>
-                <Image
-                  src="/sad.png"
-                  alt="Sad Logo"
-                  width={28}
-                  height={28}
-                  className="object-contain dark:hidden"
-                />
-              </div>
-              <h1 className="text-base font-semibold text-slate-800 dark:text-slate-200 leading-tight">
-                R u OK today?
-              </h1>
+          <div className="flex items-center gap-3 px-3 py-3">
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-blue-500 shadow-sm shrink-0">
+              <Image
+                src="/smile.png"
+                alt="R u OK"
+                width={22}
+                height={22}
+                className="object-contain"
+              />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-none tracking-tight">R u OK</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400 leading-none mt-1">Wellbeing Platform</span>
             </div>
           </div>
         </SidebarHeader>
