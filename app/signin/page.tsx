@@ -42,7 +42,6 @@ export default function SignIn() {
   );
   const router = useRouter();
   const signInErrorRef = useRef(false); // Track if sign-in failed to prevent redirect
-  const [waitingForAuth, setWaitingForAuth] = useState(false);
   
   // Forgot password state
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
@@ -67,41 +66,6 @@ export default function SignIn() {
     }
   }, [invitationToken, invitationEmail, router]);
 
-  // Automatic continuation when authentication is ready
-  useEffect(() => {
-    if (!waitingForAuth || !loading || !isAuthenticated) {
-      return;
-    }
-
-    // Use microtask to avoid synchronous setState in effect
-    queueMicrotask(() => {
-      setWaitingForAuth(false);
-      setLoadingMessage(null);
-    });
-
-    const continueSignIn = async () => {
-      try {
-        // If user has organizations, auto-select the first one
-        if (organizations && organizations.length > 0) {
-          const org = organizations[0];
-          localStorage.setItem("selectedOrganization", org.organisation);
-        }
-
-        // Always redirect to manager view (sidebar will show all orgs).
-        // Use window.location.replace instead of router.push so the browser
-        // sends a fresh HTTP request — this ensures the ConvexAuth session
-        // cookie is fully set before the new page reads auth state.
-        window.location.replace("/manager/view");
-      } catch (err) {
-        const message =
-          (err as Error)?.message?.toString().trim() ||
-          "Failed to complete sign-in. Please refresh and try again.";
-        setError(message);
-        setLoading(false);
-      }
-    };
-    continueSignIn();
-  }, [isAuthenticated, waitingForAuth, loading, organizations, router]);
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -336,29 +300,15 @@ export default function SignIn() {
                   return;
                 }
 
-                // Show loading message while waiting for authentication
-                setLoadingMessage("Getting your dashboard ready...");
-
-                // Wait a bit initially for authentication to initialize
-                await new Promise(resolve => setTimeout(resolve, 2000));
-
-                // If not authenticated yet, set flag to wait for it
-                if (!isAuthenticated) {
-                  setWaitingForAuth(true);
-                  return; // useEffect will handle the continuation
-                }
-
-                // If authenticated, proceed immediately
-                setLoadingMessage(null);
-
                 // If user has organizations, auto-select the first one
                 if (organizations && organizations.length > 0) {
                   const org = organizations[0];
                   localStorage.setItem("selectedOrganization", org.organisation);
                 }
 
-                // Use window.location.replace so the browser sends a fresh HTTP
-                // request with the session cookie properly set.
+                // Redirect immediately — signIn() has already stored tokens in
+                // cookies/localStorage. Any delay here risks the current page's
+                // Convex client consuming the refresh token before the new page loads.
                 window.location.replace("/manager/view");
               });
           }}
